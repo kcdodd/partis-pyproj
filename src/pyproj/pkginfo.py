@@ -337,6 +337,11 @@ class PkgInfo:
     -----
     This should be used with extreme caution.
     It performs a very simple extending of information, requirements, and entry_points.
+
+    Todo
+    ----
+    This does not currently handle if an 'extra' from a sub-project is requested
+    by another, incidentally removing the needed dependency.
     """
 
     if not isinstance( pkg_info, PkgInfo ):
