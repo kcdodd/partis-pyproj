@@ -5,11 +5,10 @@ import io
 import warnings
 import stat
 import re
+import pathlib
 from collections.abc import (
   Mapping,
   Sequence )
-
-
 import hashlib
 from base64 import urlsafe_b64encode
 from email.message import Message
@@ -380,10 +379,25 @@ def norm_data( data ):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_path( path ):
 
-  path = str(path).replace( '\\', '/' )
+  path = str(path)
 
-  if path.startswith('/') or ':' in path:
+  if re.search( r'\s+', path ):
+    raise ValueError(f"path segments should not contain whitespace: {path}")
+
+  # NOTE: starting with assuming windows path leads to the same result wether or
+  # not it actually was a windows path, replacing slashes etc as necessary.
+  # This should handle whether a path was passed in already posix like even when
+  # on Windows.
+  wpath = pathlib.PureWindowsPath( path )
+  path = wpath.as_posix()
+  ppath = pathlib.PurePosixPath( path )
+
+  if wpath.is_absolute() or ppath.is_absolute():
     raise ValueError(f"path must be relative to archive root: {path}")
+
+
+  if re.search( r'(\.\.)', path ):
+    raise ValueError(f"path segments should not be relative to parent directories: {path}")
 
   return path
 

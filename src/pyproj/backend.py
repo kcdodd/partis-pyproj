@@ -73,7 +73,7 @@ class BuildBackend:
     config_settings = None):
 
 
-    return list()
+    return [ str(r) for r in self.pyproj.build_requires ]
 
   #-----------------------------------------------------------------------------
   # def prepare_metadata_for_build_wheel(self,

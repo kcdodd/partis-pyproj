@@ -28,13 +28,18 @@ authors = [
 description = "Minimal set of PEP-517 compliant Python project build and distribution utilities"
 
 requires-python = ">= 3.6.2"
-dependencies = []
+dependencies = [
+  "packaging == 21.3",
+  "tomli == 2.0.0" ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # Build and distribution configuration
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 [build-system]
-requires = []
+requires = [
+  "packaging == 21.3",
+  "tomli == 2.0.0" ]
+  
 build-backend = "pyproj.backend"
 backend-path = [ 'src' ]
 

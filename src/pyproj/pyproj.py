@@ -9,7 +9,8 @@ from collections.abc import (
   Mapping,
   Sequence )
 
-from ._vendor import tomli
+import tomli
+from packaging.requirements import Requirement
 
 from . import (
   PkgInfo )
@@ -35,7 +36,7 @@ class PyProjBase:
   --------
   `https://www.python.org/dev/peps/pep-0621/`_
   """
-
+  #-----------------------------------------------------------------------------
   def __init__( self,
     root,
     logger = None ):
@@ -54,10 +55,6 @@ class PyProjBase:
     if 'project' not in self.pptoml:
       raise ValueError(
         f"'project' metadata must be minimally defined: {pptoml_file}")
-
-    self.pkg_info = PkgInfo(
-      project = self.pptoml.get('project'),
-      root = root )
 
     self.tool_partis = mapget( self.pptoml, 'tool.partis', None )
 
@@ -131,6 +128,25 @@ class PyProjBase:
         root = osp.join( root, subdir ),
         logger = self.logger )
       for subdir in mapget( self.pyproj, 'sub_projects', list() ) ]
+
+    self.pkg_info = PkgInfo(
+      project = mapget( self.pptoml, 'project', dict() ),
+      root = root )
+
+    self.build_requires = [
+      Requirement(r)
+      for r in mapget( self.pptoml, 'build-system.requires', list() ) ]
+
+    for sub_proj in self.sub_projects:
+      self.pkg_info.extend( sub_proj.pkg_info )
+      self.build_requires.extend( sub_proj.build_requires )
+
+    # filter out any dependencies listing the one being provided
+    # NOTE: this dose not do any checking of version, up to repo maintainers
+    self.build_requires = [
+      r
+      for r in self.build_requires
+      if r.name not in self.pkg_info._provides_dist ]
 
   #-----------------------------------------------------------------------------
   def dist_source_prep( self ):

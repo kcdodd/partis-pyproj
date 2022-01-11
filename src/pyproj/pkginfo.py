@@ -31,6 +31,10 @@ from .norms import (
 
 import configparser
 
+from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
+from packaging.markers import Marker
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class EntryPointsParser(configparser.ConfigParser):
   """
@@ -73,32 +77,43 @@ class PkgInfoURL:
   def __str__( self ):
     return f'{self.label}, {self.url}'
 
+  #-----------------------------------------------------------------------------
+  def __eq__( self, other ):
+    return str(self) == str(other)
+
+  #-----------------------------------------------------------------------------
+  def __hash__( self ):
+    return hash(str(self))
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PkgInfoReq:
   """Internal container for normalizing "Requires-Dist" header metadata
   """
   #-----------------------------------------------------------------------------
   def __init__( self, req, extra = '' ):
-    self.req, _, self.markers = norm_printable(req).partition(';')
 
-    self.req = self.req.strip()
-    self.markers = self.markers.strip()
-    self.extra = norm_dist_extra(extra)
+    self.req = Requirement( norm_printable(req) )
+
+    marker = str( self.req.marker ) if self.req.marker else ''
+    extra = norm_dist_extra(extra)
+
+    if extra:
+      if marker:
+        self.req.marker = Marker(f'extra == "{extra}" and ( {marker} )')
+      else:
+        self.req.marker = Marker(f'extra == "{extra}"')
 
   #-----------------------------------------------------------------------------
   def __str__( self ):
-    markers = self.markers
+    return str(self.req)
 
-    if self.extra:
-      if markers:
-        markers = f'extra == "{self.extra}" and ( {markers} )'
-      else:
-        markers = f'extra == "{self.extra}"'
+  #-----------------------------------------------------------------------------
+  def __eq__( self, other ):
+    return str(self) == str(other)
 
-    if markers:
-      return f'{self.req} ; {markers}'
-
-    return self.req
+  #-----------------------------------------------------------------------------
+  def __hash__( self ):
+    return hash(str(self))
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PkgInfo:
@@ -155,7 +170,8 @@ class PkgInfo:
     self.license = project.get( 'license', None )
     self.dynamic = project.get( 'dynamic', list() )
 
-    self.requires_python = norm_printable( project.get( 'requires-python', '' ) )
+    self.requires_python = SpecifierSet(
+      norm_printable( project.get( 'requires-python', '' ) ) )
 
     self.dependencies = [ PkgInfoReq( req = d )
       for d in project.get( 'dependencies', list() ) ]
@@ -310,6 +326,56 @@ class PkgInfo:
       self._provides_extra.append( extra )
       self._requires_dist.extend( reqs )
 
+    self._provides_dist = set()
+    self._obsoletes_dist = set()
+
+  #-----------------------------------------------------------------------------
+  def extend( self, pkg_info ):
+    """Used to combine multi-module package meta-data
+
+    Notes
+    -----
+    This should be used with extreme caution.
+    It performs a very simple extending of information, requirements, and entry_points.
+    """
+
+    if not isinstance( pkg_info, PkgInfo ):
+      raise ValueError(f"pkg_info must be instance of PkgInfo: {pkg_info}")
+
+    self.requires_python &= pkg_info.requires_python
+
+    self._requires_dist = list( set(self._requires_dist) | set(pkg_info._requires_dist) )
+    self._provides_extra = list( set(self._provides_extra) | set(pkg_info._provides_extra) )
+
+    self.keywords = list( set(self.keywords) | set(pkg_info.keywords) )
+    self.urls = list( set(self.urls) | set(pkg_info.urls) )
+    self.classifiers = list( set(self.classifiers) | set(pkg_info.classifiers) )
+
+    self._authors = list( set(self._authors) | set(pkg_info._authors) )
+    self._author_emails = list( set(self._author_emails) | set(pkg_info._author_emails) )
+
+    self._maintainers = list( set(self._maintainers) | set(pkg_info._maintainers) )
+    self._maintainer_emails = list( set(self._maintainer_emails) | set(pkg_info._maintainer_emails) )
+
+    keys = list( set(self.entry_points.keys()) | set(pkg_info.entry_points.keys()) )
+    entry_points = { k: dict() for k in keys }
+
+    for k in keys:
+      if k in self.entry_points:
+        entry_points[k].update( self.entry_points[k] )
+
+      if k in pkg_info.entry_points:
+        entry_points[k].update( pkg_info.entry_points[k] )
+
+    self.entry_points = entry_points
+
+    self._provides_dist.add( pkg_info.name_normed )
+    self._obsoletes_dist.add( pkg_info.name_normed )
+
+    # filter out any dependencies listing the one being provided
+    # NOTE: this dose not do any checking of version, up to repo maintainers
+    self._requires_dist = [ d for d in self._requires_dist if d.req.name not in self._provides_dist ]
+
   #-----------------------------------------------------------------------------
   def encode_entry_points( self ):
     """Generate encoded content for .dist_info/entry_points.txt
@@ -345,7 +411,7 @@ class PkgInfo:
       ( 'Version', self.version ) ]
 
     if self.requires_python:
-      headers.append( ( 'Requires-Python', self.requires_python ) )
+      headers.append( ( 'Requires-Python', str(self.requires_python) ) )
 
     #...........................................................................
     for name in self._authors:
@@ -385,6 +451,14 @@ class PkgInfo:
     for e in self._provides_extra:
       headers.append(
         ( 'Provides-Extra', str(e) ) )
+
+    for d in self._provides_dist:
+      headers.append(
+        ( 'Provides-Dist', str(d) ) )
+
+    for d in self._obsoletes_dist:
+      headers.append(
+        ( 'Obsoletes-Dist', str(d) ) )
 
     for d in self._requires_dist:
       headers.append(
