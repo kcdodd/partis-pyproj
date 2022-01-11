@@ -1,0 +1,11 @@
+The tomli parser vendors here has been modified to use relative imports instead
+of absolute imports to allow usage without actually installing as a package.
+The dist-info/WHEEL hashes will not be correct, but included for reference.
+
+For example:
+
+  from ._parser import ...
+
+instead of:
+
+  from tomli._parser import
