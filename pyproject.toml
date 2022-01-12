@@ -23,14 +23,16 @@
 [project]
 name = "partis-pyproj"
 version = "0.0.1"
-authors = [
-  { name = "Nanohmics Inc.", email = "software.support@nanohmics.com" } ]
-description = "Minimal set of PEP-517 compliant Python project build and distribution utilities"
+description = "Minimal set of Python project utilities (PEP-517/621)"
 
 requires-python = ">= 3.6.2"
 dependencies = [
   "packaging == 21.3",
   "tomli == 2.0.0" ]
+
+[[project.authors]]
+name = "Nanohmics Inc."
+email = "software.support@nanohmics.com"
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # Build and distribution configuration
@@ -39,11 +41,11 @@ dependencies = [
 requires = [
   "packaging == 21.3",
   "tomli == 2.0.0" ]
-  
+
 build-backend = "pyproj.backend"
 backend-path = [ 'src' ]
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#-------------------------------------------------------------------------------
 [tool.partis.pyproj.dist.any]
 
 ignore = [
@@ -52,14 +54,14 @@ ignore = [
   '*.so',
   '*.egg-info' ]
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#...............................................................................
 [tool.partis.pyproj.dist.source]
 
 copy = [
   'src',
   'pyproject.toml' ]
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#...............................................................................
 [tool.partis.pyproj.dist.binary]
 
 copy = [
