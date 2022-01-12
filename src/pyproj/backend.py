@@ -23,7 +23,7 @@ class BuildBackendError( Exception ):
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class BuildBackend:
+class PyProjBackendBase:
   """Custom in-tree source build backend hook
 
   https://www.python.org/dev/peps/pep-0517
@@ -72,15 +72,33 @@ class BuildBackend:
   def get_requires_for_build_wheel( self,
     config_settings = None):
 
+    reqs = [ str(r) for r in self.pyproj.build_requires ]
 
-    return [ str(r) for r in self.pyproj.build_requires ]
+    self.logger.info(f'get_requires_for_build_wheel: {reqs}')
+
+    return reqs
 
   #-----------------------------------------------------------------------------
-  # def prepare_metadata_for_build_wheel(self,
-  #   metadata_directory,
-  #   config_settings = None ):
-  #
-  #   pass
+  def prepare_metadata_for_build_wheel(self,
+    metadata_directory,
+    config_settings = None ):
+
+    # TODO: abstract 'wheel metadata' from needing to actually make a dummy wheel file
+    with build_bdist_wheel(
+      pkg_info = self.pyproj.pkg_info,
+      outdir = metadata_directory,
+      top_level = self.pyproj.top_level,
+      logger = self.logger ) as bdist:
+
+      pass
+
+
+    import zipfile
+    with zipfile.ZipFile( bdist.outpath ) as fp:
+      fp.extractall(metadata_directory)
+
+
+    return bdist.dist_info_path
 
   #-----------------------------------------------------------------------------
   def build_wheel(self,
@@ -125,10 +143,10 @@ class BuildBackend:
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-_BACKEND = BuildBackend( )
+_BACKEND = PyProjBackendBase( )
 
 get_requires_for_build_wheel = _BACKEND.get_requires_for_build_wheel
 get_requires_for_build_sdist = _BACKEND.get_requires_for_build_sdist
-# prepare_metadata_for_build_wheel = _BACKEND.prepare_metadata_for_build_wheel
+prepare_metadata_for_build_wheel = _BACKEND.prepare_metadata_for_build_wheel
 build_wheel = _BACKEND.build_wheel
 build_sdist = _BACKEND.build_sdist

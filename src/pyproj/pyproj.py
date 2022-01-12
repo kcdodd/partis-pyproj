@@ -10,9 +10,9 @@ from collections.abc import (
   Sequence )
 
 import tomli
-from packaging.requirements import Requirement
 
-from . import (
+from .pkginfo import (
+  PkgInfoReq,
   PkgInfo )
 
 from .norms import (
@@ -133,20 +133,20 @@ class PyProjBase:
       project = mapget( self.pptoml, 'project', dict() ),
       root = root )
 
-    self.build_requires = [
-      Requirement(r)
-      for r in mapget( self.pptoml, 'build-system.requires', list() ) ]
+    self.build_requires = set([
+      PkgInfoReq(r)
+      for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
 
     for sub_proj in self.sub_projects:
       self.pkg_info.extend( sub_proj.pkg_info )
-      self.build_requires.extend( sub_proj.build_requires )
+      self.build_requires |= sub_proj.build_requires
 
     # filter out any dependencies listing the one being provided
     # NOTE: this dose not do any checking of version, up to repo maintainers
-    self.build_requires = [
+    self.build_requires = set([
       r
       for r in self.build_requires
-      if r.name not in self.pkg_info._provides_dist ]
+      if r.req.name not in self.pkg_info._provides_dist ])
 
   #-----------------------------------------------------------------------------
   def dist_source_prep( self ):
