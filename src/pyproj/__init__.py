@@ -16,6 +16,3 @@ from .build_bdist import build_bdist_wheel
 
 from .pyproj import (
   PyProjBase )
-
-from .backend import (
-  PyProjBackendBase )

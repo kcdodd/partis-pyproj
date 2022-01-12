@@ -276,7 +276,7 @@ def norm_dist_compat( py_tag, abi_tag, plat_tag ):
   """
   See Also
   --------
-  `https://www.python.org/dev/peps/pep-0425/#details`_
+  https://www.python.org/dev/peps/pep-0425/#details
   """
 
   py_tag = norm_printable( py_tag ).lower()
@@ -326,7 +326,7 @@ def join_tags( tags ):
   """
   See Also
   --------
-  `https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets`_
+  https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets
   """
   return '.'.join( sorted(list(set(tags))) )
 
@@ -335,7 +335,7 @@ def compress_dist_compat( compat ):
   """
   See Also
   --------
-  `https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets`_
+  https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets
   """
 
   py_tags, abi_tags, plat_tags = zip( *compat )
@@ -352,7 +352,7 @@ def norm_wheel_name( name ):
   """
   See Also
   --------
-  `https://www.python.org/dev/peps/pep-0427/#file-name-convention`_
+  https://www.python.org/dev/peps/pep-0427/#file-name-convention
   """
 
   # > Each component of the filename is escaped by replacing runs of

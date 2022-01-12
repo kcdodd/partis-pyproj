@@ -18,14 +18,7 @@ from .norms import (
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_zip( build_base ):
-  """
-  Parameters
-  ----------
 
-  See Also
-  --------
-
-  """
   #-----------------------------------------------------------------------------
   def __init__( self,
     outname,
@@ -43,7 +36,7 @@ class build_zip( build_base ):
     self._fp = None
     self._tmp_path = None
     self._zipfile = None
-    
+
   #-----------------------------------------------------------------------------
   def make_buildfile( self ):
 

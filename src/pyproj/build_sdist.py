@@ -17,10 +17,11 @@ from .build_targz import build_targz
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_sdist_targz( build_targz ):
-  """
+  """Build a source distribution ``*.tar.gz`` file
+
   Parameters
   ----------
-  pkg_info : PkgInfo
+  pkg_info : :class:`PkgInfo <partis.pyproj.pkginfo.PkgInfo>`
   outdir : str
     Path to directory where the wheel file should be copied after completing build.
   tmpdir : None | str
@@ -28,8 +29,27 @@ class build_sdist_targz( build_targz ):
     copying to final location.
     My be the same as outdir.
 
-  See Also
+  Examples
   --------
+
+  .. code:: python
+
+    import os
+    from partis.pyproj import (
+      PkgInfo,
+      build_sdist_targz )
+
+    pkg_info = PkgInfo(
+      project = dict(
+        name = 'my-package',
+        version = '1.0' ) )
+
+    with build_sdist_targz(
+      pkg_info = pkg_info ) as sdist:
+
+      sdist.copytree(
+        src = './src',
+        dst = os.path.join( sdist.base_path, 'src' ) )
 
   """
   #-----------------------------------------------------------------------------
@@ -61,9 +81,6 @@ class build_sdist_targz( build_targz ):
 
   #-----------------------------------------------------------------------------
   def finalize( self ):
-    """Commit and write the metadata to the sdist
-
-    """
 
     self.write(
       dst = self.metadata_path,

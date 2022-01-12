@@ -3,13 +3,17 @@ import os.path as osp
 import io
 import stat
 import logging
+from abc import(
+  ABC,
+  abstractmethod )
 
 from .norms import (
   hash_sha256 )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class build_base:
-  """
+class build_base( ABC ):
+  """Builder for file distribution
+
   Parameters
   ----------
   outname : str
@@ -21,22 +25,22 @@ class build_base:
     copying to final location.
     May be the same as outdir.
   logger : None | logging.Logger
+    Logger to which any status information is to be logged.
 
   Attributes
   ----------
   outpath : str
-    Path to output file
+    Path to final output file location
   opened : bool
-    Build temp file has been opened for writing
+    Build temporary file has been opened for writing
   finalized : bool
-    Output file has been finalized.
+    Build temporary file has been finalized.
   closed : bool
-    Build temp file has been closed
+    Build temporary file has been closed
   copied : bool
-    Output file has been copied to 'outpath' location
-
-  See Also
-  --------
+    Build temporary has been copied to ``outpath`` location
+  record_hash : None | str
+    Final hash value of the record after being finalized
 
   """
   #-----------------------------------------------------------------------------
@@ -68,113 +72,6 @@ class build_base:
     self.copied = False
 
   #-----------------------------------------------------------------------------
-  def make_buildfile( self ):
-    """Must be implemented
-    """
-    raise NotImplementedError('')
-
-  #-----------------------------------------------------------------------------
-  def close_buildfile( self ):
-    """Must be implemented
-    """
-    raise NotImplementedError('')
-
-  #-----------------------------------------------------------------------------
-  def finalize( self ):
-    """Must be implemented
-    """
-    raise NotImplementedError('')
-
-  #-----------------------------------------------------------------------------
-  def copy_buildfile( self ):
-    """Must be implemented
-    """
-    raise NotImplementedError('')
-
-  #-----------------------------------------------------------------------------
-  def remove_buildfile( self ):
-    """Must be implemented
-    """
-    raise NotImplementedError('')
-
-  #-----------------------------------------------------------------------------
-  def assert_open( self ):
-    if self.opened and not self.closed:
-      return
-
-    raise ValueError("build file is not open")
-
-  #-----------------------------------------------------------------------------
-  def assert_recordable( self ):
-    self.assert_open()
-
-    if not self.finalized:
-      return
-
-    raise ValueError("build record has already been finalized.")
-
-
-  #-----------------------------------------------------------------------------
-  def open( self ):
-    if self.opened:
-      raise ValueError("build file has already been opened")
-
-    self.logger.info( f'building {self.outname}' )
-
-    try:
-
-      self.make_buildfile()
-
-      self.opened = True
-
-      return self
-
-    except:
-      self.close(
-        finalize = False,
-        copy = False )
-
-      raise
-
-  #-----------------------------------------------------------------------------
-  def record( self,
-    dst,
-    data ):
-    """
-    """
-
-    self.assert_recordable()
-
-    hash, size = hash_sha256( data )
-
-    record = ( dst, hash, size )
-
-    self.logger.debug( 'record ' + str(record) )
-
-    self.records.append( record )
-
-  #-----------------------------------------------------------------------------
-  def close( self,
-    finalize = True,
-    copy = True ):
-
-    if self.closed:
-      return
-
-    if finalize and not self.finalized:
-      self.logger.info( f'finalizing {self.outname}' )
-      self.finalize()
-      self.finalized = True
-
-    self.close_buildfile()
-    self.closed = True
-
-    if copy and not self.copied:
-      self.logger.info( f'copying {self.outname}' )
-      self.copy_buildfile()
-      self.copied = True
-
-  #-----------------------------------------------------------------------------
   def exists( self,
     dst ):
     """Behaviour similar to os.path.exists for entries in the build file
@@ -202,9 +99,8 @@ class build_base:
     dst : str | path
     data : bytes
     mode : int
-    exist_ok : bool
     record : bool
-      Add all file to the record
+      Add file to the record
 
     """
 
@@ -227,7 +123,7 @@ class build_base:
     mode : int
     exist_ok : bool
     record : bool
-      Add all files to the record
+      Add file to the record
 
     NOTES
     -----
@@ -252,8 +148,9 @@ class build_base:
     ----------
     src : str | path
     dst : str | path
+    mode : int
     record : bool
-      Add all files to the RECORD
+      Add file to the RECORD
     """
 
     if self.exists( dst ):
@@ -286,6 +183,7 @@ class build_base:
     src : str | path
     dst : str | path
     ignore : None | callable
+
       If not None, ``callable(src, names) -> ignored_names``
 
       See :func:`shutil.copytree`
@@ -338,13 +236,122 @@ class build_base:
 
     return dst
 
+
+
+  #-----------------------------------------------------------------------------
+  def open( self ):
+    """Opens the temporary build file
+
+    Returns
+    -------
+    self : :class:`build_base <partis.pyproj.build_base.build_base>`
+    """
+
+    if self.opened:
+      raise ValueError("build file has already been opened")
+
+    self.logger.info( f'building {self.outname}' )
+
+    try:
+
+      self.make_buildfile()
+
+      self.opened = True
+
+      return self
+
+    except:
+      self.close(
+        finalize = False,
+        copy = False )
+
+      raise
+
+  #-----------------------------------------------------------------------------
+  def record( self,
+    dst,
+    data ):
+    """Creates a record for an added file
+
+    This produces an sha256 hash of the data and associates a record with the item
+
+    Parameters
+    ----------
+    dst : str
+      Path of item within the build
+    data : bytes
+      Binary data that was added
+
+    Returns
+    -------
+    None
+    """
+
+    self.assert_recordable()
+
+    hash, size = hash_sha256( data )
+
+    record = ( dst, hash, size )
+
+    self.logger.debug( 'record ' + str(record) )
+
+    self.records.append( record )
+
+  #-----------------------------------------------------------------------------
+  def close( self,
+    finalize = True,
+    copy = True ):
+    """Closes the temporary build file
+
+    Parameters
+    ----------
+    finalize : bool
+      If true, finalizes the temporary build file before closing
+    copy : bool
+      If true, copies the temporary file to final location after closing
+
+    Returns
+    -------
+    None
+    """
+
+    if self.closed:
+      return
+
+    if finalize and not self.finalized:
+      self.logger.info( f'finalizing {self.outname}' )
+      self.finalize()
+      self.finalized = True
+
+    self.close_buildfile()
+    self.closed = True
+
+    if copy and not self.copied:
+      self.logger.info( f'copying {self.outname} -> {self.outdir}' )
+      self.copy_buildfile()
+      self.copied = True
+
+
   #-----------------------------------------------------------------------------
   def __enter__(self):
+    """Opens the temporary build file upon entering the context
+
+    Returns
+    -------
+    self : :class:`build_base <partis.pyproj.build_base.build_base>`
+    """
+    if self.opened:
+      return self
 
     return self.open()
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback ):
+    """Closes the temporary build file upon exiting the context
+
+    If no exception occured in the context, then the temporary build is finalized
+    and copied to it's final locations
+    """
 
     # only finalize if there was not an error
     no_error = ( type is None )
@@ -355,3 +362,67 @@ class build_base:
 
     # don't handle any errors here
     return None
+
+  #-----------------------------------------------------------------------------
+  def assert_open( self ):
+    """Raises exception if temporary file is not open
+    """
+    if self.opened and not self.closed:
+      return
+
+    raise ValueError("build file is not open")
+
+  #-----------------------------------------------------------------------------
+  def assert_recordable( self ):
+    """Raises exception if temporary file has already been finalized
+    """
+    self.assert_open()
+
+    if not self.finalized:
+      return
+
+    raise ValueError("build record has already been finalized.")
+
+  #-----------------------------------------------------------------------------
+  @abstractmethod
+  def make_buildfile( self ):
+    """Creates and opens a temporary build file into which files are copied
+    """
+    raise NotImplementedError('')
+
+  #-----------------------------------------------------------------------------
+  @abstractmethod
+  def finalize( self ):
+    """Finalizes the build file before being closed
+
+    Returns
+    -------
+    record_hash : None | str
+      sha256 hash of the record
+
+    Notes
+    -----
+    Not all build implementations will create/return a hash of the record
+    """
+    raise NotImplementedError('')
+
+  #-----------------------------------------------------------------------------
+  @abstractmethod
+  def close_buildfile( self ):
+    """Closes the temporary build file
+    """
+    raise NotImplementedError('')
+
+  #-----------------------------------------------------------------------------
+  @abstractmethod
+  def copy_buildfile( self ):
+    """Copies the temporary build file to it's final location
+    """
+    raise NotImplementedError('')
+
+  #-----------------------------------------------------------------------------
+  @abstractmethod
+  def remove_buildfile( self ):
+    """Deletes the temporary build file
+    """
+    raise NotImplementedError('')

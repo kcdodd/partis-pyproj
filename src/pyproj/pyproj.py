@@ -24,17 +24,18 @@ from .load_module import (
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PyProjBase:
-  """A minimal interface for a Python project extending beyond PEP 517 and 621
+  """Minimal build system for a Python project
+
+  Extends beyond PEP 517 :cite:`pep0517` and 621 :cite:`pep0621`.
 
 
   Parameters
   ----------
   root : str
     Path to the root project directory containing 'pyproject.toml'.
+  logger : logging.Logger
+    Parent logger to use when processing project.
 
-  See Also
-  --------
-  `https://www.python.org/dev/peps/pep-0621/`_
   """
   #-----------------------------------------------------------------------------
   def __init__( self,
@@ -42,10 +43,9 @@ class PyProjBase:
     logger = None ):
 
     if logger is None:
-      logger = logging.getLogger( type(self).__name__ )
+      logger = logging.getLogger( __name__ )
 
     self.root = str(root)
-    self.logger = logger
 
     self.pptoml_file = osp.join( self.root, 'pyproject.toml' )
 
@@ -55,6 +55,13 @@ class PyProjBase:
     if 'project' not in self.pptoml:
       raise ValueError(
         f"'project' metadata must be minimally defined: {pptoml_file}")
+
+    self.pkg_info = PkgInfo(
+      project = self.pptoml.get( 'project' ),
+      root = root )
+
+    # Update logger once package info is created
+    self.logger = logger.getChild( self.pkg_info.name_normed )
 
     self.tool_partis = mapget( self.pptoml, 'tool.partis', None )
 
@@ -129,9 +136,7 @@ class PyProjBase:
         logger = self.logger )
       for subdir in mapget( self.pyproj, 'sub_projects', list() ) ]
 
-    self.pkg_info = PkgInfo(
-      project = mapget( self.pptoml, 'project', dict() ),
-      root = root )
+
 
     self.build_requires = set([
       PkgInfoReq(r)
@@ -150,6 +155,9 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   def dist_source_prep( self ):
+    """Prepares project files for a source distribution
+    """
+
     _cwd = os.getcwd()
 
     for sub_proj in self.sub_projects:
@@ -192,6 +200,13 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   def dist_source_copy( self, sdist ):
+    """Copies prepared files into a source distribution
+
+    Parameters
+    ---------
+    sdist : :class:`build_base <partis.pyproj.build_base.build_base>`
+      Builder used to write out source distribution files
+    """
 
     _cwd = os.getcwd()
 
@@ -252,6 +267,9 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   def dist_binary_prep( self ):
+    """Prepares project files for a binary distribution
+    """
+
     _cwd = os.getcwd()
 
     for sub_proj in self.sub_projects:
@@ -294,6 +312,13 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   def dist_binary_copy( self, bdist ):
+    """Copies prepared files into a binary distribution
+
+    Parameters
+    ---------
+    bdist : :class:`build_base <partis.pyproj.build_base.build_base>`
+      Builder used to write out binary distribution files
+    """
 
     _cwd = os.getcwd()
 

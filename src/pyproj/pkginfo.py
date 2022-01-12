@@ -41,7 +41,7 @@ class EntryPointsParser(configparser.ConfigParser):
 
   See Also
   --------
-  `https://packaging.python.org/en/latest/specifications/entry-points/`_
+  https://packaging.python.org/en/latest/specifications/entry-points/
   """
   optionxform = staticmethod(str)
 
@@ -119,7 +119,7 @@ class PkgInfoReq:
 class PkgInfo:
   def __init__( self,
     project,
-    root ):
+    root = None ):
     """Internal container for normalizing metadata as defined in PEP 621 and
 
 
@@ -129,15 +129,16 @@ class PkgInfo:
       The project meta-data as defined in 'pyproject.toml'.
       May be the parsed [project] table from a 'pyproject.toml' file located
       in the 'root' directory.
-    root : str
+    root : None | str
       Path to the root project directory that would contain 'pyproject.toml'.
       This is used to resolve file paths defined in the project metatada.
       If there are no files referenced, then this value has no effect.
 
     See Also
     --------
-    `https://www.python.org/dev/peps/pep-0621/`_
-    `https://packaging.python.org/en/latest/specifications/core-metadata/`_
+    https://www.python.org/dev/peps/pep-0621/
+
+    https://packaging.python.org/en/latest/specifications/core-metadata/
     """
 
     allowed_keys(

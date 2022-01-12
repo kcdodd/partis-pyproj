@@ -24,17 +24,16 @@ from .build_zip import build_zip
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_bdist_wheel( build_zip ):
-  """
+  """Build a binary distribution ``*.whl`` wheel file
+
   Parameters
   ----------
-  pkg_info : PkgInfo
+  pkg_info : :class:`PkgInfo <partis.pyproj.pkginfo.PkgInfo>`
   build : str
     Build tag. Must start with a digit, or be an empty string.
   compat : List[ Tuple[str,str,str] ]
     List of build compatability tuples of the form ( py_tag, abi_tag, plat_tag ).
     e.g. ( 'py3', 'abi3', 'linux_x86_64' )
-  editable : bool
-    If True, the wheel will be generated to be compatable with editable installation.
   purelib : bool
   outdir : str
     Path to directory where the wheel file should be copied after completing build.
@@ -45,10 +44,35 @@ class build_bdist_wheel( build_zip ):
   gen_name : str
     Name to use as the Generator of the wheel file
 
+  Examples
+  --------
+
+  .. code:: python
+
+    import os
+    from partis.pyproj import (
+      PkgInfo,
+      build_bdist_wheel )
+
+    pkg_info = PkgInfo(
+      project = dict(
+        name = 'my-package',
+        version = '1.0' ) )
+
+    with build_bdist_wheel(
+      pkg_info = pkg_info,
+      top_level = [ 'my_package' ] ) as bdist:
+
+      bdist.copytree(
+        src = './src/my_package',
+        dst = 'my_package' )
+
   See Also
   --------
-  `https://www.python.org/dev/peps/pep-0427`_
-  `https://www.python.org/dev/peps/pep-0660`_
+  https://www.python.org/dev/peps/pep-0427
+
+  https://www.python.org/dev/peps/pep-0660
+
   """
   #-----------------------------------------------------------------------------
   def __init__( self,
@@ -114,13 +138,6 @@ class build_bdist_wheel( build_zip ):
 
   #-----------------------------------------------------------------------------
   def finalize( self ):
-    """Commit and write the record and other metadata to the wheel
-
-    Returns
-    -------
-    record_hash : str
-      sha256 hash of the written record file
-    """
 
     if self.record_hash:
       return self.record_hash
@@ -183,6 +200,7 @@ class build_bdist_wheel( build_zip ):
     -------
     content : bytes
     hash : str
+      sha256 hash of the record file data
     """
 
     record = io.StringIO()
