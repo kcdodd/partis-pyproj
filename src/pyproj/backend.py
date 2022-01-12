@@ -4,6 +4,7 @@ import sys
 import shutil
 import logging
 import tempfile
+import re
 
 from collections.abc import (
   Mapping,
