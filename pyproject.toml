@@ -46,7 +46,7 @@ build-backend = "pyproj.backend"
 backend-path = [ 'src' ]
 
 #-------------------------------------------------------------------------------
-[tool.partis.pyproj.dist.any]
+[tool.pyproj.dist.any]
 
 ignore = [
   '__pycache__',
@@ -55,14 +55,14 @@ ignore = [
   '*.egg-info' ]
 
 #...............................................................................
-[tool.partis.pyproj.dist.source]
+[tool.pyproj.dist.source]
 
 copy = [
   'src',
   'pyproject.toml' ]
 
 #...............................................................................
-[tool.partis.pyproj.dist.binary]
+[tool.pyproj.dist.binary]
 
 copy = [
   { src = 'src/pyproj', dst = 'partis/pyproj' } ]

@@ -6,6 +6,7 @@ import warnings
 import stat
 import re
 import pathlib
+import inspect
 from collections.abc import (
   Mapping,
   Sequence )
@@ -21,14 +22,41 @@ from urllib.parse import urlparse
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class ValidationError( Exception ):
+  """General validation error
+
+  Parameters
+  ----------
+  msg : str
+    Error message
+  val : object
+    Value that was being validated
+  """
   def __init__( self, *, msg, val ):
+
+    msg = inspect.cleandoc( msg )
+
     super().__init__( f'{msg}: {val}' )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PEPValidationError( ValidationError ):
+  """Error from value incompatible with a Python Enhancement Proposal (PEP)
+
+  Parameters
+  ----------
+  pep : int
+    The referenced PEP number
+  msg : str
+    Error message
+  val : object
+    Value that was being validated
+  """
+
   def __init__( self, *, pep, msg, val ):
+
+    msg = inspect.cleandoc( msg )
+
     super().__init__(
-      msg = f'(PEP {pep}) {msg}',
+      msg = f'{msg} (PEP {pep})',
       val = val )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -44,7 +44,7 @@ Use with 'pyproject.toml' files
   # direct the installer to the PEP-517 backend
   build-backend = "partis.pyproj.backend"
 
-  [tool.partis.pyproj.dist.any]
+  [tool.pyproj.dist.any]
   # define glob patterns of files to ignore for any type of distribution
   ignore = [
     '__pycache__',
@@ -52,13 +52,13 @@ Use with 'pyproject.toml' files
     '*.so',
     '*.egg-info' ]
 
-  [tool.partis.pyproj.dist.source]
+  [tool.pyproj.dist.source]
   # define what files/directories should be copied into a source distribution
   copy = [
     'src',
     'pyproject.toml' ]
 
-  [tool.partis.pyproj.dist.binary]
+  [tool.pyproj.dist.binary]
   # define what files/directories should be copied into a binary distribution
   # the 'dst' will correspond to the location of the file in 'site-packages'
   copy = [
@@ -92,11 +92,11 @@ Keyword arguments may also be defined and will be passed to the function.
 
 .. code:: py
 
-  [tool.partis.pyproj.dist.binary.prep]
+  [tool.pyproj.dist.binary.prep]
   # hook defined in a python module
   entry = "a_custom_prep_module:a_prep_function"
 
-  [tool.partis.pyproj.dist.binary.prep.kwargs]
+  [tool.pyproj.dist.binary.prep.kwargs]
   # define keyword argument values to be passed to the pre-processing hook
   a_custom_argument = 'some value'
 

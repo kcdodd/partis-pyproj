@@ -63,26 +63,19 @@ class PyProjBase:
     # Update logger once package info is created
     self.logger = logger.getChild( self.pkg_info.name_normed )
 
-    self.tool_partis = mapget( self.pptoml, 'tool.partis', None )
-
-    if not self.tool_partis:
-      raise ValueError(
-        f"'tool.partis' must be minimally defined for this backend: {pptoml_file}")
-
-    allowed_keys(
-      name = 'tool.partis',
-      obj = self.tool_partis,
-      keys = [
-        'pyproj' ] )
-
-    self.pyproj = mapget( self.tool_partis, 'pyproj', None )
+    self.pyproj = mapget( self.pptoml, 'tool.pyproj', None )
 
     if not self.pyproj:
       raise ValueError(
-        f"'tool.partis.pyproj' must be minimally defined for this backend: {pptoml_file}")
+        f"[tool.pyproj] must be minimally defined for this backend: {pptoml_file}")
+
+
+    if not self.pyproj:
+      raise ValueError(
+        f"'tool.pyproj' must be minimally defined for this backend: {pptoml_file}")
 
     allowed_keys(
-      name = 'tool.partis.pyproj',
+      name = 'tool.pyproj',
       obj = self.pyproj,
       keys = [
         'dist',
@@ -94,7 +87,7 @@ class PyProjBase:
     self.dist = mapget( self.pyproj, 'dist', dict() )
 
     allowed_keys(
-      name = 'tool.partis.pyproj.dist',
+      name = 'tool.pyproj.dist',
       obj = self.dist,
       keys = [
         'any',
@@ -106,13 +99,13 @@ class PyProjBase:
     self.dist_binary = mapget( self.dist, 'binary', dict() )
 
     allowed_keys(
-      name = 'tool.partis.pyproj.dist.any',
+      name = 'tool.pyproj.dist.any',
       obj = self.dist_any,
       keys = [
         'ignore' ] )
 
     allowed_keys(
-      name = 'tool.partis.pyproj.dist.source',
+      name = 'tool.pyproj.dist.source',
       obj = self.dist_source,
       keys = [
         'prep',
@@ -120,7 +113,7 @@ class PyProjBase:
         'copy' ] )
 
     allowed_keys(
-      name = 'tool.partis.pyproj.dist.binary',
+      name = 'tool.pyproj.dist.binary',
       obj = self.dist_binary,
       keys = [
         'prep',
@@ -169,7 +162,7 @@ class PyProjBase:
         os.chdir(_cwd)
 
     prep = mapget( self.dist_source, 'prep', dict() )
-    prep_name = f"tool.partis.pyproj.dist.source.prep"
+    prep_name = f"tool.pyproj.dist.source.prep"
 
     allowed_keys(
       name = prep_name,
@@ -228,7 +221,7 @@ class PyProjBase:
     includes = list( mapget( self.dist_source, 'copy', list() ) )
 
     for i, incl in enumerate(includes):
-      incl_name = f'tool.partis.pyproj.dist.source.copy[{i}]'
+      incl_name = f'tool.pyproj.dist.source.copy[{i}]'
 
       if isinstance( incl, str ):
         includes[i] = ( incl, incl )
@@ -281,7 +274,7 @@ class PyProjBase:
         os.chdir(_cwd)
 
     prep = mapget( self.dist_binary, 'prep', dict() )
-    prep_name = f"tool.partis.pyproj.dist.binary.prep"
+    prep_name = f"tool.pyproj.dist.binary.prep"
 
     allowed_keys(
       name = prep_name,
@@ -340,7 +333,7 @@ class PyProjBase:
     includes = list( mapget( self.dist_binary, 'copy', list() ) )
 
     for i, incl in enumerate(includes):
-      incl_name = f'tool.partis.pyproj.dist.binary.copy[{i}]'
+      incl_name = f'tool.pyproj.dist.binary.copy[{i}]'
 
       if isinstance( incl, str ):
         includes[i] = ( incl, incl )
