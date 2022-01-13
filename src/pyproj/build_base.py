@@ -39,6 +39,7 @@ class build_base( ABC ):
     Build temporary file has been closed
   copied : bool
     Build temporary has been copied to ``outpath`` location
+  records : List[ Tuple[ str, str, int ] ]
   record_hash : None | str
     Final hash value of the record after being finalized
 

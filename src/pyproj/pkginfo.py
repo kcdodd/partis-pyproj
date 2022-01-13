@@ -3,6 +3,7 @@ import os.path as osp
 import io
 import warnings
 import stat
+from copy import copy
 
 import tempfile
 import shutil
@@ -62,6 +63,18 @@ class PkgInfoAuthor:
     self.name, self.email = norm_dist_author(
       name = str(name),
       email = str(email) )
+
+  #-----------------------------------------------------------------------------
+  def __str__( self ):
+    return self.name + self.email
+
+  #-----------------------------------------------------------------------------
+  def __eq__( self, other ):
+    return str(self) == str(other)
+
+  #-----------------------------------------------------------------------------
+  def __hash__( self ):
+    return hash(str(self))
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PkgInfoURL:
@@ -174,34 +187,35 @@ class PkgInfo:
     self.requires_python = SpecifierSet(
       norm_printable( project.get( 'requires-python', '' ) ) )
 
-    self.dependencies = [ PkgInfoReq( req = d )
-      for d in project.get( 'dependencies', list() ) ]
+    self.dependencies = set([ PkgInfoReq( req = d )
+      for d in project.get( 'dependencies', list() ) ])
 
     self.optional_dependencies = {
-      norm_dist_extra(extra) : [
+      norm_dist_extra(extra) : set([
         PkgInfoReq( req = d, extra = extra )
-        for d in deps ]
+        for d in deps ])
       for extra, deps in project.get( 'optional-dependencies', dict() ).items() }
 
-    self.keywords = [
+    self.keywords = set([
       norm_dist_keyword(k)
-      for k in project.get( 'keywords', list() ) ]
+      for k in project.get( 'keywords', list() ) ])
 
-    self.classifiers = [ norm_dist_classifier(c)
-      for c in project.get( 'classifiers', list() ) ]
+    self.classifiers = set([ norm_dist_classifier(c)
+      for c in project.get( 'classifiers', list() ) ])
 
-    self.urls = [
+    self.urls = set([
       PkgInfoURL( label = k, url = v )
-      for k,v in project.get( 'urls', dict() ).items() ]
+      for k,v in project.get( 'urls', dict() ).items() ])
 
-    self.authors = [ PkgInfoAuthor(**kw)
-      for kw in project.get( 'authors', list() ) ]
+    self.authors = set([ PkgInfoAuthor(**kw)
+      for kw in project.get( 'authors', list() ) ])
 
-    self.maintainers = [ PkgInfoAuthor(**kw)
-      for kw in project.get( 'maintainers', list() ) ]
+    self.maintainers = set([ PkgInfoAuthor(**kw)
+      for kw in project.get( 'maintainers', list() ) ])
 
     self.entry_points = dict()
 
+    # TODO: validate/normalize entrypoints
     if 'scripts' in project:
       self.entry_points['console_scripts'] = project.get('scripts')
 
@@ -225,13 +239,7 @@ class PkgInfo:
 
         self.entry_points[k] = v
 
-    #...........................................................................
-    # filter non-empty normalized author fields
-    self._authors = [ a.name for a in self.authors if a.name ]
-    self._author_emails = [ a.email for a in self.authors if a.email ]
 
-    self._maintainers = [ a.name for a in self.maintainers if a.name ]
-    self._maintainer_emails = [ a.email for a in self.maintainers if a.email ]
 
     #...........................................................................
     # > PEP 621
@@ -253,12 +261,18 @@ class PkgInfo:
 
       if isinstance( self.readme, dict ):
         if 'file' in self.readme:
+          if not root:
+            raise ValueError(f"'root' must be given to resolve a 'readme.file' path")
+
           readme_file = os.path.join( root, self.readme['file'] )
 
         elif 'text' in self.readme:
           self._desc = norm_printable( self.readme['text'] )
 
       elif self.readme and isinstance( self.readme, str ):
+        if not root:
+          raise ValueError(f"'root' must be given to resolve 'readme' file path")
+
         readme_file = os.path.join( root, self.readme )
 
       if readme_file:
@@ -296,6 +310,9 @@ class PkgInfo:
         # > so a tool MUST raise an error if the metadata specifies both keys.
 
         if 'file' in self.license:
+          if not root:
+            raise ValueError(f"'root' must be given to resolve 'license.file' path")
+
           # if 'text' in self.license:
           #   raise ValueError(f"'license' cannot have both 'text' and 'file': {self.license}")
 
@@ -318,21 +335,24 @@ class PkgInfo:
       else:
         raise ValueError(f"'license' must be a mapping with either 'text' or 'file': {self.license}")
 
-    #...........................................................................
-    self._requires_dist = list(self.dependencies)
-    self._provides_extra = list()
 
-    for extra, reqs in self.optional_dependencies.items():
-
-      self._provides_extra.append( extra )
-      self._requires_dist.extend( reqs )
-
+    # this is only used when 'prividing' another package in the same distro
     self._provides_dist = set()
     self._obsoletes_dist = set()
 
   #-----------------------------------------------------------------------------
-  def extend( self, pkg_info ):
+  def provides( self, other ):
     """Used to combine multi-module package meta-data
+
+    Parameters
+    ----------
+    other : PkgInfo
+      Package info to include as 'provided'
+
+    Returns
+    -------
+    pkg_info : PkgInfo
+      Resulting package info
 
     Notes
     -----
@@ -345,42 +365,90 @@ class PkgInfo:
     by another, incidentally removing the needed dependency.
     """
 
-    if not isinstance( pkg_info, PkgInfo ):
-      raise ValueError(f"pkg_info must be instance of PkgInfo: {pkg_info}")
+    if not isinstance( other, PkgInfo ):
+      raise ValueError(f"other must be instance of PkgInfo: {other}")
 
-    self.requires_python &= pkg_info.requires_python
 
-    self._requires_dist = list( set(self._requires_dist) | set(pkg_info._requires_dist) )
-    self._provides_extra = list( set(self._provides_extra) | set(pkg_info._provides_extra) )
+    provider = copy(self)
 
-    self.keywords = list( set(self.keywords) | set(pkg_info.keywords) )
-    self.urls = list( set(self.urls) | set(pkg_info.urls) )
-    self.classifiers = list( set(self.classifiers) | set(pkg_info.classifiers) )
+    # NOTE: requires_python is a specifier set, so '&' results in 'require both'
+    provider.requires_python &= other.requires_python
 
-    self._authors = list( set(self._authors) | set(pkg_info._authors) )
-    self._author_emails = list( set(self._author_emails) | set(pkg_info._author_emails) )
+    # NOTE: '|' for sets of requirements results in 'require all'
+    provider.dependencies |= other.dependencies
 
-    self._maintainers = list( set(self._maintainers) | set(pkg_info._maintainers) )
-    self._maintainer_emails = list( set(self._maintainer_emails) | set(pkg_info._maintainer_emails) )
+    for extra, reqs in other.optional_dependencies.items():
+      if extra in provider.optional_dependencies:
+        provider.optional_dependencies[extra] |= reqs
+      else:
+        provider.optional_dependencies[extra] = copy(reqs)
 
-    keys = list( set(self.entry_points.keys()) | set(pkg_info.entry_points.keys()) )
-    entry_points = { k: dict() for k in keys }
+    provider.keywords |= other.keywords
+    provider.urls |= other.urls
+    provider.classifiers |= other.classifiers
 
-    for k in keys:
-      if k in self.entry_points:
-        entry_points[k].update( self.entry_points[k] )
+    provider.authors |= other.authors
+    provider.maintainers |= other.maintainers
 
-      if k in pkg_info.entry_points:
-        entry_points[k].update( pkg_info.entry_points[k] )
 
-    self.entry_points = entry_points
+    for k, v in other.entry_points.items():
+      if k in provider.entry_points:
+        provider.entry_points[k].update(v)
 
-    self._provides_dist.add( pkg_info.name_normed )
-    self._obsoletes_dist.add( pkg_info.name_normed )
+      else:
+        provider.entry_points[k] = copy(v)
+
+    provider._provides_dist.add( other.name_normed )
+    provider._obsoletes_dist.add( other.name_normed )
+
+    return provider
+
+  #-----------------------------------------------------------------------------
+  def add_dependencies( self, deps ):
+    """Used to add dependencies
+
+    Parameters
+    ----------
+    deps : List[ str ]
+      dependencies to add
+
+    Returns
+    -------
+    pkg_info :
+      Resulting package info
+
+    """
+
+    new_info = copy(self)
+
+    # NOTE: '|' for sets of requirements results in 'require all'
+    new_info.dependencies |= set([ PkgInfoReq( req = d )
+      for d in deps ])
+
+    return new_info
+
+  #-----------------------------------------------------------------------------
+  @property
+  def requires_dist( self ):
+    """Computes total list of install requirements
+    """
+    requires_dist = list(self.dependencies)
+
+    for extra, reqs in self.optional_dependencies.items():
+      requires_dist.extend( list(reqs) )
 
     # filter out any dependencies listing the one being provided
     # NOTE: this dose not do any checking of version, up to repo maintainers
-    self._requires_dist = [ d for d in self._requires_dist if d.req.name not in self._provides_dist ]
+    requires_dist = [ d for d in requires_dist if d.req.name not in self._provides_dist ]
+
+    return requires_dist
+
+  #-----------------------------------------------------------------------------
+  @property
+  def provides_extra( self ):
+    """Provided extras
+    """
+    return list( self.optional_dependencies.keys() )
 
   #-----------------------------------------------------------------------------
   def encode_entry_points( self ):
@@ -411,6 +479,17 @@ class PkgInfo:
     content : bytes
     """
 
+    #...........................................................................
+    # filter non-empty normalized author fields
+    _authors = [ a.name for a in self.authors if a.name ]
+    _author_emails = [ a.email for a in self.authors if a.email ]
+
+    _maintainers = [ a.name for a in self.maintainers if a.name ]
+    _maintainer_emails = [ a.email for a in self.maintainers if a.email ]
+
+
+    #...........................................................................
+    # construct metadata header values
     headers = [
       ( 'Metadata-Version', '2.1' ),
       ( 'Name', self.name ),
@@ -420,16 +499,16 @@ class PkgInfo:
       headers.append( ( 'Requires-Python', str(self.requires_python) ) )
 
     #...........................................................................
-    for name in self._authors:
+    for name in _authors:
       headers.append( ( 'Author', name ) )
 
-    for name in self._maintainers:
+    for name in _maintainers:
       headers.append( ( 'Maintainer', name ) )
 
-    for email in self._author_emails:
+    for email in _author_emails:
       headers.append( ( 'Author-email', email ) )
 
-    for email in self._maintainer_emails:
+    for email in _maintainer_emails:
       headers.append( ( 'Maintainer-email', email ) )
 
     if self.description:
@@ -454,7 +533,7 @@ class PkgInfo:
       headers.append( ( 'Classifier', classifier ) )
 
     #...........................................................................
-    for e in self._provides_extra:
+    for e in self.provides_extra:
       headers.append(
         ( 'Provides-Extra', str(e) ) )
 
@@ -466,7 +545,7 @@ class PkgInfo:
       headers.append(
         ( 'Obsoletes-Dist', str(d) ) )
 
-    for d in self._requires_dist:
+    for d in self.requires_dist:
       headers.append(
         ( 'Requires-Dist', str(d) ) )
 

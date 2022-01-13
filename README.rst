@@ -113,3 +113,43 @@ following code run in the `pyproject.toml` directory:
 
 Keep in mind that **only** those requirements listed in ``build-system.requires``
 will be importable by the specified code.
+
+Support for 'legacy setup.py'
+-----------------------------
+
+There is a (likely fragile) mechanism to add support of setup.py for
+non PEP-517 compliant installers when installing from source,
+but it is **not guaranteed** to be successful.
+It would be better to recommend the end-user simply update their package manager
+to be PEP-517 capable, such as ``pip >= 18.1``, or to provide pre-built wheels
+for those users.
+
+This support does **not** use setuptools in any way, since that wouldn't allow
+the faithful interpretation of the build process defined in 'pyproject.toml',
+nor of the custom build hooks.
+What it does do is generate a 'setup.py' file when building a source
+distribution that, if run by an installation frontend, will attempt to emulate
+the setuptools CLI 'egg_info', 'bdist_wheel', and 'install' commands:
+
+  - The 'egg_info' command copies out a set of equivalent '.egg-info'
+    files, which should subsequently be ignored after the meta-data is extracted.
+
+  - The 'bdist_wheel' command will attempt to simply call the backend code as
+    though it were a PEP-517 build, assuming the build dependencies were
+    satisfied by the front-end (added to the regular install
+    dependencies in the '.egg-info').
+
+  - If 'install' is called ( instead of 'bdist_wheel' ), then it will
+    again try to build the wheel using the backend, and then try to use pip
+    to handle installation of the wheel as another sub-process.
+    This will fail if pip is not the front-end.
+
+This 'legacy' feature is enabled by setting the value of
+``tool.pyproj.dist.source.add_legacy_setup``.
+
+.. code:: toml
+
+  [tool.pyproj.dist.source]
+
+  # adds support for legacy 'setup.py'
+  add_legacy_setup = true

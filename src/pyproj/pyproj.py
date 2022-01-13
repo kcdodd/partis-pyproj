@@ -22,6 +22,8 @@ from .norms import (
 from .load_module import (
   load_module )
 
+from .legacy import legacy_setup_content
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PyProjBase:
   """Minimal build system for a Python project
@@ -61,7 +63,7 @@ class PyProjBase:
       root = root )
 
     # Update logger once package info is created
-    self.logger = logger.getChild( self.pkg_info.name_normed )
+    self.logger = logger.getChild( f"['{self.pkg_info.name_normed}']" )
 
     self.pyproj = mapget( self.pptoml, 'tool.pyproj', None )
 
@@ -110,7 +112,8 @@ class PyProjBase:
       keys = [
         'prep',
         'ignore',
-        'copy' ] )
+        'copy',
+        'add_legacy_setup' ] )
 
     allowed_keys(
       name = 'tool.pyproj.dist.binary',
@@ -129,6 +132,13 @@ class PyProjBase:
         logger = self.logger )
       for subdir in mapget( self.pyproj, 'sub_projects', list() ) ]
 
+    self.build_backend = mapget( self.pptoml,
+        'build-system.build-backend',
+        "" )
+
+    self.backend_path = mapget( self.pptoml,
+        'build-system.backend-path',
+        list() )
 
 
     self.build_requires = set([
@@ -136,7 +146,7 @@ class PyProjBase:
       for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
 
     for sub_proj in self.sub_projects:
-      self.pkg_info.extend( sub_proj.pkg_info )
+      self.pkg_info = self.pkg_info.provides( sub_proj.pkg_info )
       self.build_requires |= sub_proj.build_requires
 
     # filter out any dependencies listing the one being provided
@@ -256,6 +266,11 @@ class PyProjBase:
         sdist.copyfile(
           src = src,
           dst = dst )
+
+
+    if mapget( self.dist_source, 'add_legacy_setup', False ):
+      self.logger.info(f"generating legacy 'setup.py'")
+      legacy_setup_content( self, sdist )
 
 
   #-----------------------------------------------------------------------------

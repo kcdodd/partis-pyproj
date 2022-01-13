@@ -105,7 +105,7 @@ def norm_printable( text ):
   """Removes leading and trailing whitespace and all non-printable characters
   except for newlines '\n' and tabs '\n'.
   """
-  return nonprintable.sub( '', text.strip() )
+  return nonprintable.sub( '', str(text).strip() )
   # return text.strip()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -213,11 +213,16 @@ def norm_dist_classifier( classifier ):
 
   classifier = norm_printable( classifier )
 
-  if not pep_301_classifier.fullmatch( classifier ):
-    raise PEPValidationError(
-      pep = 301,
-      msg = "Invalid classifier",
-      val = classifier )
+  parts = [ s.strip() for s in classifier.split('::') ]
+
+  for part in parts:
+    if not pep_301_classifier.fullmatch( part ):
+      raise PEPValidationError(
+        pep = 301,
+        msg = f"Invalid classifier component '{part}'",
+        val = classifier )
+
+  classifier = ' :: '.join( parts )
 
   return classifier
 
@@ -620,7 +625,7 @@ common_plattag = {
 # and forward slash.
 # TODO: write test against current list of classifiers
 pep_301_classifier = re.compile(
-  r'^[A-Z0-9._\-\/\[\]\(\) ]+( :: [A-Z0-9._\-\/\[\]\(\) ]+)*$',
+  r'^[A-Z0-9._\-\/\[\]\(\) ]+$',
   re.IGNORECASE )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
