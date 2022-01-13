@@ -43,7 +43,6 @@ def legacy_setup_content( pyproj, sdist ):
     legacy_setup_py = fp.read()
 
   build_requires = [ str(r) for r in build_requires ]
-  print(build_requires)
 
   legacy_setup_py = legacy_setup_py.format(
     egg_info_name = f"'{pyproj.pkg_info.name_normed}.egg-info'",
@@ -55,8 +54,6 @@ def legacy_setup_content( pyproj, sdist ):
     entry_points = pkg_info.encode_entry_points(),
     build_backend = f"'{pyproj.build_backend}'",
     backend_path = pyproj.backend_path )
-
-  print(legacy_setup_py)
 
   sdist.write(
     dst = f'{sdist.base_path}/setup.py',
