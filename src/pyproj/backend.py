@@ -19,6 +19,12 @@ from .norms import (
   allowed_keys,
   mapget )
 
+try:
+  import coverage
+  coverage.process_startup()
+except ImportError:
+  pass
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class UnsupportedOperation( Exception ):
   pass
