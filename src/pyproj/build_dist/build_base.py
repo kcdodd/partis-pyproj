@@ -7,7 +7,7 @@ from abc import(
   ABC,
   abstractmethod )
 
-from .norms import (
+from ..norms import (
   hash_sha256 )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

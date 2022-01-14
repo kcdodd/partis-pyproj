@@ -42,7 +42,7 @@ class EntryPointsParser(configparser.ConfigParser):
 
   See Also
   --------
-  https://packaging.python.org/en/latest/specifications/entry-points/
+  * https://packaging.python.org/en/latest/specifications/entry-points/
   """
   optionxform = staticmethod(str)
 
@@ -149,9 +149,8 @@ class PkgInfo:
 
     See Also
     --------
-    https://www.python.org/dev/peps/pep-0621/
-
-    https://packaging.python.org/en/latest/specifications/core-metadata/
+    * https://www.python.org/dev/peps/pep-0621/
+    * https://packaging.python.org/en/latest/specifications/core-metadata/
     """
 
     allowed_keys(
@@ -354,13 +353,11 @@ class PkgInfo:
     pkg_info : PkgInfo
       Resulting package info
 
-    Notes
-    -----
+    Attention
+    ---------
     This should be used with extreme caution.
     It performs a very simple extending of information, requirements, and entry_points.
 
-    Todo
-    ----
     This does not currently handle if an 'extra' from a sub-project is requested
     by another, incidentally removing the needed dependency.
     """

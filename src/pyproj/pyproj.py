@@ -207,7 +207,7 @@ class PyProjBase:
 
     Parameters
     ---------
-    sdist : :class:`build_base <partis.pyproj.build_base.build_base>`
+    sdist : :class:`build_base <partis.pyproj.build_dist.build_base.build_base>`
       Builder used to write out source distribution files
     """
 
@@ -324,7 +324,7 @@ class PyProjBase:
 
     Parameters
     ---------
-    bdist : :class:`build_base <partis.pyproj.build_base.build_base>`
+    bdist : :class:`build_base <partis.pyproj.build_dist.build_base.build_base>`
       Builder used to write out binary distribution files
     """
 

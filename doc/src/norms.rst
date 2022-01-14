@@ -1,7 +1,4 @@
-Validation and Normalization
-============================
+Validation :mod:`partis.pyproj.norms`
+=====================================
 
 .. automodule:: partis.pyproj.norms
-   :members:
-   :show-inheritance:
-   :private-members:

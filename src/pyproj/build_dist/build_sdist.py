@@ -6,12 +6,12 @@ import stat
 
 import shutil
 
-from .norms import (
+from ..norms import (
   norm_path,
   norm_data,
   norm_mode )
 
-from .pkginfo import PkgInfo
+from ..pkginfo import PkgInfo
 
 from .build_targz import build_targz
 
@@ -24,32 +24,59 @@ class build_sdist_targz( build_targz ):
   pkg_info : :class:`PkgInfo <partis.pyproj.pkginfo.PkgInfo>`
   outdir : str
     Path to directory where the wheel file should be copied after completing build.
-  tmpdir : None | str
+  tmpdir : None | :class:`str`
     If not None, uses the given directory to place the temporary wheel file before
     copying to final location.
     My be the same as outdir.
+  logger : None | :class:`logging.Logger`
+    Logger to use.
 
   Examples
   --------
 
-  .. code:: python
+  .. testcode::
 
-    import os
-    from partis.pyproj import (
-      PkgInfo,
-      build_sdist_targz )
+    import tempfile
 
-    pkg_info = PkgInfo(
-      project = dict(
-        name = 'my-package',
-        version = '1.0' ) )
+    with tempfile.TemporaryDirectory() as tmpdir:
 
-    with build_sdist_targz(
-      pkg_info = pkg_info ) as sdist:
+      import os
+      import os.path
 
-      sdist.copytree(
-        src = './src',
-        dst = os.path.join( sdist.base_path, 'src' ) )
+      pkg_dir = os.path.join( tmpdir, 'src', 'my_package' )
+      out_dir = os.path.join( tmpdir, 'build' )
+
+      os.makedirs( pkg_dir )
+
+      with open( os.path.join( pkg_dir, 'module.py' ), 'w' ) as fp:
+        fp.write("print('hello')")
+
+
+      from partis.pyproj import (
+        PkgInfo,
+        build_sdist_targz )
+
+      pkg_info = PkgInfo(
+        project = dict(
+          name = 'my-package',
+          version = '1.0' ) )
+
+      with build_sdist_targz(
+        pkg_info = pkg_info,
+        outdir = out_dir ) as sdist:
+
+        sdist.copytree(
+          src = './src',
+          dst = os.path.join( sdist.base_path, 'src' ) )
+
+      print( sdist.outname )
+      print( os.path.relpath( sdist.outpath, tmpdir ) )
+
+  .. testoutput::
+
+    my-package-1.0.tar.gz
+    build/my-package-1.0.tar.gz
+
 
   """
   #-----------------------------------------------------------------------------

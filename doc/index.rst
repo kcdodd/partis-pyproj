@@ -1,22 +1,27 @@
 
-.. include:: ../README.rst
+partis-pyproj
+=============
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+  :maxdepth: 2
 
-   src/backend
-   src/pyproj
-   src/pkginfo
-   src/build_bdist
-   src/build_sdist
-   src/build_base
-   src/build_zip
-   src/build_targz
-   src/norms
+  userguide/index
 
-References
-----------
+
+Package Reference
+-----------------
+
+.. toctree::
+  :maxdepth: 2
+
+  src/backend
+  src/pkginfo
+  src/pyproj
+  src/build_dist
+  src/norms
+
+Citations
+---------
 
 .. bibliography::
   :all:

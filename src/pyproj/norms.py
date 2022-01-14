@@ -103,14 +103,17 @@ def mapget( obj, path, default = None ):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_printable( text ):
   """Removes leading and trailing whitespace and all non-printable characters
-  except for newlines '\n' and tabs '\n'.
+  except for newlines '\\n' and tabs '\\n'.
   """
   return nonprintable.sub( '', str(text).strip() )
   # return text.strip()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def valid_dist_name( name ):
-  """https://www.python.org/dev/peps/pep-0426/#name
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0426/#name
   """
 
   name = norm_printable( name )
@@ -125,7 +128,10 @@ def valid_dist_name( name ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_name( name ):
-  """https://www.python.org/dev/peps/pep-0503/#normalized-names
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0503/#normalized-names
   """
 
   name = valid_dist_name( name ).lower()
@@ -138,7 +144,10 @@ def norm_dist_name( name ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_version( version ):
-  """https://www.python.org/dev/peps/pep-0440/#version-scheme
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0440/#version-scheme
   """
 
   version = norm_printable( version )
@@ -208,7 +217,10 @@ def norm_dist_author( name, email ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_classifier( classifier ):
-  """https://www.python.org/dev/peps/pep-0301/#distutils-trove-classification
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0301/#distutils-trove-classification
   """
 
   classifier = norm_printable( classifier )
@@ -228,7 +240,10 @@ def norm_dist_classifier( classifier ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_keyword( keyword ):
-  """https://www.python.org/dev/peps/pep-0621/#keywords
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0621/#keywords
   """
 
   keyword = norm_printable( keyword )
@@ -243,7 +258,10 @@ def norm_dist_keyword( keyword ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_url( label, url ):
-  """https://packaging.python.org/en/latest/specifications/core-metadata/#project-url-multiple-use
+  """
+  See Also
+  --------
+  * https://packaging.python.org/en/latest/specifications/core-metadata/#project-url-multiple-use
   """
 
   # > The label is free text limited to 32 characters.
@@ -290,7 +308,10 @@ def norm_dist_extra( extra ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_build( build ):
-  """https://www.python.org/dev/peps/pep-0427/#file-name-convention
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0427/#file-name-convention
   """
 
   build = norm_printable( build ).lower()
@@ -309,7 +330,7 @@ def norm_dist_compat( py_tag, abi_tag, plat_tag ):
   """
   See Also
   --------
-  https://www.python.org/dev/peps/pep-0425/#details
+  * https://www.python.org/dev/peps/pep-0425/#details
   """
 
   py_tag = norm_printable( py_tag ).lower()
@@ -359,7 +380,7 @@ def join_tags( tags ):
   """
   See Also
   --------
-  https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets
+  * https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets
   """
   return '.'.join( sorted(list(set(tags))) )
 
@@ -368,7 +389,7 @@ def compress_dist_compat( compat ):
   """
   See Also
   --------
-  https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets
+  * https://www.python.org/dev/peps/pep-0425/#compressed-tag-sets
   """
 
   py_tags, abi_tags, plat_tags = zip( *compat )
@@ -385,7 +406,7 @@ def norm_wheel_name( name ):
   """
   See Also
   --------
-  https://www.python.org/dev/peps/pep-0427/#file-name-convention
+  * https://www.python.org/dev/peps/pep-0427/#file-name-convention
   """
 
   # > Each component of the filename is escaped by replacing runs of

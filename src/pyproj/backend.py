@@ -51,7 +51,10 @@ def backend_init( root = '.' ):
 #-----------------------------------------------------------------------------
 def get_requires_for_build_sdist(
   config_settings = None ):
-  """https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-sdist
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-sdist
   """
 
   return list()
@@ -60,7 +63,10 @@ def get_requires_for_build_sdist(
 def build_sdist(
   sdist_directory,
   config_settings = None ):
-  """https://www.python.org/dev/peps/pep-0517/#build-sdist
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0517/#build-sdist
   """
 
   pyproj = backend_init()
@@ -80,7 +86,10 @@ def build_sdist(
 #-----------------------------------------------------------------------------
 def get_requires_for_build_wheel(
   config_settings = None ):
-  """https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-wheel
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-wheel
   """
 
   pyproj = backend_init()
@@ -95,7 +104,10 @@ def get_requires_for_build_wheel(
 def prepare_metadata_for_build_wheel(
   metadata_directory,
   config_settings = None ):
-  """https://www.python.org/dev/peps/pep-0517/#prepare-metadata-for-build-wheel
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0517/#prepare-metadata-for-build-wheel
   """
 
   pyproj = backend_init()
@@ -121,7 +133,10 @@ def build_wheel(
   wheel_directory,
   config_settings = None,
   metadata_directory = None ):
-  """https://www.python.org/dev/peps/pep-0517/#build-wheel
+  """
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0517/#build-wheel
   """
 
   pyproj = backend_init()

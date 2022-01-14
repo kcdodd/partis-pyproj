@@ -5,8 +5,6 @@ import shutil
 import logging
 import tempfile
 
-from .build_dummy import (
-  build_sdist_dummy )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def legacy_setup_content( pyproj, sdist ):

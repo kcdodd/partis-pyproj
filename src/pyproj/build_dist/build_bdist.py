@@ -7,7 +7,7 @@ import stat
 import tempfile
 import shutil
 
-from .norms import (
+from ..norms import (
   norm_dist_name,
   norm_dist_build,
   norm_dist_compat,
@@ -18,7 +18,7 @@ from .norms import (
   hash_sha256,
   email_encode_items )
 
-from .pkginfo import PkgInfo
+from ..pkginfo import PkgInfo
 
 from .build_zip import build_zip
 
@@ -35,56 +35,85 @@ class build_bdist_wheel( build_zip ):
     List of build compatability tuples of the form ( py_tag, abi_tag, plat_tag ).
     e.g. ( 'py3', 'abi3', 'linux_x86_64' )
   purelib : bool
+    If ``True``, the installer will assume that all modules are pure python.
+  top_level : List[ str ]
+    Names of top-level packages.
   outdir : str
     Path to directory where the wheel file should be copied after completing build.
   tmpdir : None | str
     If not None, uses the given directory to place the temporary wheel file before
     copying to final location.
     My be the same as outdir.
+  logger : None | :class:`logging.Logger`
+    Logger to use.
   gen_name : str
-    Name to use as the Generator of the wheel file
+    Name to use as the 'Generator' of the wheel file
 
   Examples
   --------
 
-  .. code:: python
+  .. testcode::
 
-    import os
-    from partis.pyproj import (
-      PkgInfo,
-      build_bdist_wheel )
+    import tempfile
 
-    pkg_info = PkgInfo(
-      project = dict(
-        name = 'my-package',
-        version = '1.0' ) )
+    with tempfile.TemporaryDirectory() as tmpdir:
 
-    with build_bdist_wheel(
-      pkg_info = pkg_info,
-      top_level = [ 'my_package' ] ) as bdist:
+      import os
+      import os.path
 
-      bdist.copytree(
-        src = './src/my_package',
-        dst = 'my_package' )
+      pkg_dir = os.path.join( tmpdir, 'src', 'my_package' )
+      out_dir = os.path.join( tmpdir, 'build' )
+
+      os.makedirs( pkg_dir )
+
+      with open( os.path.join( pkg_dir, 'module.py' ), 'w' ) as fp:
+        fp.write("print('hello')")
+
+      from partis.pyproj import (
+        PkgInfo,
+        build_bdist_wheel )
+
+      pkg_info = PkgInfo(
+        project = dict(
+          name = 'my-package',
+          version = '1.0' ) )
+
+
+      with build_bdist_wheel(
+        pkg_info = pkg_info,
+        top_level = [ 'my_package' ],
+        outdir = out_dir ) as bdist:
+
+        bdist.copytree(
+          src = pkg_dir,
+          dst = 'my_package' )
+
+      print( bdist.outname )
+      print( os.path.relpath( bdist.outpath, tmpdir ) )
+
+  .. testoutput::
+
+    my_package-1.0-py3-none-any.whl
+    build/my_package-1.0-py3-none-any.whl
+
 
   See Also
   --------
-  https://www.python.org/dev/peps/pep-0427
-
-  https://www.python.org/dev/peps/pep-0660
+  * https://www.python.org/dev/peps/pep-0427
+  * https://www.python.org/dev/peps/pep-0660
 
   """
   #-----------------------------------------------------------------------------
-  def __init__( self,
+  def __init__( self, *,
     pkg_info,
     build = '',
     compat = [ ( 'py3', 'none', 'any' ), ],
     purelib = True,
     top_level = None,
-    gen_name = 'build_wheel',
     outdir = None,
     tmpdir = None,
-    logger = None ):
+    logger = None,
+    gen_name = 'build_bdist_wheel', ):
 
     if not isinstance( pkg_info, PkgInfo ):
       raise ValueError(f"pkg_info must be instance of PkgInfo: {pkg_info}")

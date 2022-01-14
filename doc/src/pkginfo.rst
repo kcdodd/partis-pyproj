@@ -1,22 +1,27 @@
-Package Metadata
-================
+Metadata (PEP 621) :mod:`partis.pyproj.pkginfo`
+===============================================
 
-.. autoclass:: partis.pyproj.pkginfo.PkgInfo
-   :members:
-   :show-inheritance:
-   :private-members:
+.. currentmodule:: partis.pyproj.pkginfo
 
-.. autoclass:: partis.pyproj.pkginfo.PkgInfoReq
-   :members:
-   :show-inheritance:
-   :private-members:
+PkgInfo
+-------
 
-.. autoclass:: partis.pyproj.pkginfo.PkgInfoURL
-   :members:
-   :show-inheritance:
-   :private-members:
+.. autoclass:: PkgInfo
 
-.. autoclass:: partis.pyproj.pkginfo.PkgInfoAuthor
-   :members:
-   :show-inheritance:
-   :private-members:
+
+PkgInfoReq
+----------
+
+.. autoclass:: PkgInfoReq
+
+
+PkgInfoURL
+----------
+
+.. autoclass:: PkgInfoURL
+
+
+PkgInfoAuthor
+-------------
+
+.. autoclass:: PkgInfoAuthor

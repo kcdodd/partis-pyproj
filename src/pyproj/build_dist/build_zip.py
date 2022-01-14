@@ -6,17 +6,18 @@ import stat
 
 import tempfile
 import shutil
-import tarfile
+import zipfile
 
 from .build_base import build_base
 
-from .norms import (
+from ..norms import (
   norm_path,
   norm_data,
-  norm_mode )
+  norm_mode,
+  mode_to_xattr )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class build_targz( build_base ):
+class build_zip( build_base ):
 
   #-----------------------------------------------------------------------------
   def __init__( self,
@@ -34,7 +35,7 @@ class build_targz( build_base ):
     self._fd = None
     self._fp = None
     self._tmp_path = None
-    self._tarfile = None
+    self._zipfile = None
 
   #-----------------------------------------------------------------------------
   def make_buildfile( self ):
@@ -44,20 +45,19 @@ class build_targz( build_base ):
 
     self._fp = os.fdopen( self._fd, "w+b" )
 
-    self._tarfile = tarfile.open(
-      fileobj = self._fp,
-      mode = 'w:gz',
-      format = tarfile.PAX_FORMAT )
-
+    self._zipfile = zipfile.ZipFile(
+      self._fp,
+      mode = "w",
+      compression = zipfile.ZIP_DEFLATED )
 
   #-----------------------------------------------------------------------------
   def close_buildfile( self ):
 
-    if self._tarfile is not None:
+    if self._zipfile is not None:
 
       # close the file
-      self._tarfile.close()
-      self._tarfile = None
+      self._zipfile.close()
+      self._zipfile = None
 
     if self._fp is not None:
       self._fp.close()
@@ -73,7 +73,11 @@ class build_targz( build_base ):
       # overwiting in destination directory
       os.remove( self.outpath )
 
+    if not osp.exists( self.outdir ):
+      os.makedirs( self.outdir )
+
     shutil.copyfile( self._tmp_path, self.outpath )
+
 
   #-----------------------------------------------------------------------------
   def remove_buildfile( self ):
@@ -82,7 +86,6 @@ class build_targz( build_base ):
     os.remove( self._tmp_path )
 
     self._tmp_path = None
-
 
   #-----------------------------------------------------------------------------
   def write( self,
@@ -97,14 +100,14 @@ class build_targz( build_base ):
 
     data = norm_data( data )
 
-    info = tarfile.TarInfo( dst )
+    zinfo = zipfile.ZipInfo( dst )
 
-    info.size = len(data)
-    info.mode = norm_mode( mode )
+    zinfo.external_attr = mode_to_xattr( mode )
 
-    self._tarfile.addfile(
-      info,
-      fileobj = io.BytesIO(data) )
+    self._zipfile.writestr(
+      zinfo,
+      data,
+      compress_type = zipfile.ZIP_DEFLATED )
 
     super().write(
       dst = dst,

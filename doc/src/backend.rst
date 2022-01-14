@@ -1,7 +1,4 @@
-Backend (PEP 517)
-=================
+Backend (PEP 517) :mod:`partis.pyproj.backend`
+==============================================
 
 .. automodule:: partis.pyproj.backend
-   :members:
-   :show-inheritance:
-   :private-members:

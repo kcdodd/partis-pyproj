@@ -1,8 +1,4 @@
-Build System
-============
-
+Build System :mod:`partis.pyproj`
+=================================
 
 .. autoclass:: partis.pyproj.pyproj.PyProjBase
-   :members:
-   :show-inheritance:
-   :private-members:

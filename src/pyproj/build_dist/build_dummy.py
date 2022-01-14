@@ -6,12 +6,12 @@ import stat
 
 import shutil
 
-from .norms import (
+from ..norms import (
   norm_path,
   norm_data,
   norm_mode )
 
-from .pkginfo import PkgInfo
+from ..pkginfo import PkgInfo
 
 from .build_base import build_base
 
