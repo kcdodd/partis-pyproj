@@ -126,8 +126,8 @@ class build_base( ABC ):
     record : bool
       Add file to the record
 
-    NOTES
-    -----
+    Note
+    ----
     Some archive file types do not need to explicitly create directories, but this
     is given in case an implementation needs to create a directory before creating
     files within the directory.
@@ -401,8 +401,8 @@ class build_base( ABC ):
     record_hash : None | str
       sha256 hash of the record
 
-    Notes
-    -----
+    Note
+    ----
     Not all build implementations will create/return a hash of the record
     """
     raise NotImplementedError('')

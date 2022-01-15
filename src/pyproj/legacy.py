@@ -10,8 +10,8 @@ import tempfile
 def legacy_setup_content( pyproj, sdist ):
   """
 
-  Notes
-  -----
+  Note
+  ----
   Assumes that `pyproj.dist_source_prep` has already been run, and all files have
   already been added to `sdist`
   """

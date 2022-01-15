@@ -110,10 +110,18 @@ following code run in the `pyproject.toml` directory:
   import a_custom_prep_module
 
   a_custom_prep_module.a_prep_function(
+    build_system,
     a_custom_argument = 'some value' )
 
-Keep in mind that **only** those requirements listed in ``build-system.requires``
-will be importable by the specified code.
+
+The ``build_system`` argument is the instance of
+:class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>` calling the function
+during processing of :meth:`PyProjBase.dist_binary_prep`.
+
+.. note::
+
+  Only those requirements listed in ``build-system.requires``
+  will be importable by the specified code.
 
 Support for 'legacy setup.py'
 -----------------------------
