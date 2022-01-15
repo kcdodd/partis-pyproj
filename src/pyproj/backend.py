@@ -11,6 +11,7 @@ from collections.abc import (
   Sequence )
 
 from . import (
+  PkgInfoReq,
   PyProjBase,
   build_bdist_wheel,
   build_sdist_targz )
@@ -94,7 +95,15 @@ def get_requires_for_build_wheel(
 
   pyproj = backend_init()
 
-  reqs = [ str(r) for r in pyproj.build_requires ]
+  # filter out any dependencies already listed in the 'build-system'.
+  # NOTE: pip appears to not process environment markers for deps returned
+  # by get_requires_for_build_*, and may falsly report
+  # > ERROR: Some build dependencies...conflict with the backend dependencies...
+  build_requires = pyproj.build_requires - set([
+    PkgInfoReq(r)
+    for r in mapget( pyproj.pptoml, 'build-system.requires', list() ) ])
+
+  reqs = [ str(r) for r in build_requires ]
 
   pyproj.logger.info(f'get_requires_for_build_wheel: {reqs}')
 
