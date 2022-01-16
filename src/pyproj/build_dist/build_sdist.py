@@ -9,7 +9,8 @@ import shutil
 from ..norms import (
   norm_path,
   norm_data,
-  norm_mode )
+  norm_mode,
+  norm_wheel_name )
 
 from ..pkginfo import PkgInfo
 
@@ -74,8 +75,8 @@ class build_sdist_targz( build_targz ):
 
   .. testoutput::
 
-    my-package-1.0.tar.gz
-    build/my-package-1.0.tar.gz
+    my_package-1.0.tar.gz
+    build/my_package-1.0.tar.gz
 
 
   """
@@ -92,8 +93,8 @@ class build_sdist_targz( build_targz ):
     self.pkg_info = pkg_info
 
     sdist_name_parts = [
-      self.pkg_info.name_normed,
-      self.pkg_info.version ]
+      norm_wheel_name( self.pkg_info.name_normed ),
+      norm_wheel_name( self.pkg_info.version ) ]
 
     self.base_path = '-'.join( sdist_name_parts )
 
