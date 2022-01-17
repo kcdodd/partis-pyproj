@@ -1,6 +1,6 @@
 
-partis-pyproj
-=============
+Packaging (:mod:`partis.pyproj`)
+================================
 
 .. toctree::
   :maxdepth: 2
@@ -19,9 +19,3 @@ Package Reference
   src/pyproj
   src/build_dist
   src/norms
-
-Citations
----------
-
-.. bibliography::
-  :all:
