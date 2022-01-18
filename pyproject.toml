@@ -46,7 +46,7 @@ build-backend = "pyproj.backend"
 backend-path = [ 'src' ]
 
 #-------------------------------------------------------------------------------
-[tool.pyproj.dist.any]
+[tool.pyproj.dist]
 
 ignore = [
   '__pycache__',

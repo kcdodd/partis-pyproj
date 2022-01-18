@@ -6,58 +6,100 @@ import stat
 
 import tempfile
 import shutil
-import zipfile
+import tarfile
 
-from .build_base import build_base
+from .dist_base import dist_base
 
 from ..norms import (
   norm_path,
   norm_data,
-  norm_mode,
-  mode_to_xattr )
+  norm_mode )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class build_zip( build_base ):
+class dist_targz( dist_base ):
+  """Builds a tar-file  with gz compression
+
+  Example
+  -------
+
+  .. testcode::
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+
+      import os
+      import os.path
+
+      pkg_dir = os.path.join( tmpdir, 'src', 'my_package' )
+      out_dir = os.path.join( tmpdir, 'build' )
+
+      os.makedirs( pkg_dir )
+
+      with open( os.path.join( pkg_dir, 'module.py' ), 'w' ) as fp:
+        fp.write("print('hello')")
+
+      from partis.pyproj import (
+        dist_targz )
+
+      with dist_targz(
+        outname = 'my_dist.tar.gz',
+        outdir = out_dir ) as dist:
+
+        dist.copytree(
+          src = pkg_dir,
+          dst = 'my_package' )
+
+      print( os.path.relpath( dist.outpath, tmpdir ) )
+
+  .. testoutput::
+
+    build/my_dist.tar.gz
+
+  """
 
   #-----------------------------------------------------------------------------
   def __init__( self,
     outname,
     outdir = None,
     tmpdir = None,
+    named_dirs = None,
     logger = None ):
 
     super().__init__(
       outname = outname,
       outdir = outdir,
       tmpdir = tmpdir,
+      named_dirs = named_dirs,
       logger = logger )
 
     self._fd = None
     self._fp = None
     self._tmp_path = None
-    self._zipfile = None
+    self._tarfile = None
 
   #-----------------------------------------------------------------------------
-  def make_buildfile( self ):
+  def create_distfile( self ):
 
     ( self._fd, self._tmp_path ) = tempfile.mkstemp(
       dir = self.tmpdir )
 
     self._fp = os.fdopen( self._fd, "w+b" )
 
-    self._zipfile = zipfile.ZipFile(
-      self._fp,
-      mode = "w",
-      compression = zipfile.ZIP_DEFLATED )
+    self._tarfile = tarfile.open(
+      fileobj = self._fp,
+      mode = 'w:gz',
+      format = tarfile.PAX_FORMAT )
+
 
   #-----------------------------------------------------------------------------
-  def close_buildfile( self ):
+  def close_distfile( self ):
 
-    if self._zipfile is not None:
+    if self._tarfile is not None:
 
       # close the file
-      self._zipfile.close()
-      self._zipfile = None
+      self._tarfile.close()
+      self._tarfile = None
 
     if self._fp is not None:
       self._fp.close()
@@ -67,7 +109,7 @@ class build_zip( build_base ):
       self._fd = None
 
   #-----------------------------------------------------------------------------
-  def copy_buildfile( self ):
+  def copy_distfile( self ):
 
     if osp.exists( self.outpath ):
       # overwiting in destination directory
@@ -78,14 +120,14 @@ class build_zip( build_base ):
 
     shutil.copyfile( self._tmp_path, self.outpath )
 
-
   #-----------------------------------------------------------------------------
-  def remove_buildfile( self ):
+  def remove_distfile( self ):
 
     # remove temporary file
     os.remove( self._tmp_path )
 
     self._tmp_path = None
+
 
   #-----------------------------------------------------------------------------
   def write( self,
@@ -100,17 +142,21 @@ class build_zip( build_base ):
 
     data = norm_data( data )
 
-    zinfo = zipfile.ZipInfo( dst )
+    info = tarfile.TarInfo( dst )
 
-    zinfo.external_attr = mode_to_xattr( mode )
+    info.size = len(data)
+    info.mode = norm_mode( mode )
 
-    self._zipfile.writestr(
-      zinfo,
-      data,
-      compress_type = zipfile.ZIP_DEFLATED )
+    self._tarfile.addfile(
+      info,
+      fileobj = io.BytesIO(data) )
 
     super().write(
       dst = dst,
       data = data,
       mode = mode,
       record = record )
+
+  #-----------------------------------------------------------------------------
+  def finalize( self ):
+    pass

@@ -17,5 +17,5 @@ Package Reference
   src/backend
   src/pkginfo
   src/pyproj
-  src/build_dist
+  src/dist_file
   src/norms

@@ -10,14 +10,15 @@ from ..norms import (
   norm_path,
   norm_data,
   norm_mode,
-  norm_wheel_name )
+  norm_dist_filename )
 
 from ..pkginfo import PkgInfo
 
-from .build_targz import build_targz
+from .dist_base import dist_base
+from .dist_targz import dist_targz
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class build_sdist_targz( build_targz ):
+class dist_source_targz( dist_targz ):
   """Build a source distribution ``*.tar.gz`` file
 
   Parameters
@@ -32,8 +33,8 @@ class build_sdist_targz( build_targz ):
   logger : None | :class:`logging.Logger`
     Logger to use.
 
-  Examples
-  --------
+  Example
+  -------
 
   .. testcode::
 
@@ -55,14 +56,14 @@ class build_sdist_targz( build_targz ):
 
       from partis.pyproj import (
         PkgInfo,
-        build_sdist_targz )
+        dist_source_targz )
 
       pkg_info = PkgInfo(
         project = dict(
           name = 'my-package',
           version = '1.0' ) )
 
-      with build_sdist_targz(
+      with dist_source_targz(
         pkg_info = pkg_info,
         outdir = out_dir ) as sdist:
 
@@ -93,8 +94,8 @@ class build_sdist_targz( build_targz ):
     self.pkg_info = pkg_info
 
     sdist_name_parts = [
-      norm_wheel_name( self.pkg_info.name_normed ),
-      norm_wheel_name( self.pkg_info.version ) ]
+      norm_dist_filename( self.pkg_info.name_normed ),
+      norm_dist_filename( self.pkg_info.version ) ]
 
     self.base_path = '-'.join( sdist_name_parts )
 
@@ -104,7 +105,10 @@ class build_sdist_targz( build_targz ):
       outname = '-'.join( sdist_name_parts ) + '.tar.gz',
       outdir = outdir,
       tmpdir = tmpdir,
-      logger = logger )
+      logger = logger,
+      named_dirs = {
+        'root' : self.base_path,
+        'metadata' : self.metadata_path } )
 
 
   #-----------------------------------------------------------------------------
@@ -113,3 +117,59 @@ class build_sdist_targz( build_targz ):
     self.write(
       dst = self.metadata_path,
       data = self.pkg_info.encode_pkg_info() )
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class dist_source_dummy( dist_base ):
+  """Build a dummy source distribution without a physical file
+  """
+
+  #-----------------------------------------------------------------------------
+  def __init__( self,
+    pkg_info,
+    outdir = None,
+    tmpdir = None,
+    logger = None ):
+
+    if not isinstance( pkg_info, PkgInfo ):
+      raise ValueError(f"pkg_info must be instance of PkgInfo: {pkg_info}")
+
+    self.pkg_info = pkg_info
+
+    sdist_name_parts = [
+      self.pkg_info.name_normed,
+      self.pkg_info.version ]
+
+    self.base_path = '-'.join( sdist_name_parts )
+
+    self.metadata_path = self.base_path + '/PKG-INFO'
+
+    super().__init__(
+      outname = '-'.join( sdist_name_parts ) + '.tar.gz',
+      outdir = outdir,
+      tmpdir = tmpdir,
+      logger = logger,
+      named_dirs = {
+        'root' : self.base_path,
+        'metadata' : self.metadata_path } )
+
+
+  #-----------------------------------------------------------------------------
+  def create_distfile( self ):
+    pass
+
+  #-----------------------------------------------------------------------------
+  def close_distfile( self ):
+    pass
+
+  #-----------------------------------------------------------------------------
+  def copy_distfile( self ):
+    pass
+
+  #-----------------------------------------------------------------------------
+  def remove_distfile( self ):
+    pass
+
+  #-----------------------------------------------------------------------------
+  def finalize( self ):
+    pass

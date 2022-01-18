@@ -11,7 +11,7 @@ from ..norms import (
   hash_sha256 )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class build_base( ABC ):
+class dist_base( ABC ):
   """Builder for file distribution
 
   Parameters
@@ -24,6 +24,10 @@ class build_base( ABC ):
     If not None, uses the given directory to place the temporary file(s) before
     copying to final location.
     May be the same as outdir.
+  named_dirs : None | Dict[ str, str ]
+    Mapping of specially named directories within the distribution.
+    By default a named directory { 'root' : '.' } will be added,
+    unless overridden with another directory name.
   logger : None | logging.Logger
     Logger to which any status information is to be logged.
 
@@ -31,6 +35,8 @@ class build_base( ABC ):
   ----------
   outpath : str
     Path to final output file location
+  named_dirs : Dict[ str, str ]
+    Mapping of specially named directories within the distribution
   opened : bool
     Build temporary file has been opened for writing
   finalized : bool
@@ -40,8 +46,13 @@ class build_base( ABC ):
   copied : bool
     Build temporary has been copied to ``outpath`` location
   records : List[ Tuple[ str, str, int ] ]
+    Recorded list of path, hash, and size (bytes) of files added to distribution
   record_hash : None | str
     Final hash value of the record after being finalized
+
+    .. note::
+
+      Not all distribution implementations will create a hash of the record
 
   """
   #-----------------------------------------------------------------------------
@@ -49,7 +60,8 @@ class build_base( ABC ):
     outname,
     outdir = None,
     tmpdir = None,
-    logger = None ):
+    logger = None,
+    named_dirs = None ):
 
     if outdir is None:
       outdir = os.getcwd()
@@ -57,11 +69,17 @@ class build_base( ABC ):
     if logger is None:
       logger = logging.getLogger( type(self).__name__ )
 
+    if named_dirs is None:
+      named_dirs = dict()
+
     self.outname = str(outname)
     self.outdir = str(outdir)
     self.outpath = osp.join( self.outdir, self.outname )
     self.tmpdir = str(tmpdir) if tmpdir else None
     self.logger = logger
+    self.named_dirs = {
+      'root' : '.',
+      **named_dirs }
 
     self.records = list()
     self.record_bytes = None
@@ -75,7 +93,7 @@ class build_base( ABC ):
   #-----------------------------------------------------------------------------
   def exists( self,
     dst ):
-    """Behaviour similar to os.path.exists for entries in the build file
+    """Behaviour similar to os.path.exists for entries in the distribution file
 
     Parameters
     ----------
@@ -93,7 +111,7 @@ class build_base( ABC ):
     data,
     mode = None,
     record = True ):
-    """Write data into the build file
+    """Write data into the distribution file
 
     Parameters
     ----------
@@ -116,7 +134,7 @@ class build_base( ABC ):
     mode = None,
     exist_ok = False,
     record = True ):
-    """Behaviour similar to os.makedirs into the build file
+    """Behaviour similar to os.makedirs into the distribution file
 
     Parameters
     ----------
@@ -143,7 +161,7 @@ class build_base( ABC ):
     dst,
     mode = None,
     record = True ):
-    """Behaviour similar to shutil.copyfile into the build file
+    """Behaviour similar to shutil.copyfile into the distribution file
 
     Parameters
     ----------
@@ -177,7 +195,7 @@ class build_base( ABC ):
     dst,
     ignore = None,
     record = True ):
-    """Behaviour similar to shutil.copytree into the build file
+    """Behaviour similar to shutil.copytree into the distribution file
 
     Parameters
     ----------
@@ -241,21 +259,21 @@ class build_base( ABC ):
 
   #-----------------------------------------------------------------------------
   def open( self ):
-    """Opens the temporary build file
+    """Opens the temporary distribution file
 
     Returns
     -------
-    self : :class:`build_base <partis.pyproj.build_base.build_base>`
+    self : :class:`dist_base <partis.pyproj.dist_base.dist_base>`
     """
 
     if self.opened:
-      raise ValueError("build file has already been opened")
+      raise ValueError("distribution file has already been opened")
 
     self.logger.info( f'building {self.outname}' )
 
     try:
 
-      self.make_buildfile()
+      self.create_distfile()
 
       self.opened = True
 
@@ -279,7 +297,7 @@ class build_base( ABC ):
     Parameters
     ----------
     dst : str
-      Path of item within the build
+      Path of item within the distribution
     data : bytes
       Binary data that was added
 
@@ -302,12 +320,12 @@ class build_base( ABC ):
   def close( self,
     finalize = True,
     copy = True ):
-    """Closes the temporary build file
+    """Closes the temporary distribution file
 
     Parameters
     ----------
     finalize : bool
-      If true, finalizes the temporary build file before closing
+      If true, finalizes the temporary distribution file before closing
     copy : bool
       If true, copies the temporary file to final location after closing
 
@@ -324,22 +342,22 @@ class build_base( ABC ):
       self.finalize()
       self.finalized = True
 
-    self.close_buildfile()
+    self.close_distfile()
     self.closed = True
 
     if copy and not self.copied:
       self.logger.info( f'copying {self.outname} -> {self.outdir}' )
-      self.copy_buildfile()
+      self.copy_distfile()
       self.copied = True
 
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
-    """Opens the temporary build file upon entering the context
+    """Opens the temporary distribution file upon entering the context
 
     Returns
     -------
-    self : :class:`build_base <partis.pyproj.build_base.build_base>`
+    self : :class:`dist_base <partis.pyproj.dist_base.dist_base>`
     """
     if self.opened:
       return self
@@ -348,9 +366,9 @@ class build_base( ABC ):
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback ):
-    """Closes the temporary build file upon exiting the context
+    """Closes the temporary distribution file upon exiting the context
 
-    If no exception occured in the context, then the temporary build is finalized
+    If no exception occured in the context, then the temporary distribution is finalized
     and copied to it's final locations
     """
 
@@ -371,7 +389,7 @@ class build_base( ABC ):
     if self.opened and not self.closed:
       return
 
-    raise ValueError("build file is not open")
+    raise ValueError("distribution file is not open")
 
   #-----------------------------------------------------------------------------
   def assert_recordable( self ):
@@ -382,19 +400,19 @@ class build_base( ABC ):
     if not self.finalized:
       return
 
-    raise ValueError("build record has already been finalized.")
+    raise ValueError("distribution record has already been finalized.")
 
   #-----------------------------------------------------------------------------
   @abstractmethod
-  def make_buildfile( self ):
-    """Creates and opens a temporary build file into which files are copied
+  def create_distfile( self ):
+    """Creates and opens a temporary distribution file into which files are copied
     """
     raise NotImplementedError('')
 
   #-----------------------------------------------------------------------------
   @abstractmethod
   def finalize( self ):
-    """Finalizes the build file before being closed
+    """Finalizes the distribution file before being closed
 
     Returns
     -------
@@ -403,27 +421,27 @@ class build_base( ABC ):
 
     Note
     ----
-    Not all build implementations will create/return a hash of the record
+    Not all distribution implementations will create/return a hash of the record
     """
     raise NotImplementedError('')
 
   #-----------------------------------------------------------------------------
   @abstractmethod
-  def close_buildfile( self ):
-    """Closes the temporary build file
+  def close_distfile( self ):
+    """Closes the temporary distribution file
     """
     raise NotImplementedError('')
 
   #-----------------------------------------------------------------------------
   @abstractmethod
-  def copy_buildfile( self ):
-    """Copies the temporary build file to it's final location
+  def copy_distfile( self ):
+    """Copies the temporary distribution file to it's final location
     """
     raise NotImplementedError('')
 
   #-----------------------------------------------------------------------------
   @abstractmethod
-  def remove_buildfile( self ):
-    """Deletes the temporary build file
+  def remove_distfile( self ):
+    """Deletes the temporary distribution file
     """
     raise NotImplementedError('')

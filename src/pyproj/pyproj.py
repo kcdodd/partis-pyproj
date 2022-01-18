@@ -4,7 +4,7 @@ import sys
 import shutil
 import logging
 import tempfile
-
+from copy import copy
 from collections.abc import (
   Mapping,
   Sequence )
@@ -40,7 +40,7 @@ class PyProjBase:
 
   """
   #-----------------------------------------------------------------------------
-  def __init__( self,
+  def __init__( self, *,
     root,
     logger = None ):
 
@@ -92,19 +92,13 @@ class PyProjBase:
       name = 'tool.pyproj.dist',
       obj = self.dist,
       keys = [
-        'any',
+        'ignore',
         'source',
         'binary' ] )
 
-    self.dist_any = mapget( self.dist, 'any', dict() )
     self.dist_source = mapget( self.dist, 'source', dict() )
     self.dist_binary = mapget( self.dist, 'binary', dict() )
 
-    allowed_keys(
-      name = 'tool.pyproj.dist.any',
-      obj = self.dist_any,
-      keys = [
-        'ignore' ] )
 
     allowed_keys(
       name = 'tool.pyproj.dist.source',
@@ -122,7 +116,12 @@ class PyProjBase:
         'prep',
         'ignore',
         'copy',
-        'top_level' ] )
+        'top_level',
+        'data',
+        'headers',
+        'scripts',
+        'purelib',
+        'platlib' ] )
 
     self.top_level = mapget( self.dist_binary, 'top_level', list() )
 
@@ -202,12 +201,12 @@ class PyProjBase:
       func( self, **entry_point_kwargs )
 
   #-----------------------------------------------------------------------------
-  def dist_source_copy( self, sdist ):
+  def dist_source_copy( self, *, dist ):
     """Copies prepared files into a source distribution
 
     Parameters
     ---------
-    sdist : :class:`build_base <partis.pyproj.build_dist.build_base.build_base>`
+    sdist : :class:`dist_base <partis.pyproj.dist_file.dist_base.dist_base>`
       Builder used to write out source distribution files
     """
 
@@ -217,56 +216,25 @@ class PyProjBase:
       try:
         os.chdir( sub_proj.root )
         sub_proj.dist_source_copy(
-          sdist = sdist )
+          dist = dist )
 
       finally:
         os.chdir(_cwd)
 
+    name = f'tool.pyproj.dist.source'
+
+    include = list( mapget( self.dist_source, 'copy', list() ) )
+
     ignore = (
-      mapget( self.dist_any, 'ignore', list() )
+      mapget( self.dist, 'ignore', list() )
       + mapget( self.dist_source, 'ignore', list() ) )
 
-    ignore_patterns = shutil.ignore_patterns(*ignore) if len(ignore) > 0 else None
-
-    includes = list( mapget( self.dist_source, 'copy', list() ) )
-
-    for i, incl in enumerate(includes):
-      incl_name = f'tool.pyproj.dist.source.copy[{i}]'
-
-      if isinstance( incl, str ):
-        includes[i] = ( incl, incl )
-
-      elif isinstance( incl, Mapping ):
-        allowed_keys(
-          name = incl_name,
-          obj = incl,
-          keys = [
-            'src',
-            'dst' ] )
-
-        includes[i] = ( incl['src'], incl['dst'] )
-
-      else:
-        raise ValueError(
-          f"{incl_name} must be a string [from/to], or mapping {{src = [from], dst = [to]}}: {incl}")
-
-    for src, dst in includes:
-      src = osp.normpath( src )
-      dst = osp.normpath( osp.join( sdist.base_path, self.root, dst ) )
-
-      self.logger.info(f"sdist copy: {src} -> {dst}")
-
-      if osp.isdir( src ):
-        sdist.copytree(
-          src = src,
-          dst = dst,
-          ignore = ignore_patterns )
-
-      else:
-        sdist.copyfile(
-          src = src,
-          dst = dst )
-
+    self.dist_copy(
+      name = name,
+      base_path = dist.named_dirs['root'],
+      include = include,
+      ignore = ignore,
+      dist = dist )
 
     if mapget( self.dist_source, 'add_legacy_setup', False ):
       self.logger.info(f"generating legacy 'setup.py'")
@@ -319,12 +287,12 @@ class PyProjBase:
       func( self, **entry_point_kwargs )
 
   #-----------------------------------------------------------------------------
-  def dist_binary_copy( self, bdist ):
+  def dist_binary_copy( self, *, dist ):
     """Copies prepared files into a binary distribution
 
     Parameters
     ---------
-    bdist : :class:`build_base <partis.pyproj.build_dist.build_base.build_base>`
+    bdist : :class:`dist_base <partis.pyproj.dist_file.dist_base.dist_base>`
       Builder used to write out binary distribution files
     """
 
@@ -334,24 +302,80 @@ class PyProjBase:
       try:
         os.chdir( sub_proj.root )
         sub_proj.dist_binary_copy(
-          bdist = bdist )
+          dist = dist )
 
       finally:
         os.chdir(_cwd)
 
+    name = f'tool.pyproj.dist.binary'
+
+    include = list( mapget( self.dist_binary, 'copy', list() ) )
+
     ignore = (
-      mapget( self.dist_any, 'ignore', list() )
+      mapget( self.dist, 'ignore', list() )
       + mapget( self.dist_binary, 'ignore', list() ) )
 
+    self.dist_copy(
+      name = name,
+      base_path = dist.named_dirs['root'],
+      include = include,
+      ignore = ignore,
+      dist = dist )
+
+    data_scheme = [
+      'data',
+      'headers',
+      'scripts',
+      'purelib',
+      'platlib' ]
+
+    for k in data_scheme:
+      if k in self.dist_binary:
+        name = f'tool.pyproj.dist.binary.{k}'
+
+        dist_data = mapget( self.dist_binary, k, dict() )
+
+        allowed_keys(
+          name = name,
+          obj = dist_data,
+          keys = [
+            'ignore',
+            'copy' ] )
+
+        _include = list( mapget( dist_data, 'copy', list() ) )
+
+        _ignore = (
+          ignore
+          + mapget( dist_data, 'ignore', list() ) )
+
+        self.dist_copy(
+          name = name,
+          base_path = dist.named_dirs[k],
+          include = _include,
+          ignore = _ignore,
+          dist = dist )
+
+  #-----------------------------------------------------------------------------
+  def dist_copy( self, *,
+    name,
+    base_path,
+    include,
+    ignore,
+    dist ):
+
+    if len(include) == 0:
+      return
+
+    include = copy(include)
     ignore_patterns = shutil.ignore_patterns(*ignore) if len(ignore) > 0 else None
 
-    includes = list( mapget( self.dist_binary, 'copy', list() ) )
+    for i, incl in enumerate(include):
+      incl_name = f'{name}.copy[{i}]'
 
-    for i, incl in enumerate(includes):
-      incl_name = f'tool.pyproj.dist.binary.copy[{i}]'
+      _ignore_patterns = ignore_patterns
 
       if isinstance( incl, str ):
-        includes[i] = ( incl, incl )
+        include[i] = ( incl, incl, _target, _ignore_patterns )
 
       elif isinstance( incl, Mapping ):
         allowed_keys(
@@ -359,27 +383,45 @@ class PyProjBase:
           obj = incl,
           keys = [
             'src',
-            'dst' ] )
+            'dst',
+            'ignore' ] )
 
-        includes[i] = ( incl['src'], incl['dst'] )
+        if 'src' not in incl:
+          raise ValueError(
+            f'{incl_name} must have a `src`:{incl}')
+
+        if 'dst' not in incl:
+          incl['dst'] = incl['src']
+
+        if 'ignore' in incl:
+          _ignore = incl['ignore']
+
+          if isinstance( _ignore, str ):
+            _ignore = [ _ignore, ]
+
+          if len(_ignore) > 0:
+            _ignore_patterns = shutil.ignore_patterns( *( ignore + _ignore ) )
+
+        include[i] = ( incl['src'], incl['dst'], _ignore_patterns )
 
       else:
         raise ValueError(
-          f"{incl_name} must be a string [from/to], or mapping {{src = [from], dst = [to]}}: {incl}")
+          f"{incl_name} must be a string [from/to], or mapping {{src = 'from', dst = 'to'}}: {incl}")
 
-    for src, dst in includes:
+    for src, dst, ignore in include:
+
       src = osp.normpath( src )
-      dst = osp.normpath( dst )
+      dst = osp.normpath( osp.join( base_path, dst ) )
 
-      self.logger.info(f"bdist copy: {src} -> {dst}")
+      self.logger.info(f"dist copy: {src} -> {dst}")
 
       if osp.isdir( src ):
-        bdist.copytree(
+        dist.copytree(
           src = src,
           dst = dst,
-          ignore = ignore_patterns )
+          ignore = ignore )
 
       else:
-        bdist.copyfile(
+        dist.copyfile(
           src = src,
           dst = dst )

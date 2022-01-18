@@ -3,7 +3,9 @@ import re
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def gen_nonprintable():
-
+  """Method used to generate a regex for matchiing all non-printable unicode
+  characters, except for newlines '\\n' and tabs '\\t'.
+  """
   test = ''
 
   ns = [ [0,], ]

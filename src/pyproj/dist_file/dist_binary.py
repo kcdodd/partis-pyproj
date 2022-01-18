@@ -12,7 +12,7 @@ from ..norms import (
   norm_dist_build,
   norm_dist_compat,
   compress_dist_compat,
-  norm_wheel_name,
+  norm_dist_filename,
   norm_path,
   norm_data,
   hash_sha256,
@@ -20,11 +20,11 @@ from ..norms import (
 
 from ..pkginfo import PkgInfo
 
-from .build_zip import build_zip
+from .dist_zip import dist_zip
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class build_bdist_wheel( build_zip ):
-  """Build a binary distribution ``*.whl`` wheel file
+class dist_binary_wheel( dist_zip ):
+  """Build a binary distribution :pep:`427`, :pep:`491` wheel file ``*.whl``
 
   Parameters
   ----------
@@ -49,8 +49,8 @@ class build_bdist_wheel( build_zip ):
   gen_name : str
     Name to use as the 'Generator' of the wheel file
 
-  Examples
-  --------
+  Example
+  -------
 
   .. testcode::
 
@@ -71,7 +71,7 @@ class build_bdist_wheel( build_zip ):
 
       from partis.pyproj import (
         PkgInfo,
-        build_bdist_wheel )
+        dist_binary_wheel )
 
       pkg_info = PkgInfo(
         project = dict(
@@ -79,7 +79,7 @@ class build_bdist_wheel( build_zip ):
           version = '1.0' ) )
 
 
-      with build_bdist_wheel(
+      with dist_binary_wheel(
         pkg_info = pkg_info,
         top_level = [ 'my_package' ],
         outdir = out_dir ) as bdist:
@@ -100,6 +100,7 @@ class build_bdist_wheel( build_zip ):
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0427
+  * https://www.python.org/dev/peps/pep-0491
   * https://www.python.org/dev/peps/pep-0660
 
   """
@@ -113,7 +114,7 @@ class build_bdist_wheel( build_zip ):
     outdir = None,
     tmpdir = None,
     logger = None,
-    gen_name = 'build_bdist_wheel', ):
+    gen_name = None ):
 
     if not isinstance( pkg_info, PkgInfo ):
       raise ValueError(f"pkg_info must be instance of PkgInfo: {pkg_info}")
@@ -126,6 +127,9 @@ class build_bdist_wheel( build_zip ):
 
     if top_level is None:
       top_level = list()
+
+    if gen_name is None:
+      gen_name = f'{type(self).__module__}.{type(self).__name__}'
 
     self.top_level = [ norm_dist_name(d) for d in top_level ]
 
@@ -145,7 +149,7 @@ class build_bdist_wheel( build_zip ):
       *compress_dist_compat( self.compat ) ]
 
     wheel_name_parts = [
-      norm_wheel_name(p)
+      norm_dist_filename(p)
       for p in wheel_name_parts
       if p != '' ]
 
@@ -153,17 +157,27 @@ class build_bdist_wheel( build_zip ):
     self.base_tag = '-'.join( wheel_name_parts[-3:] )
 
     self.dist_info_path = self.base_path + '.dist-info'
-    self.data_path = self.base_path + '.data'
     self.metadata_path = self.dist_info_path + '/METADATA'
     self.entry_points_path = self.dist_info_path + '/entry_points.txt'
     self.wheel_path = self.dist_info_path + '/WHEEL'
     self.record_path = self.dist_info_path + '/RECORD'
+    self.data_path = self.base_path + '.data'
+
+    self.data_paths = [
+      'data',
+      'headers',
+      'scripts',
+      'purelib',
+      'platlib' ]
 
     super().__init__(
       outname = '-'.join( wheel_name_parts ) + '.whl',
       outdir = outdir,
       tmpdir = tmpdir,
-      logger = logger )
+      logger = logger,
+      named_dirs = {
+        'dist_info' : self.dist_info_path,
+        **{ k : self.data_path + '/' + k for k in self.data_paths } } )
 
   #-----------------------------------------------------------------------------
   def finalize( self ):

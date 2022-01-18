@@ -45,7 +45,7 @@ Use with 'pyproject.toml' files
   # direct the installer to the PEP-517 backend
   build-backend = "partis.pyproj.backend"
 
-  [tool.pyproj.dist.any]
+  [tool.pyproj.dist]
   # define glob patterns of files to ignore for any type of distribution
   ignore = [
     '__pycache__',
@@ -68,18 +68,60 @@ Use with 'pyproject.toml' files
   # list the names of the top-level packages
   top_level = [ 'my_project' ]
 
-Each item assigned to the ``copy`` array for a distribution are treated like the
-keyword arguments of
-:func:`shutil.copyfile`
-or
-:func:`shutil.copytree`,
-depending on whether the the ``src`` is a file or a directory.
-If the ``copy`` specifies a single string, it treats it like ``dst = src``.
-The ``ignore`` list is treated like the arguments to
-:func:`shutil.ignore_patterns`
-is passed to the :func:`shutil.copytree` function.
-The ``ignore`` patterns may be defined specifically for ``dist.binary`` or
-``dist.source`` by listing them in the corresponding table instead of ``dist.any``.
+* Each item listed in ``copy`` for a distribution are treated like the
+  keyword arguments of
+  :func:`shutil.copyfile`
+  or
+  :func:`shutil.copytree`,
+  depending on whether the ``src`` is a file or a directory.
+* The ``dst`` is relative to the relevant distribution archive root directory.
+* If the item is a single string, it is expanded as ``dst = src``.
+* The ``ignore`` list is treated like the arguments to
+  :func:`shutil.ignore_patterns`,
+  which is then passed to the :func:`shutil.copytree` function.
+* Every *file* explicitly listed as a ``src`` will be copied, even if it
+  matches one of the ``ignore`` patterns.
+* The ``ignore`` patterns may be specified for all distributions in
+  ``tool.pyproj.dist``, specifically for ``tool.pyproj.dist.binary`` or
+  ``tool.pyproj.dist.source``, or individually for each copytree operation
+  ``{ src = '...', dst = '...', ignore = [...] }``.
+  The ignore patterns are accumulated at each level of specificity.
+
+Binary distribution install paths
+---------------------------------
+
+If there are some binary distribution files that need to be installed to a
+location according to a local installation scheme (not the regular modules)
+these can be specified within sub-tables.
+Available install scheme keys, and example corresponding install locations, are:
+
+* ``data`` : '{prefix}/'
+* ``headers`` : '{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/'
+* ``platlib`` : '{prefix}/lib/python{X}.{Y}{platform}/site-packages/'
+* ``purelib`` : '{prefix}/lib/python{X}.{Y}/site-packages/'
+* ``scripts`` : '{prefix}/bin/'
+
+.. code:: toml
+
+  [tool.pyproj.dist.binary.data]
+  copy = [
+    { src = 'build/data.dat', dst = 'data.dat' } ]
+
+  [tool.pyproj.dist.binary.headers]
+  copy = [
+    { src = 'build/header.hpp', dst = 'header.hpp' } ]
+
+  [tool.pyproj.dist.binary.platlib]
+  copy = [
+    { src = 'build/pltlib.a', dst = 'pltlib.a'} ]
+
+  [tool.pyproj.dist.binary.purelib]
+  copy = [
+    { src = 'build/purlib.py', dst = 'purlib.py'} ]
+
+  [tool.pyproj.dist.binary.scripts]
+  copy = [
+    { src = 'build/script.py', dst = 'script.py'} ]
 
 Adding a custom pre-processing hook
 -----------------------------------

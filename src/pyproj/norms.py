@@ -39,7 +39,7 @@ class ValidationError( Exception ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PEPValidationError( ValidationError ):
-  """Error from value incompatible with a Python Enhancement Proposal (PEP)
+  """Error from value incompatible with a :term:`PEP`
 
   Parameters
   ----------
@@ -61,7 +61,7 @@ class PEPValidationError( ValidationError ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def allowed_keys( name, obj, keys ):
-  """Simple check that a mapping does not contain un-expected keys
+  """Check that a mapping does not contain un-expected keys
   """
 
   if not isinstance( obj, Mapping ):
@@ -74,7 +74,10 @@ def allowed_keys( name, obj, keys ):
         f"{name} must be mapping with keys {keys}: {k}" )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def mapget( obj, path, default = None ):
+def mapget(
+  obj,
+  path,
+  default = None ):
   """Convenience method for extracting a value from a nested mapping
   """
 
@@ -101,16 +104,66 @@ def mapget( obj, path, default = None ):
   return _obj
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def norm_printable( text ):
-  """Removes leading and trailing whitespace and all non-printable characters
-  except for newlines '\\n' and tabs '\\n'.
+def norm_printable(
+  text = None ):
+  r"""Removes leading and trailing whitespace and all non-printable characters,
+  except for newlines '\\n' and tabs '\\t'.
+
+  Parameters
+  ----------
+  text : None | str
+    If None, an empty string is returned.
+
+  Returns
+  -------
+  str
+
+  Note
+  ----
+  While not explicitly stated in any PEP, it is implied through referenced RFCs
+  and other assumptions that text in package meta-data should only contain
+  printable unicode characters.
+
+  Example
+  -------
+
+  .. testcode::
+
+    import re
+    from partis.pyproj import norm_printable
+
+    x = ''.join([ chr(i) for i in range(50) ])
+    print( x.isprintable() )
+
+    y = norm_printable(x)
+    print( y.isprintable() )
+
+    z = re.sub(r'[\t\n]', '', y)
+    print( z.isprintable() )
+
+    print( norm_printable(None) )
+    print( norm_printable('f\ubaaar') )
+
+  .. testoutput::
+
+    False
+    False
+    True
+
+    f몪r
+
   """
+
+  if text is None:
+    return ''
+
+
   return nonprintable.sub( '', str(text).strip() )
-  # return text.strip()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def valid_dist_name( name ):
-  """
+  """Checks for valid distribution name (:pep:`426`)
+
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0426/#name
@@ -128,9 +181,16 @@ def valid_dist_name( name ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_name( name ):
-  """
+  """Normalizes a distribution name (:pep:`503`)
+
+  Note
+  ----
+  The name should be lowercased with all runs of the
+  characters ., -, or _ replaced with a single - character.
+
   See Also
   --------
+  * :func:`valid_dist_name`
   * https://www.python.org/dev/peps/pep-0503/#normalized-names
   """
 
@@ -143,8 +203,44 @@ def norm_dist_name( name ):
   return name
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def norm_dist_version( version ):
+def norm_dist_filename( name ):
+  """Normalize distribution filename component (:pep:`427`)
+
+  Note
+  ----
+  Each component of the filename is escaped by replacing runs of
+  non-alphanumeric characters with an underscore '_'
+
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0427/#file-name-convention
   """
+
+  return re.sub( r"[^\w\d\.]+", "_", name )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def join_dist_filename( parts ):
+  """Joins distribution filename component (:pep:`427`)
+
+  Note
+  ----
+  Each component of the filename is joined by '-'
+
+  See Also
+  --------
+  * :func:`norm_dist_filename`
+  * https://www.python.org/dev/peps/pep-0427/#file-name-convention
+  """
+
+  return '-'.join([
+    norm_dist_filename(p)
+    for p in parts
+    if p != ''])
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def norm_dist_version( version ):
+  """Checks for valid distribution version (:pep:`440`)
+
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0440/#version-scheme
@@ -162,8 +258,41 @@ def norm_dist_version( version ):
   return version
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def norm_dist_author( name, email ):
-  """
+def norm_dist_author(
+  name = None,
+  email = None ):
+  """Checks for valid distribution author/maintainer name/email (:pep:`621`)
+
+  * The name value MUST be a valid email name
+    (i.e. whatever can be put as a name, before an email, in RFC #822)
+    and not contain commas.
+  * If only name is provided, the value goes in Author/Maintainer as
+    appropriate.
+  * If only email is provided, the value goes in Author-email/Maintainer-email
+    as appropriate.
+  * If both email and name are provided, the value goes in
+    Author-email/Maintainer-email as appropriate,
+    with the format {name} <{email}> (with appropriate quoting,
+    e.g. using email.headerregistry.Address).
+
+    .. note::
+
+      The returned name field will be empty in this case.
+
+
+  Parameters
+  ----------
+  name : str
+  email : str
+
+  Returns
+  -------
+  name : str
+  email : str
+
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0621/#authors-maintainers
   """
 
   name = norm_printable( name )
@@ -293,7 +422,11 @@ def norm_dist_url( label, url ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_extra( extra ):
-  """
+  """Normalize distribution 'extra' requirement
+
+  Note
+  ----
+  * No known PEP specifies this format, but is treated as
   """
 
   extra = norm_printable( extra )
@@ -309,6 +442,10 @@ def norm_dist_extra( extra ):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_build( build ):
   """
+  Note
+  ----
+  * Must start with a digit, remainder is ASCII alpha-numeric
+
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0427/#file-name-convention
@@ -328,6 +465,13 @@ def norm_dist_build( build ):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_compat( py_tag, abi_tag, plat_tag ):
   """
+
+  Note
+  ----
+  * Tags must contain only ASCII alpha-numeric or underscore
+  * platform tag with all hyphens -
+    and periods . replaced with underscore _.
+
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0425/#details
@@ -376,7 +520,7 @@ def norm_dist_compat( py_tag, abi_tag, plat_tag ):
   return ( py_tag, abi_tag, plat_tag )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def join_tags( tags ):
+def join_dist_compat( tags ):
   """
   See Also
   --------
@@ -394,39 +538,28 @@ def compress_dist_compat( compat ):
 
   py_tags, abi_tags, plat_tags = zip( *compat )
 
-  py_tags = join_tags( py_tags )
-  abi_tags = join_tags( abi_tags )
-  plat_tags = join_tags( plat_tags )
+  py_tags = join_dist_compat( py_tags )
+  abi_tags = join_dist_compat( abi_tags )
+  plat_tags = join_dist_compat( plat_tags )
 
   return py_tags, abi_tags, plat_tags
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def norm_wheel_name( name ):
-  """
-  See Also
-  --------
-  * https://www.python.org/dev/peps/pep-0427/#file-name-convention
-  """
-
-  # > Each component of the filename is escaped by replacing runs of
-  # > non-alphanumeric characters with an underscore _
-  return re.sub( r"[^\w\d.]+", "_", name )
-
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_data( data ):
-  """
+  """Normalize data for writing into a distribution
+
   Parameters
   ----------
   data : bytes | str | io.IOBase
-    If data is bytes, it will be returned un-modified.
-    If data is a str, it will be encoded as 'utf-8'.
-    If data is a stream, it will be read to EOF.
 
   Returns
   -------
   data : bytes
+
+    * If data is bytes, it will be returned un-modified.
+    * If data is a str, it will be encoded as 'utf-8'.
+    * If data is a stream, it will be read to EOF and apply one of the above.
   """
 
   if isinstance( data, io.IOBase ):
@@ -441,6 +574,15 @@ def norm_data( data ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_path( path ):
+  """Normalizes a file path for writing into a distribution archive
+
+  Note
+  ----
+  * Must be a valid path
+  * Must be relative, and no reference to parent any directory (e.g. '..')
+  * May not contain any white-space in path components
+  * All slashes replaced with forward slashes
+  """
 
   path = str(path)
 
@@ -457,33 +599,71 @@ def norm_path( path ):
   ppath = pathlib.PurePosixPath( path )
 
   if wpath.is_absolute() or ppath.is_absolute():
-    raise ValueError(f"path must be relative to archive root: {path}")
+    raise ValueError(f"path must be relative: {path}")
 
 
   if re.search( r'(\.\.)', path ):
     raise ValueError(
-      f"path segments should not be relative to parent directories: {path}")
+      f"path segments can not be relative to parent directories: {path}")
 
   return path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_mode( mode = None ):
+  """Normalizes file permission mode for distribution archive
 
-  mode = mode or 0o000
+  Parameters
+  ----------
+  mode : None | int
+    POSIX permission mode
 
-  # 1) rw-r--r--
-  # 2) rwxr-xr-x
-  _mode = 0o644
+  Returns
+  -------
+  int
+
+  Note
+  ----
+  The returned mode is either ``0o644`` (rw-r--r--), or `0o755` (rwxr-xr-x)
+  if ``mode & stat.S_IXUSR == True``
+
+  Example
+  -------
+
+  .. testcode::
+
+    from partis.pyproj import norm_mode
+
+    print( norm_mode( 0o000 ) == 0o644 )
+    print( norm_mode( 0o100 ) == 0o755 )
+
+  .. testoutput::
+
+    True
+    True
+
+  """
+
+  if mode is None:
+    mode = 0
+
+  mode = int(mode)
 
   if mode & stat.S_IXUSR:
     # if the mode is executable by the user,
     # set as executable also by group and others
-    _mode |= 0o111
+
+    # rwxr-xr-x
+    _mode = 0o755
+
+  else:
+    # set as writable by owner, and readable by all others
+    # rw-r--r--
+    _mode = 0o644
 
   return _mode
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def mode_to_xattr( mode = None ):
+def norm_zip_external_attr( mode = None ):
   """Converts the unix integer mode to zip external_attr
 
   The returned value follows the 4 byte format
@@ -520,10 +700,39 @@ def mode_to_xattr( mode = None ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def b64_nopad( data ):
+  """Encodes hash as urlsafe base64 encoding with no trailing '=' (:pep:`427`)
+
+  Parameters
+  ----------
+  data : bytes
+
+  Returns
+  -------
+  str
+
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0427/#appendix
+  """
   return urlsafe_b64encode( data ).decode("ascii").rstrip("=")
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def hash_sha256( stream ):
+  """Computes SHA-256 hash
+
+  Parameters
+  ----------
+  stream : bytes | io.BytesIO
+
+  Returns
+  -------
+  str, int
+    urlsafe base64 encoded hash, and size (in bytes) of the hashed data
+
+  See Also
+  --------
+  :func:`hashlib.sha256`
+  """
 
   if isinstance( stream, bytes ):
     with io.BytesIO( stream ) as _stream:
@@ -550,7 +759,25 @@ def hash_sha256( stream ):
   return digest_b64_nopad, size
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def email_encode_items( headers, payload = None ):
+def email_encode_items(
+  headers,
+  payload = None ):
+  """Encodes a list of headers and a payload
+
+  Parameters
+  ----------
+  headers : List[ Tuple[str, str ] ]
+  payload : str
+
+  Returns
+  -------
+  bytes
+
+  See Also
+  --------
+  :mod:`email.message`
+
+  """
 
   msg = Message()
 
@@ -660,8 +887,6 @@ pep_621_keyword = re.compile( r'^[^\s\,]+$' )
 pep_621_extra = re.compile( r'^([A-Z0-9_]+)?$', re.IGNORECASE  )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# NOTE: Not explicitly stated in a PEP, but implied through referenced RFCs and other
-# assumptions that text in package meta-data has only printable content.
 # NOTE: there may be a more efficient way to strip all non-printable characters
 # Here consider new-lines '\n' and tabs '\t' to be printable
 # even though '\n'.isprintable() returns False

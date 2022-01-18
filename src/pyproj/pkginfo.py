@@ -23,10 +23,10 @@ from .norms import (
   norm_dist_build,
   norm_dist_compat,
   compress_dist_compat,
-  norm_wheel_name,
+  norm_dist_filename,
   norm_path,
   norm_data,
-  mode_to_xattr,
+  norm_zip_external_attr,
   hash_sha256,
   email_encode_items )
 
