@@ -19,3 +19,4 @@ Package Reference
   src/pyproj
   src/dist_file
   src/norms
+  ../README

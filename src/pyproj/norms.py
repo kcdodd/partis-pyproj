@@ -667,10 +667,10 @@ def norm_zip_external_attr( mode = None ):
   """Converts the unix integer mode to zip external_attr
 
   The returned value follows the 4 byte format
-  |mode|mode|xxxx|xxxd|
+  ``|mm|mm|xx|dx|``
 
-  The file permission mode is masked and shifted to the second most
-  significant byte.
+  The file permission mode is masked and shifted to the two most
+  significant bytes.
   If specified as a directory, the second bit is set.
 
   Parameters
@@ -693,8 +693,8 @@ def norm_zip_external_attr( mode = None ):
   # MS-DOS directory flag 0x10 (various sources,
   # e.g. https://stackoverflow.com/questions/434641 )
   # NOTE sure why this is necessary, except maybe for adding an empty directory
-  # msd = int(bool( stat.S_ISDIR(mode) )) << 1
-  # xattr |= msd
+  # if stat.S_ISDIR(mode):
+  #   xattr |= 0x10
 
   return xattr
 
