@@ -144,31 +144,31 @@ class PyProjBase:
       PkgInfoReq(r)
       for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
 
-    for sub_proj in self.sub_projects:
-      self.pkg_info = self.pkg_info.provides( sub_proj.pkg_info )
-      self.build_requires |= sub_proj.build_requires
-
-    # filter out any dependencies listing the one being provided
-    # NOTE: this dose not do any checking of version, up to repo maintainers
-    self.build_requires = set([
-      r
-      for r in self.build_requires
-      if r.req.name not in self.pkg_info._provides_dist ])
+    # for sub_proj in self.sub_projects:
+    #   self.pkg_info = self.pkg_info.provides( sub_proj.pkg_info )
+    #   self.build_requires |= sub_proj.build_requires
+    #
+    # # filter out any dependencies listing the one being provided
+    # # NOTE: this dose not do any checking of version, up to repo maintainers
+    # self.build_requires = set([
+    #   r
+    #   for r in self.build_requires
+    #   if r.req.name not in self.pkg_info._provides_dist ])
 
   #-----------------------------------------------------------------------------
   def dist_source_prep( self ):
     """Prepares project files for a source distribution
     """
 
-    _cwd = os.getcwd()
-
-    for sub_proj in self.sub_projects:
-      try:
-        os.chdir( sub_proj.root )
-        sub_proj.dist_source_prep()
-
-      finally:
-        os.chdir(_cwd)
+    # _cwd = os.getcwd()
+    #
+    # for sub_proj in self.sub_projects:
+    #   try:
+    #     os.chdir( sub_proj.root )
+    #     sub_proj.dist_source_prep()
+    #
+    #   finally:
+    #     os.chdir(_cwd)
 
     prep = mapget( self.dist_source, 'prep', dict() )
     prep_name = f"tool.pyproj.dist.source.prep"
@@ -210,16 +210,16 @@ class PyProjBase:
       Builder used to write out source distribution files
     """
 
-    _cwd = os.getcwd()
-
-    for sub_proj in self.sub_projects:
-      try:
-        os.chdir( sub_proj.root )
-        sub_proj.dist_source_copy(
-          dist = dist )
-
-      finally:
-        os.chdir(_cwd)
+    # _cwd = os.getcwd()
+    #
+    # for sub_proj in self.sub_projects:
+    #   try:
+    #     os.chdir( sub_proj.root )
+    #     sub_proj.dist_source_copy(
+    #       dist = dist )
+    #
+    #   finally:
+    #     os.chdir(_cwd)
 
     name = f'tool.pyproj.dist.source'
 
@@ -238,7 +238,7 @@ class PyProjBase:
 
     if mapget( self.dist_source, 'add_legacy_setup', False ):
       self.logger.info(f"generating legacy 'setup.py'")
-      legacy_setup_content( self, sdist )
+      legacy_setup_content( self, dist )
 
 
   #-----------------------------------------------------------------------------
@@ -246,15 +246,15 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
-    _cwd = os.getcwd()
-
-    for sub_proj in self.sub_projects:
-      try:
-        os.chdir( sub_proj.root )
-        sub_proj.dist_binary_prep()
-
-      finally:
-        os.chdir(_cwd)
+    # _cwd = os.getcwd()
+    #
+    # for sub_proj in self.sub_projects:
+    #   try:
+    #     os.chdir( sub_proj.root )
+    #     sub_proj.dist_binary_prep()
+    #
+    #   finally:
+    #     os.chdir(_cwd)
 
     prep = mapget( self.dist_binary, 'prep', dict() )
     prep_name = f"tool.pyproj.dist.binary.prep"
@@ -296,16 +296,16 @@ class PyProjBase:
       Builder used to write out binary distribution files
     """
 
-    _cwd = os.getcwd()
-
-    for sub_proj in self.sub_projects:
-      try:
-        os.chdir( sub_proj.root )
-        sub_proj.dist_binary_copy(
-          dist = dist )
-
-      finally:
-        os.chdir(_cwd)
+    # _cwd = os.getcwd()
+    #
+    # for sub_proj in self.sub_projects:
+    #   try:
+    #     os.chdir( sub_proj.root )
+    #     sub_proj.dist_binary_copy(
+    #       dist = dist )
+    #
+    #   finally:
+    #     os.chdir(_cwd)
 
     name = f'tool.pyproj.dist.binary'
 
@@ -375,7 +375,7 @@ class PyProjBase:
       _ignore_patterns = ignore_patterns
 
       if isinstance( incl, str ):
-        include[i] = ( incl, incl, _target, _ignore_patterns )
+        include[i] = ( incl, incl, _ignore_patterns )
 
       elif isinstance( incl, Mapping ):
         allowed_keys(

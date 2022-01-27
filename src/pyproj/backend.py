@@ -76,7 +76,7 @@ def backend_init(
 
 
 #-----------------------------------------------------------------------------
-def get_requires_for_build_dist(
+def get_requires_for_build_sdist(
   config_settings = None ):
   """
   Note
@@ -84,17 +84,17 @@ def get_requires_for_build_dist(
   This hook MUST return an additional list of strings containing PEP 508
   dependency specifications, above and beyond those specified in the
   pyproject.toml file. These dependencies will be installed when calling the
-  build_dist hook.
+  build_sdist hook.
 
   See Also
   --------
-  * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-dist
+  * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-sdist
   """
 
   return list()
 
 #-----------------------------------------------------------------------------
-def build_dist(
+def build_sdist(
   dist_directory,
   config_settings = None ):
   """
@@ -106,7 +106,7 @@ def build_dist(
 
   See Also
   --------
-  * https://www.python.org/dev/peps/pep-0517/#build-dist
+  * https://www.python.org/dev/peps/pep-0517/#build-sdist
   """
 
   pyproj = backend_init()
