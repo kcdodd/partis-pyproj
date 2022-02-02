@@ -24,6 +24,9 @@ from .norms import (
   norm_dist_compat,
   compress_dist_compat,
   norm_dist_filename,
+  norm_entry_point_group,
+  norm_entry_point_name,
+  norm_entry_point_ref,
   norm_path,
   norm_data,
   norm_zip_external_attr,
@@ -216,13 +219,20 @@ class PkgInfo:
 
     # TODO: validate/normalize entrypoints
     if 'scripts' in project:
-      self.entry_points['console_scripts'] = project.get('scripts')
+      self.entry_points['console_scripts'] = {
+        norm_entry_point_name(k) : norm_entry_point_ref(v)
+        for k,v in project.get('scripts').items() }
 
     if 'gui-scripts' in project:
-      self.entry_points['gui_scripts'] = project.get('gui-scripts')
+      self.entry_points['gui_scripts'] = {
+        norm_entry_point_name(k) : norm_entry_point_ref(v)
+        for k,v in project.get('gui-scripts').items() }
 
     if 'entry-points' in project:
+      
       for k, v in project.get('entry-points').items():
+        k = norm_entry_point_group(k)
+
         # PEP 621
         # > Build back-ends MUST raise an error if the metadata defines a
         # > [project.entry-points.console_scripts] or [project.entry-points.gui_scripts]
@@ -230,15 +240,17 @@ class PkgInfo:
         # > and [project.gui-scripts], respectively.
         if k in [ 'scripts', 'console_scripts' ]:
           raise ValueError(
-            f"'console_scripts' should be defined in [project.scripts] instead of [project.entry-points]")
+            f"""'console_scripts' should be defined in [project.scripts] instead
+            of [project.entry-points]""")
 
         if k in [ 'gui-scripts', 'gui_scripts' ]:
           raise ValueError(
-            f"'gui_scripts' should be defined in [project.gui-scripts] instead of [project.entry-points]")
+            f"""'gui_scripts' should be defined in [project.gui-scripts] instead
+            of [project.entry-points]""")
 
-        self.entry_points[k] = v
-
-
+        self.entry_points[k] = {
+          norm_entry_point_name(_k) : norm_entry_point_ref(_v)
+          for _k, _v in v.items() }
 
     #...........................................................................
     # > PEP 621

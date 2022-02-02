@@ -16,6 +16,7 @@ from email.message import Message
 from email.generator import BytesGenerator
 from email.utils import parseaddr, formataddr
 from urllib.parse import urlparse
+import keyword
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # NOTE: patterns used for validation are defined at the end of this file
@@ -102,6 +103,7 @@ def mapget(
     _obj = _obj.get( part, _default )
 
   return _obj
+
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_printable(
@@ -573,6 +575,98 @@ def norm_data( data ):
   return data
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def norm_py_identifier( name ):
+
+  name = norm_printable( name )
+
+  if not py_identifier.fullmatch( name ):
+    raise ValidationError(
+      msg = """Python identifier may only contain letters in a small case (a-z),
+        upper case (A-Z), digits (0-9), and underscore (_), and not start with
+        a digit.""",
+      val = name )
+
+  if py_keyword.fullmatch( name ):
+    raise ValidationError(
+      msg = "Python identifier may not be a reserved keyword",
+      val = name )
+
+  return name
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def norm_entry_point_group( name ):
+  """Normalizes entry point group
+
+  See Also
+  --------
+  * https://packaging.python.org/en/latest/specifications/entry-points/
+  """
+
+  name = norm_printable( name )
+
+  if not entry_point_group.fullmatch( name ):
+    raise ValidationError(
+      msg = """Entry point group must be one or more groups of
+        letters, numbers and underscores, separated by dots""",
+      val = name )
+
+  return name
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def norm_entry_point_name( name ):
+  """Normalizes entry point name
+
+  See Also
+  --------
+  * https://packaging.python.org/en/latest/specifications/entry-points/
+  """
+
+  name = norm_printable( name )
+
+  if not entry_point_name.fullmatch( name ):
+    raise ValidationError(
+      msg = """Entry point name must be only letters, numbers, underscores,
+        dots and dashes""",
+      val = name )
+
+  return name
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def norm_entry_point_ref( ref ):
+  """Normalizes entry point object reference
+
+  See Also
+  --------
+  * https://packaging.python.org/en/latest/specifications/entry-points/
+  """
+
+  ref = norm_printable( ref )
+
+  modname, sep, qualname = ref.partition(':')
+
+  if not modname:
+    raise ValidationError(
+      msg = "Entry point reference must give a module name",
+      val = ref )
+
+  try:
+
+    modname = '.'.join( norm_py_identifier(name) for name in modname.split('.') )
+
+    if qualname:
+      qualname = '.'.join( norm_py_identifier(name) for name in qualname.split('.') )
+
+      return f'{modname}:{qualname}'
+
+    return modname
+
+  except ValidationError as e:
+    raise ValidationError(
+      msg = """Entry point reference must have the form 'importable.module'
+        or 'importable.module:object.attr'""",
+      val = ref ) from e
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_path( path ):
   """Normalizes a file path for writing into a distribution archive
 
@@ -885,6 +979,19 @@ pep_621_keyword = re.compile( r'^[^\s\,]+$' )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 pep_621_extra = re.compile( r'^([A-Z0-9_]+)?$', re.IGNORECASE  )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# https://packaging.python.org/en/latest/specifications/entry-points/
+# Group names must be one or more groups of letters, numbers and underscores,
+# separated by dots
+entry_point_group = re.compile( r'^[A-Z0-9_]+(\.[A-Z0-9_]+)*$', re.IGNORECASE  )
+# For new entry points (names), it is recommended to use only letters, numbers,
+# underscores, dots and dashes
+entry_point_name = re.compile( r'^([A-Z0-9_\.\-]+)?$', re.IGNORECASE  )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+py_keyword = re.compile( '^(' + '|'.join(keyword.kwlist) + ')$' )
+py_identifier = re.compile( r'^[A-Z_][A-Z0-9_]*$', re.IGNORECASE )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # NOTE: there may be a more efficient way to strip all non-printable characters
