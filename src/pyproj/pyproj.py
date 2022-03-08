@@ -47,7 +47,7 @@ class PyProjBase:
     if logger is None:
       logger = logging.getLogger( __name__ )
 
-    self.root = str(root)
+    self.root = osp.abspath(root)
 
     self.pptoml_file = osp.join( self.root, 'pyproject.toml' )
 
@@ -83,8 +83,7 @@ class PyProjBase:
         'dist',
         'sdist',
         'bdist',
-        'external',
-        'sub_projects' ] )
+        'external' ] )
 
     self.dist = mapget( self.pyproj, 'dist', dict() )
 
@@ -125,12 +124,6 @@ class PyProjBase:
 
     self.top_level = mapget( self.dist_binary, 'top_level', list() )
 
-    self.sub_projects = [
-      type(self)(
-        root = osp.join( root, subdir ),
-        logger = self.logger )
-      for subdir in mapget( self.pyproj, 'sub_projects', list() ) ]
-
     self.build_backend = mapget( self.pptoml,
         'build-system.build-backend',
         "" )
@@ -144,31 +137,10 @@ class PyProjBase:
       PkgInfoReq(r)
       for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
 
-    # for sub_proj in self.sub_projects:
-    #   self.pkg_info = self.pkg_info.provides( sub_proj.pkg_info )
-    #   self.build_requires |= sub_proj.build_requires
-    #
-    # # filter out any dependencies listing the one being provided
-    # # NOTE: this dose not do any checking of version, up to repo maintainers
-    # self.build_requires = set([
-    #   r
-    #   for r in self.build_requires
-    #   if r.req.name not in self.pkg_info._provides_dist ])
-
   #-----------------------------------------------------------------------------
   def dist_source_prep( self ):
     """Prepares project files for a source distribution
     """
-
-    # _cwd = os.getcwd()
-    #
-    # for sub_proj in self.sub_projects:
-    #   try:
-    #     os.chdir( sub_proj.root )
-    #     sub_proj.dist_source_prep()
-    #
-    #   finally:
-    #     os.chdir(_cwd)
 
     prep = mapget( self.dist_source, 'prep', dict() )
     prep_name = f"tool.pyproj.dist.source.prep"
@@ -210,17 +182,6 @@ class PyProjBase:
       Builder used to write out source distribution files
     """
 
-    # _cwd = os.getcwd()
-    #
-    # for sub_proj in self.sub_projects:
-    #   try:
-    #     os.chdir( sub_proj.root )
-    #     sub_proj.dist_source_copy(
-    #       dist = dist )
-    #
-    #   finally:
-    #     os.chdir(_cwd)
-
     name = f'tool.pyproj.dist.source'
 
     include = list( mapget( self.dist_source, 'copy', list() ) )
@@ -245,16 +206,6 @@ class PyProjBase:
   def dist_binary_prep( self ):
     """Prepares project files for a binary distribution
     """
-
-    # _cwd = os.getcwd()
-    #
-    # for sub_proj in self.sub_projects:
-    #   try:
-    #     os.chdir( sub_proj.root )
-    #     sub_proj.dist_binary_prep()
-    #
-    #   finally:
-    #     os.chdir(_cwd)
 
     prep = mapget( self.dist_binary, 'prep', dict() )
     prep_name = f"tool.pyproj.dist.binary.prep"
@@ -295,17 +246,6 @@ class PyProjBase:
     bdist : :class:`dist_base <partis.pyproj.dist_file.dist_base.dist_base>`
       Builder used to write out binary distribution files
     """
-
-    # _cwd = os.getcwd()
-    #
-    # for sub_proj in self.sub_projects:
-    #   try:
-    #     os.chdir( sub_proj.root )
-    #     sub_proj.dist_binary_copy(
-    #       dist = dist )
-    #
-    #   finally:
-    #     os.chdir(_cwd)
 
     name = f'tool.pyproj.dist.binary'
 
