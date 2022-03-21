@@ -22,6 +22,7 @@ from .norms import (
   compress_dist_compat,
   norm_data,
   norm_path,
+  norm_path_to_os,
   norm_mode,
   norm_zip_external_attr,
   b64_nopad,

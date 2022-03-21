@@ -703,6 +703,26 @@ def norm_path( path ):
   return path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def norm_path_to_os( path ):
+  """Converts a normalized or OS path to be an OS path
+  """
+
+  path = str(path)
+
+  if re.search( r'\s+', path ):
+    raise ValueError(
+      f"path segments should not contain whitespace: {path}")
+
+  # NOTE: starting with assuming windows path leads to the same result wether or
+  # not it actually was a windows path, replacing slashes etc as necessary.
+  # This should handle whether a path was passed in already posix like even when
+  # on Windows.
+  wpath = pathlib.PureWindowsPath( path )
+  path = wpath.as_posix()
+
+  return str(pathlib.PurePath(path))
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_mode( mode = None ):
   """Normalizes file permission mode for distribution archive
 

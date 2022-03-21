@@ -123,15 +123,85 @@ Available install scheme keys, and example corresponding install locations, are:
   copy = [
     { src = 'build/script.py', dst = 'script.py'} ]
 
-Adding a custom pre-processing hook
------------------------------------
+
+Meson Build system
+------------------
+
+With the optional dependency ``partis-pyproj[meson]``, support is included for
+the Meson Build system https://mesonbuild.com/ as a method to compile extensions
+and non-Python code.
+To use this feature, the source directory must contain appropriate 'meson.build' files,
+since the 'pyproject.toml' configuration only provides a way of running
+``meson setup`` and ``meson compile`` before creating the binary distribution.
+Also, the ``meson install`` must be able to be done in a way that can be
+copied into the distribution, instead of actually being installed to the system.
+
+The ``src_dir`` and ``prefix`` paths are always relative to the project
+root directory, and default to ``src_dir = '.'`` and ``prefix = './build'``.
+If ``build_dir`` is given, it is also relative to the project root directory,
+otherwise the build will occur in a temporary directory that is removed after
+"installing" to ``prefix``.
+
+The result should be equivalent to running the following commands:
+
+.. code-block:: bash
+
+  meson setup [setup_args] --prefix prefix [-Doption=val] build_dir src_dir
+  meson compile [compile_args] -C build_dir
+  meson install [install_args] -C build_dir
+
+For example, the following configuration,
+
+.. code-block:: py
+
+  # Configuration of the Meson Build system
+  [tool.pyproj.meson]
+  # flag that the meson commands should be run.
+  compile = true
+
+  # automatically use available number of parallel build jobs
+  compile_args = [
+    '-j', '-1' ]
+
+  # location of root 'meson.build' and 'meson_options.txt' files
+  src_dir = '.'
+  # location to create temporary build files (optional)
+  build_dir = 'build'
+  # location to place final build targets
+  prefix = 'build'
+
+  # Custom build options
+  [tool.pyproj.meson.options]
+  custom_feature=enabled
+
+  # binary distribution installed paths
+  [tool.pyproj.dist.binary.platlib]
+  copy = [
+    { src = 'build/lib', dst = '' } ]
+
+will result in the commands executed in the project directory,
+followed by copying all files in 'build/lib' into the binary distribution's
+'platlib' install path:
+
+.. code-block:: bash
+
+  meson setup --prefix ./build -Dcustom_feature=enabled ./build .
+  meson compile -j -1 -C ./build
+  meson install -C ./build
+
+Custom pre-processing hooks
+---------------------------
 
 The backend provides a mechanism to perform an arbitrary operation before any
-files are copied into the distribution.
+files are copied into either the source or binary distribution:
+``tool.pyproj.dist.source.prep``, ``tool.pyproj.dist.binary.prep``.
 The ``prep`` hook currently must be a pure module, a directory with a
-``__init__.py`` file, at the same level as the `pyproject.toml` specified
-similar to a package ``entry_point``.
-Keyword arguments may also be defined and will be passed to the function.
+``__init__.py`` file, relative to the `pyproject.toml`.
+The hook is specified according to the ``entry_points`` specification, and
+must resolve to a function that takes the instance of the build system and
+a logger that may be used to pass log messages back to the caller.
+Keyword arguments may also be defined and will be passed to the function,
+configured in the same section of the 'pyproject.toml'.
 
 .. code:: py
 
@@ -145,7 +215,7 @@ Keyword arguments may also be defined and will be passed to the function.
 
 
 This will be treated by the back-end in a way that should be equivalent to the
-following code run in the `pyproject.toml` directory:
+following code run from the `pyproject.toml` directory:
 
 .. code:: python
 
@@ -153,17 +223,20 @@ following code run in the `pyproject.toml` directory:
 
   a_custom_prep_module.a_prep_function(
     build_system,
+    logger,
     a_custom_argument = 'some value' )
 
 
 The ``build_system`` argument is the instance of
 :class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>` calling the function
-during processing of :meth:`PyProjBase.dist_binary_prep`.
+during processing of :meth:`PyProjBase.dist_binary_prep`, and ``logger``
+is an instance of :class:`logging.Logger`.
 
 .. note::
 
   Only those requirements listed in ``build-system.requires``
   will be importable by the specified code.
+
 
 Support for 'legacy setup.py'
 -----------------------------

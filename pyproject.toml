@@ -28,7 +28,16 @@ description = "Minimal set of Python project utilities (PEP-517/621)"
 requires-python = ">= 3.6.2"
 dependencies = [
   "packaging == 21.3",
-  "tomli >= 1.2.3" ]
+  "tomli >= 1.2.3",
+  # NOTE: 'importlib.metadata' not added to stdlib until 3.8
+  "importlib_metadata; python_version < '3.8'" ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[project.optional-dependencies]
+
+meson = [
+  "meson >= 0.61.3",
+  "ninja >= 1.10.2.3" ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 [[project.authors]]
@@ -41,7 +50,9 @@ email = "software.support@nanohmics.com"
 [build-system]
 requires = [
   "packaging == 21.3",
-  "tomli >= 1.2.3" ]
+  "tomli >= 1.2.3",
+  # NOTE: 'importlib.metadata' not added to stdlib until 3.8
+  "importlib_metadata; python_version < '3.8'" ]
 
 build-backend = "pyproj.backend"
 backend-path = [ 'src' ]

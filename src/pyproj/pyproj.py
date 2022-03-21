@@ -8,19 +8,29 @@ from copy import copy
 from collections.abc import (
   Mapping,
   Sequence )
+import subprocess
+import multiprocessing
 
 import tomli
+
+try:
+  from importlib.metadata import metadata
+
+except ImportError:
+  from importlib_metadata import metadata
 
 from .pkginfo import (
   PkgInfoReq,
   PkgInfo )
 
 from .norms import (
+  norm_path_to_os,
   allowed_keys,
   mapget )
 
 from .load_module import (
-  load_module )
+  load_module,
+  load_entrypoint )
 
 from .legacy import legacy_setup_content
 
@@ -76,15 +86,15 @@ class PyProjBase:
       raise ValueError(
         f"'tool.pyproj' must be minimally defined for this backend: {pptoml_file}")
 
+    #...........................................................................
     allowed_keys(
       name = 'tool.pyproj',
       obj = self.pyproj,
       keys = [
         'dist',
-        'sdist',
-        'bdist',
-        'external' ] )
+        'meson' ] )
 
+    #...........................................................................
     self.dist = mapget( self.pyproj, 'dist', dict() )
 
     allowed_keys(
@@ -124,6 +134,48 @@ class PyProjBase:
 
     self.top_level = mapget( self.dist_binary, 'top_level', list() )
 
+    #...........................................................................
+    self.meson = mapget( self.pyproj, 'meson', dict() )
+
+    allowed_keys(
+      name = 'tool.pyproj.meson',
+      obj = self.meson,
+      keys = [
+        'src_dir',
+        'build_dir',
+        'prefix',
+        'compile',
+        'setup_args',
+        'compile_args',
+        'install_args',
+        'options' ] )
+
+    self.meson.setdefault('src_dir', '.' )
+    self.meson.setdefault('build_dir', '' )
+    self.meson.setdefault('prefix', 'build')
+    self.meson.setdefault('compile', False)
+
+    self.meson.setdefault('setup_args', list())
+    self.meson.setdefault('compile_args', list())
+    self.meson.setdefault('install_args', list())
+
+    self.meson.setdefault('options', dict())
+
+    if not self.meson['src_dir']:
+      self.meson['src_dir'] = '.'
+
+    self.meson['src_dir'] = norm_path_to_os(self.meson['src_dir'])
+
+    if not osp.isabs(self.meson['src_dir']):
+      self.meson['src_dir'] = osp.join( self.root, self.meson['src_dir'] )
+
+    if self.meson['build_dir']:
+      self.meson['build_dir'] = norm_path_to_os(self.meson['build_dir'])
+
+      if not osp.isabs(self.meson['build_dir']):
+        self.meson['build_dir'] = osp.join( self.root, self.meson['build_dir'] )
+
+    #...........................................................................
     self.build_backend = mapget( self.pptoml,
         'build-system.build-backend',
         "" )
@@ -133,9 +185,15 @@ class PyProjBase:
         list() )
 
 
+    #...........................................................................
     self.build_requires = set([
       PkgInfoReq(r)
       for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
+
+    if self.meson['compile']:
+      v = metadata('partis-pyproj')['Version']
+
+      self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
 
   #-----------------------------------------------------------------------------
   def dist_source_prep( self ):
@@ -156,21 +214,22 @@ class PyProjBase:
     entry_point_kwargs = mapget( prep, 'kwargs', dict() )
 
     if entry_point:
-      mod_name, func_name = entry_point.split(':')
+      func = load_entrypoint(
+        root = self.root,
+        entry_point = entry_point )
 
-      mod = load_module(
-        path = mod_name,
-        root = self.root )
+      self.logger.info(f"{prep_name} loaded entry-point '{entry_point}'")
 
-      if not hasattr( mod, func_name ):
-        raise ValueError(
-          f"{prep_name}.entry '{func_name}' not found in module '{mod_name}'" )
+      try:
+        cwd = os.getcwd()
 
-      func = getattr( mod, func_name )
+        func(
+          self,
+          logger = self.logger.getChild( f"dist.source.prep" ),
+          **entry_point_kwargs )
 
-      self.logger.info(f"{prep_name}: {entry_point}")
-
-      func( self, **entry_point_kwargs )
+      finally:
+        os.chdir(cwd)
 
   #-----------------------------------------------------------------------------
   def dist_source_copy( self, *, dist ):
@@ -207,6 +266,74 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
+    #...........................................................................
+    if self.meson['compile']:
+
+      njobs = max( 1, multiprocessing.cpu_count() // 2 )
+
+      if self.meson['build_dir'] and not osp.exists(self.meson['build_dir']):
+        os.makedirs(self.meson['build_dir'])
+
+      meson_build_dir = tempfile.mkdtemp(
+        dir = self.meson['build_dir'] or None )
+
+      meson_out_dir = norm_path_to_os( self.meson['prefix'] )
+
+      if not osp.isabs(meson_out_dir):
+
+        meson_out_dir = osp.join( self.root, meson_out_dir )
+
+      if not osp.exists(meson_out_dir):
+        os.makedirs(meson_out_dir)
+
+      self.logger.info(f"Running meson build")
+      self.logger.info(f"Meson tmp: {meson_build_dir}")
+      self.logger.info(f"Meson out: {meson_out_dir}")
+
+      setup_args = [
+        'meson',
+        'setup',
+        *self.meson['setup_args'],
+        '--prefix',
+        meson_out_dir,
+        *[ f'-D{k}={v}' for k,v in self.meson['options'].items() ],
+        meson_build_dir,
+        self.meson['src_dir'] ]
+
+      compile_args = [
+        'meson',
+        'compile',
+        *self.meson['compile_args'],
+        '-C',
+        meson_build_dir ]
+
+      install_args = [
+        'meson',
+        'install',
+        *self.meson['install_args'],
+        '--no-rebuild',
+        '-C',
+        meson_build_dir ]
+
+      try:
+
+        self.logger.debug(' '.join(setup_args))
+
+        subprocess.check_call(setup_args)
+
+        self.logger.debug(' '.join(compile_args))
+
+        subprocess.check_call(compile_args)
+
+        self.logger.debug(' '.join(install_args))
+
+        subprocess.check_call(install_args)
+
+      finally:
+        if not self.meson['build_dir']:
+          shutil.rmtree( meson_build_dir )
+
+    #...........................................................................
     prep = mapget( self.dist_binary, 'prep', dict() )
     prep_name = f"tool.pyproj.dist.binary.prep"
 
@@ -221,21 +348,22 @@ class PyProjBase:
     entry_point_kwargs = mapget( prep, 'kwargs', dict() )
 
     if entry_point:
-      mod_name, func_name = entry_point.split(':')
+      func = load_entrypoint(
+        root = self.root,
+        entry_point = entry_point )
 
-      mod = load_module(
-        path = mod_name,
-        root = self.root )
+      self.logger.info(f"{prep_name} loaded entry-point '{entry_point}'")
 
-      if not hasattr( mod, func_name ):
-        raise ValueError(
-          f"{prep_name}.entry '{func_name}' not found in module '{mod_name}'" )
+      try:
+        cwd = os.getcwd()
 
-      func = getattr( mod, func_name )
+        func(
+          self,
+          logger = self.logger.getChild( f"dist.binary.prep" ),
+          **entry_point_kwargs )
 
-      self.logger.info(f"{prep_name}: {entry_point}")
-
-      func( self, **entry_point_kwargs )
+      finally:
+        os.chdir(cwd)
 
   #-----------------------------------------------------------------------------
   def dist_binary_copy( self, *, dist ):

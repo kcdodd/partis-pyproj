@@ -67,10 +67,10 @@ def backend_init(
     root = root,
     logger = logger )
 
-  # logging.basicConfig(
-  #   level = logging.NOTSET,
-  #   format = "{name}:{levelname}: {message}",
-  #   style = "{" )
+  logging.basicConfig(
+    level = logging.NOTSET,
+    format = "{name}:{levelname}: {message}",
+    style = "{" )
 
   return pyproj
 

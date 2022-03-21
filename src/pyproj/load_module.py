@@ -55,3 +55,23 @@ def load_module( path, root ):
   spec.loader.exec_module( mod )
 
   return mod
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def load_entrypoint( root, entry_point ):
+
+  mod_name, attr_name = entry_point.split(':')
+
+  mod_name = mod_name.strip()
+  attr_name = attr_name.strip()
+
+  mod = load_module(
+    path = mod_name,
+    root = root )
+
+  if not hasattr( mod, attr_name ):
+    raise ValueError(
+      f"'{mod_name}' :'{attr_name}'" )
+
+  func = getattr( mod, attr_name )
+
+  return func
