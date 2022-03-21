@@ -183,7 +183,6 @@ def prepare_metadata_for_build_wheel(
   with dist_binary_wheel(
     pkg_info = pyproj.pkg_info,
     outdir = metadata_directory,
-    top_level = pyproj.top_level,
     logger = pyproj.logger ) as dist:
 
     pass
@@ -220,11 +219,13 @@ def build_wheel(
   with dist_binary_wheel(
     pkg_info = pyproj.pkg_info,
     outdir = wheel_directory,
-    top_level = pyproj.top_level,
     logger = pyproj.logger ) as dist:
 
     pyproj.dist_binary_copy(
       dist = dist )
+
+  pyproj.logger.info(
+    f"Top level packages {dist.top_level}")
 
   return dist.outname
 

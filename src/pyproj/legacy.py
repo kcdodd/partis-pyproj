@@ -35,8 +35,6 @@ def legacy_setup_content( pyproj, sdist ):
     file
     for file, hash, size in sdist.records ] ).encode('utf-8')
 
-  top_level = '\n'.join( pyproj.top_level ).encode('utf-8')
-
   with open( osp.join( osp.dirname(__file__), '_legacy_setup.py' ), 'r' ) as fp:
     legacy_setup_py = fp.read()
 
@@ -48,7 +46,7 @@ def legacy_setup_content( pyproj, sdist ):
     requires = requires,
     build_requires = str(build_requires),
     sources = sources,
-    top_level = top_level,
+    top_level = '',
     entry_points = pkg_info.encode_entry_points(),
     build_backend = f"'{pyproj.build_backend}'",
     backend_path = pyproj.backend_path )

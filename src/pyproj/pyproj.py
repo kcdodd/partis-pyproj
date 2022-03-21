@@ -125,14 +125,11 @@ class PyProjBase:
         'prep',
         'ignore',
         'copy',
-        'top_level',
         'data',
         'headers',
         'scripts',
         'purelib',
         'platlib' ] )
-
-    self.top_level = mapget( self.dist_binary, 'top_level', list() )
 
     #...........................................................................
     self.meson = mapget( self.pyproj, 'meson', dict() )

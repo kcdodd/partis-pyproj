@@ -59,14 +59,12 @@ Use with 'pyproject.toml' files
     'src',
     'pyproject.toml' ]
 
-  [tool.pyproj.dist.binary]
+  [tool.pyproj.dist.binary.purelib]
   # define what files/directories should be copied into a binary distribution
   # the 'dst' will correspond to the location of the file in 'site-packages'
   copy = [
     { src = 'src/my_project', dst = 'my_project' } ]
 
-  # list the names of the top-level packages
-  top_level = [ 'my_project' ]
 
 * Each item listed in ``copy`` for a distribution are treated like the
   keyword arguments of

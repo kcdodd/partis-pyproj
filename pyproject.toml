@@ -82,9 +82,7 @@ copy = [
 add_legacy_setup = true
 
 #...............................................................................
-[tool.pyproj.dist.binary]
+[tool.pyproj.dist.binary.purelib]
 
 copy = [
   { src = 'src/pyproj', dst = 'partis/pyproj' } ]
-
-top_level = [ 'partis' ]

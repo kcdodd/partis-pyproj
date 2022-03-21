@@ -34,10 +34,6 @@ class dist_binary_wheel( dist_zip ):
   compat : List[ Tuple[str,str,str] ]
     List of build compatability tuples of the form ( py_tag, abi_tag, plat_tag ).
     e.g. ( 'py3', 'abi3', 'linux_x86_64' )
-  purelib : bool
-    If ``True``, the installer will assume that all modules are pure python.
-  top_level : List[ str ]
-    Names of top-level packages.
   outdir : str
     Path to directory where the wheel file should be copied after completing build.
   tmpdir : None | str
@@ -81,7 +77,6 @@ class dist_binary_wheel( dist_zip ):
 
       with dist_binary_wheel(
         pkg_info = pkg_info,
-        top_level = [ 'my_package' ],
         outdir = out_dir ) as bdist:
 
         bdist.copytree(
@@ -109,8 +104,6 @@ class dist_binary_wheel( dist_zip ):
     pkg_info,
     build = '',
     compat = [ ( 'py3', 'none', 'any' ), ],
-    purelib = True,
-    top_level = None,
     outdir = None,
     tmpdir = None,
     logger = None,
@@ -125,13 +118,8 @@ class dist_binary_wheel( dist_zip ):
       raise ValueError(
         f'dynamic package meta-data must be resolved before building dist: {self.pkg_info.dynamic}')
 
-    if top_level is None:
-      top_level = list()
-
     if gen_name is None:
       gen_name = f'{type(self).__module__}.{type(self).__name__}'
-
-    self.top_level = [ norm_dist_name(d) for d in top_level ]
 
     self.build = norm_dist_build( build )
 
@@ -139,7 +127,8 @@ class dist_binary_wheel( dist_zip ):
       norm_dist_compat( py_tag, abi_tag, plat_tag )
       for py_tag, abi_tag, plat_tag in compat ]
 
-    self.purelib = bool(purelib)
+    self.top_level = list()
+    self.purelib = True
     self.gen_name = str(gen_name)
 
     wheel_name_parts = [
@@ -185,6 +174,8 @@ class dist_binary_wheel( dist_zip ):
     if self.record_hash:
       return self.record_hash
 
+    self.check_top_level()
+
     self.write(
       dst = self.metadata_path,
       data = self.pkg_info.encode_pkg_info() )
@@ -194,10 +185,9 @@ class dist_binary_wheel( dist_zip ):
         dst = self.dist_info_path + '/' + self.pkg_info.license_file,
         data = self.pkg_info.license_file_content )
 
-    if len(self.top_level) > 0:
-      self.write(
-        dst = self.dist_info_path + '/' + 'top_level.txt',
-        data = '\n'.join(self.top_level) )
+    self.write(
+      dst = self.dist_info_path + '/' + 'top_level.txt',
+      data = '\n'.join( self.top_level ) )
 
     self.write(
       dst = self.entry_points_path,
@@ -216,6 +206,39 @@ class dist_binary_wheel( dist_zip ):
       record = False )
 
     return self.record_hash
+
+  #-----------------------------------------------------------------------------
+  def check_top_level( self ):
+    """Discover the package top_level from record entries
+    """
+
+    top_level = set()
+
+    purelib = self.named_dirs['purelib'] + '/'
+    purelib_len = len(purelib)
+
+    platlib = self.named_dirs['platlib'] + '/'
+    platlib_len = len(platlib)
+
+    for file, hash, size in self.records:
+      # check files added to purelib and platlib.
+      if file.startswith(purelib):
+        top_level.add( file[purelib_len:].split('/', 1)[0] )
+
+      elif file.startswith(platlib):
+
+        self.purelib = False
+
+        top_level.add( file[platlib_len:].split('/', 1)[0] )
+
+      elif not (
+        file.startswith(self.dist_info_path)
+        or file.startswith(self.data_path) ):
+
+        # check any other files that aren't in .dist-info or .data
+        top_level.add( file.split('/', 1)[0] )
+
+    self.top_level = [ dir for dir in top_level if dir ]
 
   #-----------------------------------------------------------------------------
   def encode_dist_info_wheel( self ):
