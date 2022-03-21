@@ -28,7 +28,7 @@ operation is actually into a distribution file ( ``*.tar.gz`` or ``*.whl`` ).
 Use with 'pyproject.toml' files
 -------------------------------
 
-.. code:: toml
+.. code-block:: toml
 
   # pyproject.toml
 
@@ -59,7 +59,7 @@ Use with 'pyproject.toml' files
     'src',
     'pyproject.toml' ]
 
-  [tool.pyproj.dist.binary.purelib]
+  [tool.pyproj.dist.binary]
   # define what files/directories should be copied into a binary distribution
   # the 'dst' will correspond to the location of the file in 'site-packages'
   copy = [
@@ -91,15 +91,31 @@ Binary distribution install paths
 If there are some binary distribution files that need to be installed to a
 location according to a local installation scheme (not the regular modules)
 these can be specified within sub-tables.
-Available install scheme keys, and example corresponding install locations, are:
+Available install scheme keys, and **example** corresponding install locations, are:
 
 * ``data`` : '{prefix}/'
 * ``headers`` : '{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/'
 * ``platlib`` : '{prefix}/lib/python{X}.{Y}{platform}/site-packages/'
 * ``purelib`` : '{prefix}/lib/python{X}.{Y}/site-packages/'
+
+  .. note::
+
+    Both ``platlib`` and ``purelib`` install to the base 'site-packages'
+    directory, so any files copied to these paths should be pre-pended with the
+    desired top level package name.
+
 * ``scripts`` : '{prefix}/bin/'
 
-.. code:: toml
+  .. attention::
+
+    Even though any files added to the ``scripts`` path will be installed to
+    the ``bin`` directory, there is often an issue with the 'execute' permission
+    being set correctly by the installer (e.g. ``pip``).
+    The only verified way of ensuring an executable in the 'bin' directory is to
+    use the ``[project.scripts]`` section to add an entry point that will then
+    run the desired executable as a sub-process.
+
+.. code-block:: toml
 
   [tool.pyproj.dist.binary.data]
   copy = [
@@ -111,11 +127,11 @@ Available install scheme keys, and example corresponding install locations, are:
 
   [tool.pyproj.dist.binary.platlib]
   copy = [
-    { src = 'build/pltlib.a', dst = 'pltlib.a'} ]
+    { src = 'build/my_project.so', dst = 'my_project/my_project.so'} ]
 
   [tool.pyproj.dist.binary.purelib]
   copy = [
-    { src = 'build/purlib.py', dst = 'purlib.py'} ]
+    { src = 'build/my_project.py', dst = 'my_project/my_project.py'} ]
 
   [tool.pyproj.dist.binary.scripts]
   copy = [
@@ -150,9 +166,8 @@ The result should be equivalent to running the following commands:
 
 For example, the following configuration,
 
-.. code-block:: py
+.. code-block:: toml
 
-  # Configuration of the Meson Build system
   [tool.pyproj.meson]
   # flag that the meson commands should be run.
   compile = true
@@ -168,14 +183,14 @@ For example, the following configuration,
   # location to place final build targets
   prefix = 'build'
 
-  # Custom build options
   [tool.pyproj.meson.options]
+  # Custom build options
   custom_feature=enabled
 
-  # binary distribution installed paths
   [tool.pyproj.dist.binary.platlib]
+  # binary distribution platform specific install path
   copy = [
-    { src = 'build/lib', dst = '' } ]
+    { src = 'build/lib', dst = 'my_project' } ]
 
 will result in the commands executed in the project directory,
 followed by copying all files in 'build/lib' into the binary distribution's
@@ -187,31 +202,38 @@ followed by copying all files in 'build/lib' into the binary distribution's
   meson compile -j -1 -C ./build
   meson install -C ./build
 
+.. attention::
+
+  The ``ignore`` patterns should be considered specially when including compiled
+  extensions, for example to ensure that the extension shared object '.so' are
+  actually copied into the binary distribution.
+
 Pre-processing hooks
 --------------------
 
 The backend provides a mechanism to perform an arbitrary operation before any
 files are copied into either the source or binary distribution:
-``tool.pyproj.dist.source.prep``, ``tool.pyproj.dist.binary.prep``.
-The ``prep`` hook currently must be a pure module, a directory with a
-``__init__.py`` file, relative to the `pyproject.toml`.
+``tool.pyproj.dist.prep``, ``tool.pyproj.dist.source.prep``,
+``tool.pyproj.dist.binary.prep``.
+The ``prep`` hook currently must be a pure module (a directory with a
+``__init__.py`` file), relative to the 'pyproject.toml'.
 The hook is specified according to the ``entry_points`` specification, and
 must resolve to a function that takes the instance of the build system and
-a logger that may be used to pass log messages back to the caller.
-Keyword arguments may also be defined and will be passed to the function,
+a logger.
+Keyword arguments may also be defined to be passed to the function,
 configured in the same section of the 'pyproject.toml'.
 
 .. note::
 
   The return value of the ``tool.pyproj.dist.binary.prep`` hook is also used to
-  specify the compatibility tags for the binary distribution
+  customize the compatibility tags for the binary distribution
   (according to https://peps.python.org/pep-0425/) as a list of tuples
   ``( py_tag, abi_tag, plat_tag )``.
 
   If no tags are returned from the hook, the default tags will be set to
-  ``[ ( 'py3', 'none', 'any' ), ]``, unless any files were copied to the
-  ``platlib`` install path where tags will be chosen from the current Python
-  interpreter.
+  ``( 'py3', 'none', 'any' )``. If any files are copied to the
+  ``platlib`` install path, then the compatibility will be used for the current Python
+  interpreter, for example:
 
   .. code-block:: python
 
@@ -221,7 +243,7 @@ configured in the same section of the 'pyproject.toml'.
 
     compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
 
-.. code:: py
+.. code-block:: toml
 
   [tool.pyproj.dist.binary.prep]
   # hook defined in a python module
@@ -292,7 +314,7 @@ the setuptools CLI 'egg_info', 'bdist_wheel', and 'install' commands:
 This 'legacy' feature is enabled by setting the value of
 ``tool.pyproj.dist.source.add_legacy_setup``.
 
-.. code:: toml
+.. code-block:: toml
 
   [tool.pyproj.dist.source]
 

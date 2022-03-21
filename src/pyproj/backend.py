@@ -111,6 +111,8 @@ def build_sdist(
 
   pyproj = backend_init()
 
+  pyproj.dist_prep()
+  
   pyproj.dist_source_prep()
 
   with dist_source_targz(
@@ -213,6 +215,8 @@ def build_wheel(
   """
 
   pyproj = backend_init()
+
+  pyproj.dist_prep()
 
   compat_tags = pyproj.dist_binary_prep()
 

@@ -102,6 +102,7 @@ class PyProjBase:
       name = 'tool.pyproj.dist',
       obj = self.dist,
       keys = [
+        'prep',
         'ignore',
         'source',
         'binary' ] )
@@ -196,12 +197,10 @@ class PyProjBase:
       self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
 
   #-----------------------------------------------------------------------------
-  def dist_source_prep( self ):
-    """Prepares project files for a source distribution
-    """
+  def prep_entrypoint( self, name, obj, logger ):
 
-    prep = mapget( self.dist_source, 'prep', dict() )
-    prep_name = f"tool.pyproj.dist.source.prep"
+    prep = mapget( obj, 'prep', dict() )
+    prep_name = name
 
     allowed_keys(
       name = prep_name,
@@ -218,67 +217,24 @@ class PyProjBase:
         root = self.root,
         entry_point = entry_point )
 
-      self.logger.info(f"{prep_name} loaded entry-point '{entry_point}'")
+      logger.info(f"loaded entry-point '{entry_point}'")
 
       try:
         cwd = os.getcwd()
 
-        func(
+        return func(
           self,
-          logger = self.logger.getChild( f"dist.source.prep" ),
+          logger = logger,
           **entry_point_kwargs )
 
       finally:
         os.chdir(cwd)
 
   #-----------------------------------------------------------------------------
-  def dist_source_copy( self, *, dist ):
-    """Copies prepared files into a source distribution
-
-    Parameters
-    ---------
-    sdist : :class:`dist_base <partis.pyproj.dist_file.dist_base.dist_base>`
-      Builder used to write out source distribution files
-    """
-
-    name = f'tool.pyproj.dist.source'
-
-    include = list( mapget( self.dist_source, 'copy', list() ) )
-
-    ignore = (
-      mapget( self.dist, 'ignore', list() )
-      + mapget( self.dist_source, 'ignore', list() ) )
-
-    self.dist_copy(
-      name = name,
-      base_path = dist.named_dirs['root'],
-      include = include,
-      ignore = ignore,
-      dist = dist )
-
-    if mapget( self.dist_source, 'add_legacy_setup', False ):
-      self.logger.info(f"generating legacy 'setup.py'")
-      legacy_setup_content( self, dist )
-
-
-  #-----------------------------------------------------------------------------
-  def dist_binary_prep( self ):
-    """Prepares project files for a binary distribution
-    """
-
-    compat_tags = None
-
-    if self.is_platlib:
-      from packaging.tags import sys_tags
-
-      tag = next(iter(sys_tags()))
-
-      compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
+  def meson_build( self ):
 
     #...........................................................................
     if self.meson['compile']:
-
-      njobs = max( 1, multiprocessing.cpu_count() // 2 )
 
       if self.meson['build_dir'] and not osp.exists(self.meson['build_dir']):
         os.makedirs(self.meson['build_dir'])
@@ -342,45 +298,83 @@ class PyProjBase:
         if not self.meson['build_dir']:
           shutil.rmtree( meson_build_dir )
 
-    #...........................................................................
-    prep = mapget( self.dist_binary, 'prep', dict() )
-    prep_name = f"tool.pyproj.dist.binary.prep"
+  #-----------------------------------------------------------------------------
+  def dist_prep( self ):
+    """Prepares project files for a distribution
+    """
 
-    allowed_keys(
-      name = prep_name,
-      obj = prep,
-      keys = [
-        'entry',
-        'kwargs' ] )
+    return self.prep_entrypoint(
+      name = f"tool.pyproj.dist.prep",
+      obj = self.dist,
+      logger = self.logger.getChild( f"dist.prep" ) )
 
-    entry_point = mapget( prep, 'entry', '' )
-    entry_point_kwargs = mapget( prep, 'kwargs', dict() )
 
-    if entry_point:
-      func = load_entrypoint(
-        root = self.root,
-        entry_point = entry_point )
+  #-----------------------------------------------------------------------------
+  def dist_source_prep( self ):
+    """Prepares project files for a source distribution
+    """
 
-      self.logger.info(f"{prep_name} loaded entry-point '{entry_point}'")
+    return self.prep_entrypoint(
+      name = f"tool.pyproj.dist.source.prep",
+      obj = self.dist_source,
+      logger = self.logger.getChild( f"dist.source.prep" ) )
 
-      try:
-        cwd = os.getcwd()
+  #-----------------------------------------------------------------------------
+  def dist_source_copy( self, *, dist ):
+    """Copies prepared files into a source distribution
 
-        compat_tags = func(
-          self,
-          logger = self.logger.getChild( f"dist.binary.prep" ),
-          **entry_point_kwargs )
+    Parameters
+    ---------
+    sdist : :class:`dist_base <partis.pyproj.dist_file.dist_base.dist_base>`
+      Builder used to write out source distribution files
+    """
 
-        if compat_tags:
-          if not isinstance(compat_tags, list):
-            compat_tags = [ compat_tags ]
+    name = f'tool.pyproj.dist.source'
 
-          compat_tags = [
-            CompatibilityTags(*tags)
-            for tags in compat_tags ]
+    include = list( mapget( self.dist_source, 'copy', list() ) )
 
-      finally:
-        os.chdir(cwd)
+    ignore = (
+      mapget( self.dist, 'ignore', list() )
+      + mapget( self.dist_source, 'ignore', list() ) )
+
+    self.dist_copy(
+      name = name,
+      base_path = dist.named_dirs['root'],
+      include = include,
+      ignore = ignore,
+      dist = dist )
+
+    if mapget( self.dist_source, 'add_legacy_setup', False ):
+      self.logger.info(f"generating legacy 'setup.py'")
+      legacy_setup_content( self, dist )
+
+
+  #-----------------------------------------------------------------------------
+  def dist_binary_prep( self ):
+    """Prepares project files for a binary distribution
+    """
+
+    self.meson_build()
+
+    compat_tags = self.prep_entrypoint(
+      name = f"tool.pyproj.dist.binary.prep",
+      obj = self.dist_binary,
+      logger = self.logger.getChild( f"dist.binary.prep" ) )
+
+    if compat_tags:
+      if not isinstance(compat_tags, list):
+        compat_tags = [ compat_tags ]
+
+      compat_tags = [
+        CompatibilityTags(*tags)
+        for tags in compat_tags ]
+
+    elif self.is_platlib:
+      from packaging.tags import sys_tags
+
+      tag = next(iter(sys_tags()))
+
+      compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
 
     return compat_tags
 
