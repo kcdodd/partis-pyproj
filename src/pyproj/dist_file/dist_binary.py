@@ -31,7 +31,7 @@ class dist_binary_wheel( dist_zip ):
   pkg_info : :class:`PkgInfo <partis.pyproj.pkginfo.PkgInfo>`
   build : str
     Build tag. Must start with a digit, or be an empty string.
-  compat : List[ Tuple[str,str,str] ]
+  compat : List[ Tuple[str,str,str] ] | List[ :class:`CompatibilityTags <partis.pyproj.norms.CompatibilityTags>` ]
     List of build compatability tuples of the form ( py_tag, abi_tag, plat_tag ).
     e.g. ( 'py3', 'abi3', 'linux_x86_64' )
   outdir : str
@@ -103,11 +103,14 @@ class dist_binary_wheel( dist_zip ):
   def __init__( self, *,
     pkg_info,
     build = '',
-    compat = [ ( 'py3', 'none', 'any' ), ],
+    compat = None,
     outdir = None,
     tmpdir = None,
     logger = None,
     gen_name = None ):
+
+    if not compat:
+      compat = [ ( 'py3', 'none', 'any' ), ]
 
     if not isinstance( pkg_info, PkgInfo ):
       raise ValueError(f"pkg_info must be instance of PkgInfo: {pkg_info}")

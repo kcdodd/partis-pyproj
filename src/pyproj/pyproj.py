@@ -26,7 +26,8 @@ from .pkginfo import (
 from .norms import (
   norm_path_to_os,
   allowed_keys,
-  mapget )
+  mapget,
+  CompatibilityTags )
 
 from .load_module import (
   load_module,
@@ -130,6 +131,8 @@ class PyProjBase:
         'scripts',
         'purelib',
         'platlib' ] )
+
+    self.is_platlib = bool( mapget( self.dist_binary, 'platlib.copy', list() ) )
 
     #...........................................................................
     self.meson = mapget( self.pyproj, 'meson', dict() )
@@ -263,6 +266,15 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
+    compat_tags = None
+
+    if self.is_platlib:
+      from packaging.tags import sys_tags
+
+      tag = next(iter(sys_tags()))
+
+      compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
+
     #...........................................................................
     if self.meson['compile']:
 
@@ -354,13 +366,23 @@ class PyProjBase:
       try:
         cwd = os.getcwd()
 
-        func(
+        compat_tags = func(
           self,
           logger = self.logger.getChild( f"dist.binary.prep" ),
           **entry_point_kwargs )
 
+        if compat_tags:
+          if not isinstance(compat_tags, list):
+            compat_tags = [ compat_tags ]
+
+          compat_tags = [
+            CompatibilityTags(*tags)
+            for tags in compat_tags ]
+
       finally:
         os.chdir(cwd)
+
+    return compat_tags
 
   #-----------------------------------------------------------------------------
   def dist_binary_copy( self, *, dist ):

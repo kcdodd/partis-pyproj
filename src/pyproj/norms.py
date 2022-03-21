@@ -10,6 +10,7 @@ import inspect
 from collections.abc import (
   Mapping,
   Sequence )
+from collections import namedtuple
 import hashlib
 from base64 import urlsafe_b64encode
 from email.message import Message
@@ -17,6 +18,9 @@ from email.generator import BytesGenerator
 from email.utils import parseaddr, formataddr
 from urllib.parse import urlparse
 import keyword
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CompatibilityTags = namedtuple('CompatibilityTags', ['py_tag', 'abi_tag', 'plat_tag'])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # NOTE: patterns used for validation are defined at the end of this file
@@ -59,6 +63,9 @@ class PEPValidationError( ValidationError ):
     super().__init__(
       msg = f'{msg} (PEP {pep})',
       val = val )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def allowed_keys( name, obj, keys ):
@@ -519,7 +526,7 @@ def norm_dist_compat( py_tag, abi_tag, plat_tag ):
   if not any( plat.fullmatch( plat_tag ) for plat in common_plattag.values() ):
     warnings.warn(f"platform tag was not recognized: {plat_tag}")
 
-  return ( py_tag, abi_tag, plat_tag )
+  return CompatibilityTags( py_tag, abi_tag, plat_tag )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def join_dist_compat( tags ):

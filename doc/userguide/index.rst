@@ -187,8 +187,8 @@ followed by copying all files in 'build/lib' into the binary distribution's
   meson compile -j -1 -C ./build
   meson install -C ./build
 
-Custom pre-processing hooks
----------------------------
+Pre-processing hooks
+--------------------
 
 The backend provides a mechanism to perform an arbitrary operation before any
 files are copied into either the source or binary distribution:
@@ -200,6 +200,26 @@ must resolve to a function that takes the instance of the build system and
 a logger that may be used to pass log messages back to the caller.
 Keyword arguments may also be defined and will be passed to the function,
 configured in the same section of the 'pyproject.toml'.
+
+.. note::
+
+  The return value of the ``tool.pyproj.dist.binary.prep`` hook is also used to
+  specify the compatibility tags for the binary distribution
+  (according to https://peps.python.org/pep-0425/) as a list of tuples
+  ``( py_tag, abi_tag, plat_tag )``.
+
+  If no tags are returned from the hook, the default tags will be set to
+  ``[ ( 'py3', 'none', 'any' ), ]``, unless any files were copied to the
+  ``platlib`` install path where tags will be chosen from the current Python
+  interpreter.
+
+  .. code-block:: python
+
+    from packaging.tags import sys_tags
+
+    tag = next(iter(sys_tags()))
+
+    compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
 
 .. code:: py
 
@@ -219,7 +239,7 @@ following code run from the `pyproject.toml` directory:
 
   import a_custom_prep_module
 
-  a_custom_prep_module.a_prep_function(
+  compat_tags = a_custom_prep_module.a_prep_function(
     build_system,
     logger,
     a_custom_argument = 'some value' )

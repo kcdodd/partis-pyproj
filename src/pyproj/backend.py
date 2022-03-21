@@ -214,10 +214,11 @@ def build_wheel(
 
   pyproj = backend_init()
 
-  pyproj.dist_binary_prep()
+  compat_tags = pyproj.dist_binary_prep()
 
   with dist_binary_wheel(
     pkg_info = pyproj.pkg_info,
+    compat = compat_tags,
     outdir = wheel_directory,
     logger = pyproj.logger ) as dist:
 
