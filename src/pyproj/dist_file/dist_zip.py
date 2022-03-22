@@ -160,3 +160,15 @@ class dist_zip( dist_base ):
   #-----------------------------------------------------------------------------
   def finalize( self ):
     pass
+
+  #-----------------------------------------------------------------------------
+  def exists( self,
+    dst ):
+
+    self.assert_open()
+
+    try:
+      self._zipfile.getinfo(dst)
+      return True
+    except KeyError as e:
+      return False

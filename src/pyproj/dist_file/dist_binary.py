@@ -23,6 +23,13 @@ from ..pkginfo import PkgInfo
 from .dist_zip import dist_zip
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def pkg_name(dir):
+  if dir.endswith('.py'):
+    return dir[:-3]
+
+  return dir
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class dist_binary_wheel( dist_zip ):
   """Build a binary distribution :pep:`427`, :pep:`491` wheel file ``*.whl``
 
@@ -226,20 +233,20 @@ class dist_binary_wheel( dist_zip ):
     for file, hash, size in self.records:
       # check files added to purelib and platlib.
       if file.startswith(purelib):
-        top_level.add( file[purelib_len:].split('/', 1)[0] )
+        top_level.add( pkg_name(file[purelib_len:].split('/', 1)[0]) )
 
       elif file.startswith(platlib):
 
         self.purelib = False
 
-        top_level.add( file[platlib_len:].split('/', 1)[0] )
+        top_level.add( pkg_name(file[platlib_len:].split('/', 1)[0]) )
 
       elif not (
         file.startswith(self.dist_info_path)
         or file.startswith(self.data_path) ):
 
         # check any other files that aren't in .dist-info or .data
-        top_level.add( file.split('/', 1)[0] )
+        top_level.add( pkg_name(file.split('/', 1)[0]) )
 
     self.top_level = [ dir for dir in top_level if dir ]
 

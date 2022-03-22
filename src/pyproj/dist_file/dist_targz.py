@@ -160,3 +160,15 @@ class dist_targz( dist_base ):
   #-----------------------------------------------------------------------------
   def finalize( self ):
     pass
+
+  #-----------------------------------------------------------------------------
+  def exists( self,
+    dst ):
+
+    self.assert_open()
+
+    try:
+      self._tarfile.getmember(dst)
+      return True
+    except KeyError as e:
+      return False

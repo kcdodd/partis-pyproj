@@ -26,21 +26,19 @@ CompatibilityTags = namedtuple('CompatibilityTags', ['py_tag', 'abi_tag', 'plat_
 # NOTE: patterns used for validation are defined at the end of this file
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class ValidationError( Exception ):
+class ValidationError( ValueError ):
   """General validation error
 
   Parameters
   ----------
   msg : str
     Error message
-  val : object
-    Value that was being validated
   """
-  def __init__( self, *, msg, val ):
+  def __init__( self, msg ):
 
     msg = inspect.cleandoc( msg )
 
-    super().__init__( f'{msg}: {val}' )
+    super().__init__( msg )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PEPValidationError( ValidationError ):
@@ -61,10 +59,7 @@ class PEPValidationError( ValidationError ):
     msg = inspect.cleandoc( msg )
 
     super().__init__(
-      msg = f'{msg} (PEP {pep})',
-      val = val )
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      msg = f'{msg} (PEP {pep}): {val}' )
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -73,12 +68,12 @@ def allowed_keys( name, obj, keys ):
   """
 
   if not isinstance( obj, Mapping ):
-    raise ValueError(
-      f"{name} must be mapping with keys {keys}: {obj}" )
+    raise ValidationError(
+      f"{name} must be mapping with keys {keys}: {type(obj)}" )
 
   for k in obj.keys():
     if k not in keys:
-      raise ValueError(
+      raise ValidationError(
         f"{name} must be mapping with keys {keys}: {k}" )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -99,10 +94,10 @@ def mapget(
       rpath = '.'.join(parts[i:])
 
       if len(lpath) > 0:
-        raise ValueError(
+        raise ValidationError(
           f"Expected a mapping object [{lpath}][{rpath}]: {_obj}")
       else:
-        raise ValueError(
+        raise ValidationError(
           f"Expected a mapping object [{rpath}]: {_obj}")
 
     _default = default if i == last_i else dict()
@@ -517,14 +512,14 @@ def norm_dist_compat( py_tag, abi_tag, plat_tag ):
         hyphens - and periods . replaced with underscore _""",
       val = plat_tag )
 
-  if not common_pytag.fullmatch( py_tag ):
-    warnings.warn(f"python tag was not recognized: {py_tag}")
-
-  if not common_abitag.fullmatch( abi_tag ):
-    warnings.warn(f"abi tag was not recognized: {abi_tag}")
-
-  if not any( plat.fullmatch( plat_tag ) for plat in common_plattag.values() ):
-    warnings.warn(f"platform tag was not recognized: {plat_tag}")
+  # if not common_pytag.fullmatch( py_tag ):
+  #   warnings.warn(f"python tag was not recognized: {py_tag}")
+  #
+  # if not common_abitag.fullmatch( abi_tag ):
+  #   warnings.warn(f"abi tag was not recognized: {abi_tag}")
+  #
+  # if not any( plat.fullmatch( plat_tag ) for plat in common_plattag.values() ):
+  #   warnings.warn(f"platform tag was not recognized: {plat_tag}")
 
   return CompatibilityTags( py_tag, abi_tag, plat_tag )
 
@@ -588,15 +583,13 @@ def norm_py_identifier( name ):
 
   if not py_identifier.fullmatch( name ):
     raise ValidationError(
-      msg = """Python identifier may only contain letters in a small case (a-z),
+      msg = f"""Python identifier may only contain letters in a small case (a-z),
         upper case (A-Z), digits (0-9), and underscore (_), and not start with
-        a digit.""",
-      val = name )
+        a digit: {name}""" )
 
   if py_keyword.fullmatch( name ):
     raise ValidationError(
-      msg = "Python identifier may not be a reserved keyword",
-      val = name )
+      msg = f"Python identifier may not be a reserved keyword: {name}" )
 
   return name
 
@@ -613,9 +606,8 @@ def norm_entry_point_group( name ):
 
   if not entry_point_group.fullmatch( name ):
     raise ValidationError(
-      msg = """Entry point group must be one or more groups of
-        letters, numbers and underscores, separated by dots""",
-      val = name )
+      msg = f"""Entry point group must be one or more groups of
+        letters, numbers and underscores, separated by dots: {name}""" )
 
   return name
 
@@ -632,9 +624,8 @@ def norm_entry_point_name( name ):
 
   if not entry_point_name.fullmatch( name ):
     raise ValidationError(
-      msg = """Entry point name must be only letters, numbers, underscores,
-        dots and dashes""",
-      val = name )
+      msg = f"""Entry point name must be only letters, numbers, underscores,
+        dots and dashes: {name}""" )
 
   return name
 
@@ -653,8 +644,7 @@ def norm_entry_point_ref( ref ):
 
   if not modname:
     raise ValidationError(
-      msg = "Entry point reference must give a module name",
-      val = ref )
+      msg = f"Entry point reference must give a module name: {ref}" )
 
   try:
 
@@ -669,9 +659,8 @@ def norm_entry_point_ref( ref ):
 
   except ValidationError as e:
     raise ValidationError(
-      msg = """Entry point reference must have the form 'importable.module'
-        or 'importable.module:object.attr'""",
-      val = ref ) from e
+      msg = f"""Entry point reference must have the form 'importable.module'
+        or 'importable.module:object.attr': {ref}""") from e
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_path( path ):
@@ -688,7 +677,7 @@ def norm_path( path ):
   path = str(path)
 
   if re.search( r'\s+', path ):
-    raise ValueError(
+    raise ValidationError(
       f"path segments should not contain whitespace: {path}")
 
   # NOTE: starting with assuming windows path leads to the same result wether or
@@ -700,11 +689,11 @@ def norm_path( path ):
   ppath = pathlib.PurePosixPath( path )
 
   if wpath.is_absolute() or ppath.is_absolute():
-    raise ValueError(f"path must be relative: {path}")
+    raise ValidationError(f"path must be relative: {path}")
 
 
   if re.search( r'(\.\.)', path ):
-    raise ValueError(
+    raise ValidationError(
       f"path segments can not be relative to parent directories: {path}")
 
   return path
@@ -715,10 +704,6 @@ def norm_path_to_os( path ):
   """
 
   path = str(path)
-
-  if re.search( r'\s+', path ):
-    raise ValueError(
-      f"path segments should not contain whitespace: {path}")
 
   # NOTE: starting with assuming windows path leads to the same result wether or
   # not it actually was a windows path, replacing slashes etc as necessary.
@@ -930,8 +915,9 @@ pep426_dist_name = re.compile(
   re.IGNORECASE )
 
 pep440_version = re.compile(
-  r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)'
-  r'(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$' )
+  r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*'
+  r'((a|b|rc)(0|[1-9][0-9]*))?'
+  '(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$' )
 
 # NOTE: PEP 427 does not specify any constraints on the string following the
 # digits, but given the form it is used in the filenames it really cannot

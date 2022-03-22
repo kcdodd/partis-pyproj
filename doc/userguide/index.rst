@@ -59,7 +59,7 @@ Use with 'pyproject.toml' files
     'src',
     'pyproject.toml' ]
 
-  [tool.pyproj.dist.binary]
+  [tool.pyproj.dist.binary.purelib]
   # define what files/directories should be copied into a binary distribution
   # the 'dst' will correspond to the location of the file in 'site-packages'
   copy = [
@@ -89,22 +89,21 @@ Binary distribution install paths
 ---------------------------------
 
 If there are some binary distribution files that need to be installed to a
-location according to a local installation scheme (not the regular modules)
+location according to a local installation scheme
 these can be specified within sub-tables.
 Available install scheme keys, and **example** corresponding install locations, are:
 
-* ``data`` : '{prefix}/'
-* ``headers`` : '{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/'
-* ``platlib`` : '{prefix}/lib/python{X}.{Y}{platform}/site-packages/'
-* ``purelib`` : '{prefix}/lib/python{X}.{Y}/site-packages/'
+* ``purelib`` (generic Python path): '{prefix}/lib/python{X}.{Y}/site-packages/'
+* ``platlib`` (platform specific Python path): '{prefix}/lib{platform}/python{X}.{Y}/site-packages/'
 
   .. note::
 
-    Both ``platlib`` and ``purelib`` install to the base 'site-packages'
-    directory, so any files copied to these paths should be pre-pended with the
-    desired top level package name.
+    Both ``purelib`` and ``platlib`` install to the base 'site-packages'
+    directory, so any files copied to these paths should be placed within a
+    desired top-level package directory.
 
-* ``scripts`` : '{prefix}/bin/'
+* ``headers`` (INCLUDE search paths): '{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/'
+* ``scripts`` (executable search path): '{prefix}/bin/'
 
   .. attention::
 
@@ -115,27 +114,29 @@ Available install scheme keys, and **example** corresponding install locations, 
     use the ``[project.scripts]`` section to add an entry point that will then
     run the desired executable as a sub-process.
 
+* ``data`` (generic data): '{prefix}/'
+
 .. code-block:: toml
-
-  [tool.pyproj.dist.binary.data]
-  copy = [
-    { src = 'build/data.dat', dst = 'data.dat' } ]
-
-  [tool.pyproj.dist.binary.headers]
-  copy = [
-    { src = 'build/header.hpp', dst = 'header.hpp' } ]
-
-  [tool.pyproj.dist.binary.platlib]
-  copy = [
-    { src = 'build/my_project.so', dst = 'my_project/my_project.so'} ]
 
   [tool.pyproj.dist.binary.purelib]
   copy = [
     { src = 'build/my_project.py', dst = 'my_project/my_project.py'} ]
 
+  [tool.pyproj.dist.binary.platlib]
+  copy = [
+    { src = 'build/my_project.so', dst = 'my_project/my_project.so'} ]
+
+  [tool.pyproj.dist.binary.headers]
+  copy = [
+    { src = 'build/header.hpp', dst = 'header.hpp' } ]
+
   [tool.pyproj.dist.binary.scripts]
   copy = [
     { src = 'build/script.py', dst = 'script.py'} ]
+
+  [tool.pyproj.dist.binary.data]
+  copy = [
+    { src = 'build/data.dat', dst = 'data.dat' } ]
 
 
 Meson Build system
@@ -208,40 +209,39 @@ followed by copying all files in 'build/lib' into the binary distribution's
   extensions, for example to ensure that the extension shared object '.so' are
   actually copied into the binary distribution.
 
-Pre-processing hooks
---------------------
+Processing hooks
+----------------
 
 The backend provides a mechanism to perform an arbitrary operation before any
 files are copied into either the source or binary distribution:
-``tool.pyproj.dist.prep``, ``tool.pyproj.dist.source.prep``,
-``tool.pyproj.dist.binary.prep``.
-The ``prep`` hook currently must be a pure module (a directory with a
+
+* ``tool.pyproj.dist.prep`` : called first for both source or binary distributions.
+* ``tool.pyproj.dist.source.prep``: called before copying files to a source distribution.
+* ``tool.pyproj.dist.binary.prep``: called before copying files to a binary distribution.
+
+  .. note::
+
+    If the Meson Build commands are specified, those will be run
+    **before** ``tool.pyproj.dist.binary.prep``, but
+    **after** ``tool.pyproj.dist.prep``.
+
+    The return value of the ``tool.pyproj.dist.binary.prep`` hook is also used to
+    customize the compatibility tags for the binary distribution
+    (according to https://peps.python.org/pep-0425/) as a list of tuples
+    ``( py_tag, abi_tag, plat_tag )``.
+
+    If no tags are returned from the hook, the default tags will be set to
+    ``( 'py{X}', 'none', 'any' )``, or if any files are copied to the
+    ``platlib`` install path the compatibility will be used for the current Python
+    interpreter.
+
+The hook must be a pure python module (a directory with an
 ``__init__.py`` file), relative to the 'pyproject.toml'.
 The hook is specified according to the ``entry_points`` specification, and
 must resolve to a function that takes the instance of the build system and
 a logger.
 Keyword arguments may also be defined to be passed to the function,
 configured in the same section of the 'pyproject.toml'.
-
-.. note::
-
-  The return value of the ``tool.pyproj.dist.binary.prep`` hook is also used to
-  customize the compatibility tags for the binary distribution
-  (according to https://peps.python.org/pep-0425/) as a list of tuples
-  ``( py_tag, abi_tag, plat_tag )``.
-
-  If no tags are returned from the hook, the default tags will be set to
-  ``( 'py3', 'none', 'any' )``. If any files are copied to the
-  ``platlib`` install path, then the compatibility will be used for the current Python
-  interpreter, for example:
-
-  .. code-block:: python
-
-    from packaging.tags import sys_tags
-
-    tag = next(iter(sys_tags()))
-
-    compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
 
 .. code-block:: toml
 
@@ -254,7 +254,7 @@ configured in the same section of the 'pyproject.toml'.
   a_custom_argument = 'some value'
 
 
-This will be treated by the back-end in a way that should be equivalent to the
+This will be treated by the back-end equivalent to the
 following code run from the `pyproject.toml` directory:
 
 .. code:: python
@@ -267,12 +267,11 @@ following code run from the `pyproject.toml` directory:
     a_custom_argument = 'some value' )
 
 
-The ``build_system`` argument is the instance of
-:class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>` calling the function
-during processing of :meth:`PyProjBase.dist_binary_prep`, and ``logger``
+The ``build_system`` argument is an instance of
+:class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>`, and ``logger``
 is an instance of :class:`logging.Logger`.
 
-.. note::
+.. attention::
 
   Only those requirements listed in ``build-system.requires``
   will be importable by the specified code.

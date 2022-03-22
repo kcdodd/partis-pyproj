@@ -2,10 +2,7 @@ import sys
 import re
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def gen_nonprintable():
-  """Method used to generate a regex for matchiing all non-printable unicode
-  characters, except for newlines '\\n' and tabs '\\t'.
-  """
+def _gen_nonprintable():
   test = ''
 
   ns = [ [0,], ]
@@ -28,6 +25,15 @@ def gen_nonprintable():
   # print(len(test), test.isprintable())
   # print(len(ns))
   # print(ns)
+
+  return ns, test
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def gen_nonprintable():
+  """Method used to generate a regex for matchiing all non-printable unicode
+  characters, except for newlines '\\n' and tabs '\\t'.
+  """
+  ns, test = _gen_nonprintable()
 
   def fmt(i):
     if i < 2**8:

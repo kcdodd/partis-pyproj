@@ -160,6 +160,7 @@ class dist_base( ABC ):
     src,
     dst,
     mode = None,
+    exist_ok = False,
     record = True ):
     """Behaviour similar to shutil.copyfile into the distribution file
 
@@ -168,11 +169,15 @@ class dist_base( ABC ):
     src : str | path
     dst : str | path
     mode : int
+    exist_ok : bool
     record : bool
       Add file to the RECORD
     """
 
-    if self.exists( dst ):
+    if not osp.exists( src ):
+      raise ValueError(f"Source file not found: {src}")
+
+    if not exist_ok and self.exists( dst ):
       raise ValueError(f"Build file already has entry: {dst}")
 
     self.logger.debug( f'copyfile {src}' )
@@ -194,6 +199,7 @@ class dist_base( ABC ):
     src,
     dst,
     ignore = None,
+    exist_ok = False,
     record = True ):
     """Behaviour similar to shutil.copytree into the distribution file
 
@@ -206,9 +212,13 @@ class dist_base( ABC ):
       If not None, ``callable(src, names) -> ignored_names``
 
       See :func:`shutil.copytree`
+    exist_ok : bool
     record : bool
       Add all files to the RECORD
     """
+
+    if not osp.exists( src ):
+      raise ValueError(f"Source directory not found: {src}")
 
     self.logger.debug( f'copytree {src}' )
 
@@ -237,12 +247,15 @@ class dist_base( ABC ):
         self.makedirs(
           dst = dst_path,
           mode = mode,
+          # TODO: separate option for existing directories? like `dirs_exist_ok`
+          exist_ok = True,
           record = record )
 
         self.copytree(
           src = src_path,
           dst = dst_path,
           ignore = ignore,
+          exist_ok = exist_ok,
           record = record )
 
       else:
@@ -251,6 +264,7 @@ class dist_base( ABC ):
           src = src_path,
           dst = dst_path,
           mode = mode,
+          exist_ok = exist_ok,
           record = record )
 
     return dst
@@ -350,6 +364,7 @@ class dist_base( ABC ):
       self.copy_distfile()
       self.copied = True
 
+    self.remove_distfile()
 
   #-----------------------------------------------------------------------------
   def __enter__(self):

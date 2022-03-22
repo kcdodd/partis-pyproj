@@ -10,6 +10,7 @@ import shutil
 import configparser
 
 from .norms import (
+  ValidationError,
   allowed_keys,
   norm_printable,
   valid_dist_name,
@@ -229,7 +230,7 @@ class PkgInfo:
         for k,v in project.get('gui-scripts').items() }
 
     if 'entry-points' in project:
-      
+
       for k, v in project.get('entry-points').items():
         k = norm_entry_point_group(k)
 
@@ -239,12 +240,12 @@ class PkgInfo:
         # > table, as they would be ambiguous in the face of [project.scripts]
         # > and [project.gui-scripts], respectively.
         if k in [ 'scripts', 'console_scripts' ]:
-          raise ValueError(
+          raise ValidationError(
             f"""'console_scripts' should be defined in [project.scripts] instead
             of [project.entry-points]""")
 
         if k in [ 'gui-scripts', 'gui_scripts' ]:
-          raise ValueError(
+          raise ValidationError(
             f"""'gui_scripts' should be defined in [project.gui-scripts] instead
             of [project.entry-points]""")
 
@@ -271,27 +272,44 @@ class PkgInfo:
     if self.readme:
 
       if isinstance( self.readme, dict ):
-        if 'file' in self.readme:
-          if not root:
-            raise ValueError(f"'root' must be given to resolve a 'readme.file' path")
+        allowed_keys(
+          name = 'project.readme',
+          obj = self.readme,
+          keys = [
+            'file',
+            'text' ] )
 
-          readme_file = os.path.join( root, self.readme['file'] )
+        if 'file' in self.readme:
+          if 'text' in self.readme:
+            raise ValidationError(
+              f"readme mapping should not have both 'text' and 'file': {self.readme}")
+
+          if not root:
+            raise ValidationError(
+              f"'root' must be given to resolve a 'readme.file' path")
+
+          readme_file = osp.join( root, self.readme['file'] )
 
         elif 'text' in self.readme:
           self._desc = norm_printable( self.readme['text'] )
 
       elif self.readme and isinstance( self.readme, str ):
         if not root:
-          raise ValueError(f"'root' must be given to resolve 'readme' file path")
+          raise ValidationError(
+            f"'root' must be given to resolve 'readme' file path")
 
-        readme_file = os.path.join( root, self.readme )
+        readme_file = osp.join( root, self.readme )
 
       if readme_file:
         if readme_file.lower().endswith('.rst'):
           self._desc_type = 'text/x-rst'
 
-        if readme_file.lower().endswith('.md'):
+        elif readme_file.lower().endswith('.md'):
           self._desc_type = 'text/markdown'
+
+        if not osp.exists(readme_file):
+          raise ValidationError(
+            f"'readme' file not found: {readme_file}")
 
         with open( readme_file, 'r' ) as fp:
           self._desc = norm_printable( fp.read() )
@@ -320,12 +338,19 @@ class PkgInfo:
         # > License field from the core metadata. These keys are mutually exclusive,
         # > so a tool MUST raise an error if the metadata specifies both keys.
 
+        allowed_keys(
+          name = 'project.license',
+          obj = self.license,
+          keys = [
+            'file',
+            'text' ] )
+
         if 'file' in self.license:
           if not root:
-            raise ValueError(f"'root' must be given to resolve 'license.file' path")
+            raise ValidationError(f"'root' must be given to resolve 'license.file' path")
 
           # if 'text' in self.license:
-          #   raise ValueError(f"'license' cannot have both 'text' and 'file': {self.license}")
+          #   raise ValidationError(f"'license' cannot have both 'text' and 'file': {self.license}")
 
           # TODO: Core Metadata standar does not mention a 'License-File' header
           # but many tools seem to assign this value.
@@ -335,7 +360,13 @@ class PkgInfo:
 
           self.license_file = self.license['file']
 
-          with open( osp.join( root, self.license_file ), 'r' ) as fp:
+          license_file = osp.join( root, self.license_file )
+
+          if not osp.exists(license_file):
+            raise ValidationError(
+              f"'license' file not found: {license_file}")
+
+          with open( license_file, 'r' ) as fp:
             self.license_file_content = norm_printable( fp.read() ).encode('utf-8')
 
         if 'text' in self.license:
@@ -344,73 +375,7 @@ class PkgInfo:
 
 
       else:
-        raise ValueError(f"'license' must be a mapping with either 'text' or 'file': {self.license}")
-
-
-    # this is only used when 'prividing' another package in the same distro
-    self._provides_dist = set()
-    self._obsoletes_dist = set()
-
-  #-----------------------------------------------------------------------------
-  def provides( self, other ):
-    """Used to combine multi-module package meta-data
-
-    Parameters
-    ----------
-    other : PkgInfo
-      Package info to include as 'provided'
-
-    Returns
-    -------
-    pkg_info : PkgInfo
-      Resulting package info
-
-    Attention
-    ---------
-    This should be used with extreme caution.
-    It performs a very simple extending of information, requirements, and entry_points.
-
-    This does not currently handle if an 'extra' from a sub-project is requested
-    by another, incidentally removing the needed dependency.
-    """
-
-    if not isinstance( other, PkgInfo ):
-      raise ValueError(f"other must be instance of PkgInfo: {other}")
-
-
-    provider = copy(self)
-
-    # NOTE: requires_python is a specifier set, so '&' results in 'require both'
-    provider.requires_python &= other.requires_python
-
-    # NOTE: '|' for sets of requirements results in 'require all'
-    provider.dependencies |= other.dependencies
-
-    for extra, reqs in other.optional_dependencies.items():
-      if extra in provider.optional_dependencies:
-        provider.optional_dependencies[extra] |= reqs
-      else:
-        provider.optional_dependencies[extra] = copy(reqs)
-
-    provider.keywords |= other.keywords
-    provider.urls |= other.urls
-    provider.classifiers |= other.classifiers
-
-    provider.authors |= other.authors
-    provider.maintainers |= other.maintainers
-
-
-    for k, v in other.entry_points.items():
-      if k in provider.entry_points:
-        provider.entry_points[k].update(v)
-
-      else:
-        provider.entry_points[k] = copy(v)
-
-    provider._provides_dist.add( other.name_normed )
-    provider._obsoletes_dist.add( other.name_normed )
-
-    return provider
+        raise ValidationError(f"'license' must be a mapping with either 'text' or 'file': {self.license}")
 
   #-----------------------------------------------------------------------------
   def add_dependencies( self, deps ):
@@ -445,10 +410,6 @@ class PkgInfo:
 
     for extra, reqs in self.optional_dependencies.items():
       requires_dist.extend( list(reqs) )
-
-    # filter out any dependencies listing the one being provided
-    # NOTE: this dose not do any checking of version, up to repo maintainers
-    requires_dist = [ d for d in requires_dist if d.req.name not in self._provides_dist ]
 
     return requires_dist
 
@@ -545,14 +506,6 @@ class PkgInfo:
     for e in self.provides_extra:
       headers.append(
         ( 'Provides-Extra', str(e) ) )
-
-    for d in self._provides_dist:
-      headers.append(
-        ( 'Provides-Dist', str(d) ) )
-
-    for d in self._obsoletes_dist:
-      headers.append(
-        ( 'Obsoletes-Dist', str(d) ) )
 
     for d in self.requires_dist:
       headers.append(
