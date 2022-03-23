@@ -1,0 +1,57 @@
+# -*- coding: UTF-8 -*-
+[project]
+name = "test_pkg"
+version = "0.0.1"
+description = "Test Package"
+
+requires-python = ">= 3.6.2"
+dependencies = [ ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[[project.authors]]
+name = "Nanohmics Inc."
+email = "software.support@nanohmics.com"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Build and distribution configuration
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[build-system]
+requires = [
+  "partis-pyproj[meson] == 0.0.1",
+  "Cython>=0.29.18" ]
+
+build-backend = "partis.pyproj.backend"
+
+#...............................................................................
+[tool.pyproj.dist.source]
+
+copy = [
+  'src',
+  'meson.build',
+  'pyproject.toml' ]
+
+#...............................................................................
+# Configuration of the meson build system
+[tool.pyproj.meson]
+compile = true
+compile_args = [
+  '-j', '-1' ]
+
+prefix = 'build'
+build_dir = 'build'
+
+#...............................................................................
+[tool.pyproj.dist.binary]
+ignore = [
+  '*.pyx' ]
+
+#...............................................................................
+[tool.pyproj.dist.binary.purelib]
+
+copy = [
+  { src = 'src/test_pkg', dst = 'test_pkg' } ]
+
+#...............................................................................
+[tool.pyproj.dist.binary.platlib]
+copy = [
+  { src = 'build/lib', dst = 'test_pkg' } ]

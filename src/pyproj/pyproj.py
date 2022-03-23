@@ -25,8 +25,10 @@ from .pkginfo import (
 
 from .norms import (
   norm_path_to_os,
-  allowed_keys,
+  valid_type,
+  valid_keys,
   mapget,
+  as_list,
   CompatibilityTags )
 
 from .load_module import (
@@ -55,8 +57,7 @@ class PyProjBase:
     root,
     logger = None ):
 
-    if logger is None:
-      logger = logging.getLogger( __name__ )
+    logger = logger or logging.getLogger( __name__ )
 
     self.root = osp.abspath(root)
 
@@ -65,43 +66,50 @@ class PyProjBase:
     with open( self.pptoml_file, 'r' ) as fp:
       self.pptoml = tomli.loads( fp.read() )
 
-    if 'project' not in self.pptoml:
-      raise ValueError(
-        f"'project' metadata must be minimally defined: {pptoml_file}")
+    #...........................................................................
+    valid_keys(
+      name = 'pyproject.toml',
+      obj = self.pptoml,
+      require_keys = [
+        'project',
+        'tool' ],
+      allow_keys = [
+        'build-system' ] )
 
     self.pkg_info = PkgInfo(
-      project = self.pptoml.get( 'project' ),
+      project = self.pptoml['project'],
       root = root )
 
     # Update logger once package info is created
     self.logger = logger.getChild( f"['{self.pkg_info.name_normed}']" )
 
-    self.pyproj = mapget( self.pptoml, 'tool.pyproj', None )
-
-    if not self.pyproj:
-      raise ValueError(
-        f"[tool.pyproj] must be minimally defined for this backend: {pptoml_file}")
-
-
-    if not self.pyproj:
-      raise ValueError(
-        f"'tool.pyproj' must be minimally defined for this backend: {pptoml_file}")
 
     #...........................................................................
-    allowed_keys(
+    tool = self.pptoml['tool']
+
+    valid_keys(
+      name = 'tool',
+      obj = tool,
+      require_keys = [
+        'pyproj' ] )
+
+    self.pyproj = tool['pyproj']
+
+    #...........................................................................
+    valid_keys(
       name = 'tool.pyproj',
       obj = self.pyproj,
-      keys = [
+      allow_keys = [
         'dist',
         'meson' ] )
 
     #...........................................................................
     self.dist = mapget( self.pyproj, 'dist', dict() )
 
-    allowed_keys(
+    valid_keys(
       name = 'tool.pyproj.dist',
       obj = self.dist,
-      keys = [
+      allow_keys = [
         'prep',
         'ignore',
         'source',
@@ -110,20 +118,19 @@ class PyProjBase:
     self.dist_source = mapget( self.dist, 'source', dict() )
     self.dist_binary = mapget( self.dist, 'binary', dict() )
 
-
-    allowed_keys(
+    valid_keys(
       name = 'tool.pyproj.dist.source',
       obj = self.dist_source,
-      keys = [
+      allow_keys = [
         'prep',
         'ignore',
         'copy',
         'add_legacy_setup' ] )
 
-    allowed_keys(
+    valid_keys(
       name = 'tool.pyproj.dist.binary',
       obj = self.dist_binary,
-      keys = [
+      allow_keys = [
         'prep',
         'ignore',
         'copy',
@@ -138,21 +145,21 @@ class PyProjBase:
     #...........................................................................
     self.meson = mapget( self.pyproj, 'meson', dict() )
 
-    allowed_keys(
+    valid_keys(
       name = 'tool.pyproj.meson',
       obj = self.meson,
-      keys = [
+      allow_keys = [
+        'compile',
         'src_dir',
         'build_dir',
         'prefix',
-        'compile',
         'setup_args',
         'compile_args',
         'install_args',
         'options' ] )
 
     self.meson.setdefault('src_dir', '.' )
-    self.meson.setdefault('build_dir', '' )
+    self.meson.setdefault('build_dir', 'build')
     self.meson.setdefault('prefix', 'build')
     self.meson.setdefault('compile', False)
 
@@ -162,29 +169,26 @@ class PyProjBase:
 
     self.meson.setdefault('options', dict())
 
-    if not self.meson['src_dir']:
-      self.meson['src_dir'] = '.'
+    self.meson['src_dir'] = osp.join(
+      self.root,
+      norm_path_to_os(self.meson['src_dir'] ) )
 
-    self.meson['src_dir'] = norm_path_to_os(self.meson['src_dir'])
+    self.meson['build_dir'] = osp.join(
+      self.root,
+      norm_path_to_os(self.meson['build_dir']) )
 
-    if not osp.isabs(self.meson['src_dir']):
-      self.meson['src_dir'] = osp.join( self.root, self.meson['src_dir'] )
-
-    if self.meson['build_dir']:
-      self.meson['build_dir'] = norm_path_to_os(self.meson['build_dir'])
-
-      if not osp.isabs(self.meson['build_dir']):
-        self.meson['build_dir'] = osp.join( self.root, self.meson['build_dir'] )
+    self.meson['prefix'] = osp.join(
+      self.root,
+      norm_path_to_os(self.meson['prefix'] ) )
 
     #...........................................................................
     self.build_backend = mapget( self.pptoml,
-        'build-system.build-backend',
-        "" )
+      'build-system.build-backend',
+      "" )
 
     self.backend_path = mapget( self.pptoml,
-        'build-system.backend-path',
-        list() )
-
+      'build-system.backend-path',
+      list() )
 
     #...........................................................................
     self.build_requires = set([
@@ -199,36 +203,41 @@ class PyProjBase:
   #-----------------------------------------------------------------------------
   def prep_entrypoint( self, name, obj, logger ):
 
-    prep = mapget( obj, 'prep', dict() )
+    prep = obj.get( 'prep', None )
+
+    if not prep:
+      return None
+
     prep_name = name
 
-    allowed_keys(
+    valid_keys(
       name = prep_name,
       obj = prep,
-      keys = [
-        'entry',
+      require_keys = [
+        'entry' ],
+      allow_keys = [
         'kwargs' ] )
 
-    entry_point = mapget( prep, 'entry', '' )
-    entry_point_kwargs = mapget( prep, 'kwargs', dict() )
+    entry_point = prep['entry']
+    entry_point_kwargs = prep.get('kwargs', dict() )
 
-    if entry_point:
-      func = load_entrypoint(
-        root = self.root,
-        entry_point = entry_point )
 
-      logger.info(f"loaded entry-point '{entry_point}'")
+    func = load_entrypoint(
+      root = self.root,
+      entry_point = entry_point )
 
-      try:
-        cwd = os.getcwd()
+    logger.info(f"loaded entry-point '{entry_point}'")
 
-        return func(
-          self,
-          logger = logger,
-          **entry_point_kwargs )
+    try:
+      cwd = os.getcwd()
 
-      finally:
-        os.chdir(cwd)
+      return func(
+        self,
+        logger = logger,
+        **entry_point_kwargs )
+
+    finally:
+      os.chdir(cwd)
 
   #-----------------------------------------------------------------------------
   def meson_build( self ):
@@ -236,20 +245,14 @@ class PyProjBase:
     #...........................................................................
     if self.meson['compile']:
 
-      if self.meson['build_dir'] and not osp.exists(self.meson['build_dir']):
-        os.makedirs(self.meson['build_dir'])
+      for dir in [ self.meson['build_dir'], self.meson['prefix'] ]:
+        if not osp.exists(dir):
+          os.makedirs(dir)
 
       meson_build_dir = tempfile.mkdtemp(
-        dir = self.meson['build_dir'] or None )
+        dir = self.meson['build_dir'] )
 
-      meson_out_dir = norm_path_to_os( self.meson['prefix'] )
-
-      if not osp.isabs(meson_out_dir):
-
-        meson_out_dir = osp.join( self.root, meson_out_dir )
-
-      if not osp.exists(meson_out_dir):
-        os.makedirs(meson_out_dir)
+      meson_out_dir = self.meson['prefix']
 
       self.logger.info(f"Running meson build")
       self.logger.info(f"Meson tmp: {meson_build_dir}")
@@ -280,23 +283,18 @@ class PyProjBase:
         '-C',
         meson_build_dir ]
 
-      try:
 
-        self.logger.debug(' '.join(setup_args))
+      self.logger.debug(' '.join(setup_args))
 
-        subprocess.check_call(setup_args)
+      subprocess.check_call(setup_args)
 
-        self.logger.debug(' '.join(compile_args))
+      self.logger.debug(' '.join(compile_args))
 
-        subprocess.check_call(compile_args)
+      subprocess.check_call(compile_args)
 
-        self.logger.debug(' '.join(install_args))
+      self.logger.debug(' '.join(install_args))
 
-        subprocess.check_call(install_args)
-
-      finally:
-        if not self.meson['build_dir']:
-          shutil.rmtree( meson_build_dir )
+      subprocess.check_call(install_args)
 
   #-----------------------------------------------------------------------------
   def dist_prep( self ):
@@ -362,8 +360,7 @@ class PyProjBase:
       logger = self.logger.getChild( f"dist.binary.prep" ) )
 
     if compat_tags:
-      if not isinstance(compat_tags, list):
-        compat_tags = [ compat_tags ]
+      compat_tags = as_list(compat_tags)
 
       compat_tags = [
         CompatibilityTags(*tags)
@@ -416,10 +413,10 @@ class PyProjBase:
 
         dist_data = mapget( self.dist_binary, k, dict() )
 
-        allowed_keys(
+        valid_keys(
           name = name,
           obj = dist_data,
-          keys = [
+          allow_keys = [
             'ignore',
             'copy' ] )
 
@@ -448,46 +445,37 @@ class PyProjBase:
       return
 
     include = copy(include)
-    ignore_patterns = shutil.ignore_patterns(*ignore) if len(ignore) > 0 else None
+    ignore_patterns = shutil.ignore_patterns(*ignore) if ignore else None
 
     for i, incl in enumerate(include):
       incl_name = f'{name}.copy[{i}]'
 
       _ignore_patterns = ignore_patterns
 
-      if isinstance( incl, str ):
+      typ = valid_type(
+        name = incl_name,
+        obj = incl,
+        types = [ str, Mapping ] )
+
+      if typ is str:
         include[i] = ( incl, incl, _ignore_patterns )
 
-      elif isinstance( incl, Mapping ):
-        allowed_keys(
+      elif typ is Mapping:
+        valid_keys(
           name = incl_name,
           obj = incl,
-          keys = [
-            'src',
+          require_keys = [
+            'src' ],
+          allow_keys = [
             'dst',
             'ignore' ] )
 
-        if 'src' not in incl:
-          raise ValueError(
-            f'{incl_name} must have a `src`:{incl}')
+        dst = incl.get( 'dst', incl['src'] )
 
-        if 'dst' not in incl:
-          incl['dst'] = incl['src']
+        _ignore = as_list( incl.get( 'ignore', list() ) )
+        _ignore_patterns = shutil.ignore_patterns(*(ignore + _ignore)) if _ignore else _ignore_patterns
 
-        if 'ignore' in incl:
-          _ignore = incl['ignore']
-
-          if isinstance( _ignore, str ):
-            _ignore = [ _ignore, ]
-
-          if len(_ignore) > 0:
-            _ignore_patterns = shutil.ignore_patterns( *( ignore + _ignore ) )
-
-        include[i] = ( incl['src'], incl['dst'], _ignore_patterns )
-
-      else:
-        raise ValueError(
-          f"{incl_name} must be a string [from/to], or mapping {{src = 'from', dst = 'to'}}: {incl}")
+        include[i] = ( incl['src'], dst, _ignore_patterns )
 
     for src, dst, ignore in include:
 

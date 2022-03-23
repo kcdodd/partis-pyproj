@@ -9,9 +9,14 @@ import tempfile
 import shutil
 import configparser
 
+from collections.abc import (
+  Mapping,
+  Sequence )
+
 from .norms import (
   ValidationError,
-  allowed_keys,
+  valid_type,
+  valid_keys,
   norm_printable,
   valid_dist_name,
   norm_dist_name,
@@ -157,12 +162,13 @@ class PkgInfo:
     * https://packaging.python.org/en/latest/specifications/core-metadata/
     """
 
-    allowed_keys(
+    valid_keys(
       name = 'project',
       obj = project,
-      keys = [
+      require_keys = [
         'name',
-        'version',
+        'version' ],
+      allow_keys = [
         'description',
         'readme',
         'authors',
@@ -271,18 +277,22 @@ class PkgInfo:
 
     if self.readme:
 
-      if isinstance( self.readme, dict ):
-        allowed_keys(
+      typ = valid_type(
+        name = 'project.readme',
+        obj = self.readme,
+        types = [ str, Mapping ] )
+
+      if typ is Mapping:
+        valid_keys(
           name = 'project.readme',
           obj = self.readme,
-          keys = [
+          allow_keys = [
             'file',
-            'text' ] )
+            'text' ],
+          mutex_keys = [
+            ('file', 'text')] )
 
         if 'file' in self.readme:
-          if 'text' in self.readme:
-            raise ValidationError(
-              f"readme mapping should not have both 'text' and 'file': {self.readme}")
 
           if not root:
             raise ValidationError(
@@ -293,7 +303,8 @@ class PkgInfo:
         elif 'text' in self.readme:
           self._desc = norm_printable( self.readme['text'] )
 
-      elif self.readme and isinstance( self.readme, str ):
+      elif typ is str:
+        # a string at top-level interpreted as a path to the readme file
         if not root:
           raise ValidationError(
             f"'root' must be given to resolve 'readme' file path")
@@ -330,52 +341,48 @@ class PkgInfo:
       # to License, in addition to a filename to 'License-File'.
       # It's not clear how to accomidate both with the above restriction.
 
-      if isinstance( self.license, dict ):
-        # > The table may have one of two keys. The file key has a string value that is
-        # > a relative file path to the file which contains the license for the project.
-        # > Tools MUST assume the file's encoding is UTF-8. The text key has a string
-        # > value which is the license of the project whose meaning is that of the
-        # > License field from the core metadata. These keys are mutually exclusive,
-        # > so a tool MUST raise an error if the metadata specifies both keys.
 
-        allowed_keys(
-          name = 'project.license',
-          obj = self.license,
-          keys = [
-            'file',
-            'text' ] )
+      # > The table may have one of two keys. The file key has a string value that is
+      # > a relative file path to the file which contains the license for the project.
+      # > Tools MUST assume the file's encoding is UTF-8. The text key has a string
+      # > value which is the license of the project whose meaning is that of the
+      # > License field from the core metadata. These keys are mutually exclusive,
+      # > so a tool MUST raise an error if the metadata specifies both keys.
 
-        if 'file' in self.license:
-          if not root:
-            raise ValidationError(f"'root' must be given to resolve 'license.file' path")
+      valid_keys(
+        name = 'project.license',
+        obj = self.license,
+        allow_keys = [
+          'file',
+          'text' ] )
 
-          # if 'text' in self.license:
-          #   raise ValidationError(f"'license' cannot have both 'text' and 'file': {self.license}")
+      if 'file' in self.license:
+        if not root:
+          raise ValidationError(f"'root' must be given to resolve 'license.file' path")
 
-          # TODO: Core Metadata standar does not mention a 'License-File' header
-          # but many tools seem to assign this value.
-          # https://packaging.python.org/en/latest/specifications/core-metadata/
-          # It is not clear if this is now deprecated, or if any tools actually
-          # expect this to be set
+        # if 'text' in self.license:
+        #   raise ValidationError(f"'license' cannot have both 'text' and 'file': {self.license}")
 
-          self.license_file = self.license['file']
+        # TODO: Core Metadata standar does not mention a 'License-File' header
+        # but many tools seem to assign this value.
+        # https://packaging.python.org/en/latest/specifications/core-metadata/
+        # It is not clear if this is now deprecated, or if any tools actually
+        # expect this to be set
 
-          license_file = osp.join( root, self.license_file )
+        self.license_file = self.license['file']
 
-          if not osp.exists(license_file):
-            raise ValidationError(
-              f"'license' file not found: {license_file}")
+        license_file = osp.join( root, self.license_file )
 
-          with open( license_file, 'r' ) as fp:
-            self.license_file_content = norm_printable( fp.read() ).encode('utf-8')
+        if not osp.exists(license_file):
+          raise ValidationError(
+            f"'license' file not found: {license_file}")
 
-        if 'text' in self.license:
+        with open( license_file, 'r' ) as fp:
+          self.license_file_content = norm_printable( fp.read() ).encode('utf-8')
 
-          self._license = norm_printable( self.license['text'] )
+      if 'text' in self.license:
 
-
-      else:
-        raise ValidationError(f"'license' must be a mapping with either 'text' or 'file': {self.license}")
+        self._license = norm_printable( self.license['text'] )
 
   #-----------------------------------------------------------------------------
   def add_dependencies( self, deps ):

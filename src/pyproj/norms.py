@@ -9,7 +9,9 @@ import pathlib
 import inspect
 from collections.abc import (
   Mapping,
-  Sequence )
+  Sequence,
+  Iterable )
+
 from collections import namedtuple
 import hashlib
 from base64 import urlsafe_b64encode
@@ -63,18 +65,51 @@ class PEPValidationError( ValidationError ):
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def allowed_keys( name, obj, keys ):
+def valid_keys(
+  name,
+  obj,
+  allow_keys = None,
+  require_keys = None,
+  mutex_keys = None ):
   """Check that a mapping does not contain un-expected keys
   """
 
   if not isinstance( obj, Mapping ):
     raise ValidationError(
-      f"{name} must be mapping with keys {keys}: {type(obj)}" )
+      f"{name} must be mapping with keys {allow_keys}: {type(obj)}" )
 
-  for k in obj.keys():
-    if k not in keys:
-      raise ValidationError(
-        f"{name} must be mapping with keys {keys}: {k}" )
+  if allow_keys:
+    allow_keys.extend( require_keys or [] )
+
+    for k in obj.keys():
+      if k not in allow_keys:
+        raise ValidationError(
+          f"{name} allowed keys {allow_keys}: {k}" )
+
+  if require_keys:
+    for k in require_keys:
+      if k not in obj:
+        raise ValidationError(
+          f"{name} required keys {require_keys}: {k}" )
+
+  if mutex_keys:
+    for k1, k2 in mutex_keys:
+      if k1 in obj and k2 in obj:
+        raise ValidationError(
+          f"{name} mututally exclusive keys: {k1}, {k2}" )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def valid_type(
+  name,
+  obj,
+  types ):
+
+  for t in types:
+    if isinstance( obj, t ):
+      return t
+
+  raise ValidationError(
+    f"{name} must be of type {types}: {type(obj)}" )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def mapget(
@@ -106,6 +141,12 @@ def mapget(
 
   return _obj
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def as_list( obj ):
+  if isinstance( obj, str ) or not isinstance(obj, Iterable):
+    return [ obj ]
+
+  return list(obj)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_printable(

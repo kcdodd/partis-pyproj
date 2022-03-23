@@ -17,7 +17,7 @@ from . import (
   dist_source_targz )
 
 from .norms import (
-  allowed_keys,
+  valid_keys,
   mapget )
 
 try:

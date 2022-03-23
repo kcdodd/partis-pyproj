@@ -11,7 +11,9 @@ from partis.pyproj import (
   CompatibilityTags,
   ValidationError,
   PEPValidationError,
-  allowed_keys,
+  valid_type,
+  valid_keys,
+  as_list,
   mapget,
   norm_printable,
   valid_dist_name,
@@ -46,26 +48,37 @@ from partis.pyproj._nonprintable import (
   gen_nonprintable )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_allowed_keys():
-  with raises( ValidationError ):
-    allowed_keys( 'xyz', 'xyz', ['x', 'y', 'z'] )
+def test_valid_type():
+  valid_type('xyz', 'xyz', types = [str])
 
   with raises( ValidationError ):
-    allowed_keys( 'xyz', list(), ['x', 'y', 'z'] )
+    valid_type('xyz', 'xyz', types = [int])
 
-  allowed_keys( 'xyz', dict(), ['x', 'y', 'z'] )
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_valid_keys():
+  with raises( ValidationError ):
+    valid_keys( 'xyz', 'xyz', ['x', 'y', 'z'] )
 
+  with raises( ValidationError ):
+    valid_keys( 'xyz', list(), ['x', 'y', 'z'] )
+
+  valid_keys( 'xyz', dict(), ['x', 'y', 'z'] )
 
   obj = {
     'x': 1,
     'y': 2,
     'z': 3 }
 
-  allowed_keys( 'xyz', obj, ['a', 'x', 'y', 'z'] )
+  valid_keys( 'xyz', obj, ['w', 'x', 'y', 'z'] )
 
   with raises( ValidationError ):
-    allowed_keys( 'xyz', obj, ['x', 'y'] )
+    valid_keys( 'xyz', obj, ['x', 'y'] )
 
+  with raises( ValidationError ):
+    valid_keys( 'xyz', obj, ['x', 'y', 'z'], require_keys = ['w'] )
+
+  with raises( ValidationError ):
+    valid_keys( 'xyz', obj, ['x', 'y', 'z'], mutex_keys = [('x', 'y')] )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_mapget():
@@ -102,6 +115,13 @@ def test_mapget():
 
   with raises( ValidationError ):
     mapget( 'asd', 'x', default = default )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_as_list():
+  assert as_list(None) == [None]
+  assert as_list('a') == ['a']
+  assert as_list(['a', 'b']) == ['a', 'b']
+  assert as_list({'a': 'b'}) == ['a']
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_norm_printable():
