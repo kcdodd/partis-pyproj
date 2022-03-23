@@ -282,7 +282,15 @@ class PkgInfo:
         obj = self.readme,
         types = [ str, Mapping ] )
 
-      if typ is Mapping:
+      if typ is str:
+        # a string at top-level interpreted as a path to the readme file
+        if not root:
+          raise ValidationError(
+            f"'root' must be given to resolve 'readme' file path")
+
+        readme_file = osp.join( root, self.readme )
+
+      else:
         valid_keys(
           name = 'project.readme',
           obj = self.readme,
@@ -303,13 +311,6 @@ class PkgInfo:
         elif 'text' in self.readme:
           self._desc = norm_printable( self.readme['text'] )
 
-      elif typ is str:
-        # a string at top-level interpreted as a path to the readme file
-        if not root:
-          raise ValidationError(
-            f"'root' must be given to resolve 'readme' file path")
-
-        readme_file = osp.join( root, self.readme )
 
       if readme_file:
         if readme_file.lower().endswith('.rst'):

@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 [project]
-name = "test_pkg"
+name = "test_pkg_base"
 version = "0.0.1"
 description = "Test Package"
 
@@ -31,6 +31,7 @@ entry = "aux:dist_source_prep"
 
 #...............................................................................
 [tool.pyproj.dist.source]
+add_legacy_setup = true
 
 copy = [
   'src',
@@ -49,4 +50,4 @@ entry = "aux:dist_binary_prep"
 [tool.pyproj.dist.binary.purelib]
 
 copy = [
-  { src = 'src/test_pkg/pure_mod.py', dst = 'test_pkg/pure_mod.py' } ]
+  { src = 'src/test_pkg/pure_mod.py', dst = 'test_pkg_base/pure_mod.py' } ]

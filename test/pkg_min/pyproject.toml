@@ -1,0 +1,26 @@
+# -*- coding: UTF-8 -*-
+[project]
+name = "test_pkg_min"
+version = "0.0.1"
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Build and distribution configuration
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[build-system]
+requires = [
+  "partis-pyproj== 0.0.1"]
+
+build-backend = "partis.pyproj.backend"
+
+
+#...............................................................................
+[tool.pyproj.dist.source]
+copy = [ 
+  'pyproject.toml',
+  'pure_mod.py' ]
+
+#...............................................................................
+[tool.pyproj.dist.binary]
+
+copy = [ { src = 'pure_mod.py', dst = 'test_pkg_min.py' } ]

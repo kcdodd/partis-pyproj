@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 [project]
-name = "test_pkg"
+name = "test_pkg_meson"
 version = "0.0.1"
 description = "Test Package"
 
@@ -49,9 +49,9 @@ ignore = [
 [tool.pyproj.dist.binary.purelib]
 
 copy = [
-  { src = 'src/test_pkg', dst = 'test_pkg' } ]
+  { src = 'src/test_pkg', dst = 'test_pkg_meson' } ]
 
 #...............................................................................
 [tool.pyproj.dist.binary.platlib]
 copy = [
-  { src = 'build/lib', dst = 'test_pkg' } ]
+  { src = 'build/lib', dst = 'test_pkg_meson' } ]

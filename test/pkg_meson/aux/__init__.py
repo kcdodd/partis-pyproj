@@ -9,4 +9,10 @@ def dist_source_prep( self, logger ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dist_binary_prep( self, logger ):
-  return [('py3', 'none', 'any')]
+  from packaging.tags import sys_tags
+
+  tag = next(iter(sys_tags()))
+
+  compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
+
+  return compat_tags

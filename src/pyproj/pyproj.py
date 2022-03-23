@@ -25,6 +25,7 @@ from .pkginfo import (
 
 from .norms import (
   norm_path_to_os,
+  norm_path,
   valid_type,
   valid_keys,
   mapget,
@@ -231,10 +232,12 @@ class PyProjBase:
     try:
       cwd = os.getcwd()
 
-      return func(
+      res = func(
         self,
         logger = logger,
         **entry_point_kwargs )
+
+      return res
 
     finally:
       os.chdir(cwd)
@@ -342,7 +345,7 @@ class PyProjBase:
       ignore = ignore,
       dist = dist )
 
-    if mapget( self.dist_source, 'add_legacy_setup', False ):
+    if self.dist_source.get('add_legacy_setup', False ):
       self.logger.info(f"generating legacy 'setup.py'")
       legacy_setup_content( self, dist )
 
@@ -460,7 +463,7 @@ class PyProjBase:
       if typ is str:
         include[i] = ( incl, incl, _ignore_patterns )
 
-      elif typ is Mapping:
+      else:
         valid_keys(
           name = incl_name,
           obj = incl,
@@ -480,7 +483,7 @@ class PyProjBase:
     for src, dst, ignore in include:
 
       src = osp.normpath( src )
-      dst = osp.normpath( osp.join( base_path, dst ) )
+      dst = '/'.join( [base_path, norm_path(dst)] )
 
       self.logger.info(f"dist copy: {src} -> {dst}")
 
