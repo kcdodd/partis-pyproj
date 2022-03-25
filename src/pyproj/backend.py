@@ -67,10 +67,10 @@ def backend_init(
     root = root,
     logger = logger )
 
-  logging.basicConfig(
-    level = logging.NOTSET,
-    format = "{name}:{levelname}: {message}",
-    style = "{" )
+  # logging.basicConfig(
+  #   level = logging.NOTSET,
+  #   format = "{name}:{levelname}: {message}",
+  #   style = "{" )
 
   return pyproj
 
@@ -112,7 +112,7 @@ def build_sdist(
   pyproj = backend_init()
 
   pyproj.dist_prep()
-  
+
   pyproj.dist_source_prep()
 
   with dist_source_targz(
