@@ -155,21 +155,21 @@ class dist_source_dummy( dist_base ):
 
 
   #-----------------------------------------------------------------------------
-  def create_distfile( self ):
+  def create_distfile( self ): # pragma: no cover
     pass
 
   #-----------------------------------------------------------------------------
-  def close_distfile( self ):
+  def close_distfile( self ): # pragma: no cover
     pass
 
   #-----------------------------------------------------------------------------
-  def copy_distfile( self ):
+  def copy_distfile( self ): # pragma: no cover
     pass
 
   #-----------------------------------------------------------------------------
-  def remove_distfile( self ):
+  def remove_distfile( self ): # pragma: no cover
     pass
 
   #-----------------------------------------------------------------------------
-  def finalize( self ):
+  def finalize( self ): # pragma: no cover
     pass

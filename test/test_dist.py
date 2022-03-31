@@ -16,6 +16,71 @@ from partis.pyproj import (
   dist_binary_wheel )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_dist_base():
+
+  class dist_dummy( dist_base ):
+    #-----------------------------------------------------------------------------
+    def create_distfile( self ):
+      raise NotImplementedError('')
+
+    #-----------------------------------------------------------------------------
+    def close_distfile( self ):
+      raise NotImplementedError('')
+
+    #-----------------------------------------------------------------------------
+    def copy_distfile( self ):
+      raise NotImplementedError('')
+
+    #-----------------------------------------------------------------------------
+    def remove_distfile( self ):
+      raise NotImplementedError('')
+
+    #-----------------------------------------------------------------------------
+    def finalize( self ):
+      raise NotImplementedError('')
+
+  dist = dist_dummy('asdasd')
+
+  assert not dist.exists('stuff')
+
+  with raises(NotImplementedError):
+
+    dist.open()
+
+
+  class dist_dummy2( dist_base ):
+    #-----------------------------------------------------------------------------
+    def exists( self, dst ):
+      return True
+
+    #-----------------------------------------------------------------------------
+    def create_distfile( self ):
+      pass
+
+    #-----------------------------------------------------------------------------
+    def close_distfile( self ):
+      pass
+
+    #-----------------------------------------------------------------------------
+    def copy_distfile( self ):
+      pass
+
+    #-----------------------------------------------------------------------------
+    def remove_distfile( self ):
+      pass
+
+    #-----------------------------------------------------------------------------
+    def finalize( self ):
+      pass
+
+  dist = dist_dummy2('asdasd')
+  dist.open()
+
+  with raises(ValueError):
+    dist.makedirs('stuff')
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_dist_source_dummy():
 
   with raises( ValueError ):
@@ -31,12 +96,40 @@ def test_dist_source_dummy():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_dist_targz():
 
-  dist = dist_targz('asd.tgz')
+  with tempfile.TemporaryDirectory() as tmpdir:
+    with dist_targz(
+      outname = 'asd.tgz',
+      outdir = tmpdir ) as dist:
+
+      assert not dist.exists('stuff')
+
+      dist.write('stuff', 'stuff content')
+
+      assert dist.exists('stuff')
+
+      dist.assert_recordable()
+
+    with raises( ValueError ):
+      dist.assert_recordable()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_dist_zip():
 
-  dist = dist_zip('asd.zip')
+  with tempfile.TemporaryDirectory() as tmpdir:
+    with dist_zip(
+      outname = 'asd.zip',
+      outdir = tmpdir ) as dist:
+
+      assert not dist.exists('stuff')
+
+      dist.write('stuff', 'stuff content')
+
+      assert dist.exists('stuff')
+
+      dist.assert_recordable()
+
+    with raises( ValueError ):
+      dist.assert_recordable()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_dist_source():
