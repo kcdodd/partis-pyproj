@@ -23,7 +23,7 @@ from .norms import (
 try:
   import coverage
   coverage.process_startup()
-except ImportError:
+except ImportError:  # pragma: no cover
   pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

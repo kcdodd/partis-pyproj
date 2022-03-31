@@ -308,7 +308,9 @@ class PkgInfo:
 
           readme_file = osp.join( root, self.readme['file'] )
 
-        elif 'text' in self.readme:
+        else:
+          # NOTE: only 'file' and 'text' are allowed keys, so a non-empty dict
+          # without 'file' must have 'text'
           self._desc = norm_printable( self.readme['text'] )
 
 

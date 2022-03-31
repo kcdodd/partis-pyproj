@@ -21,11 +21,13 @@ def test_dist_base():
   class dist_dummy( dist_base ):
     #-----------------------------------------------------------------------------
     def create_distfile( self ):
+      # cause error while opening
       raise NotImplementedError('')
 
     #-----------------------------------------------------------------------------
     def close_distfile( self ):
-      raise NotImplementedError('')
+      # no error so 'close' will be successful
+      pass
 
     #-----------------------------------------------------------------------------
     def copy_distfile( self ):
@@ -33,7 +35,8 @@ def test_dist_base():
 
     #-----------------------------------------------------------------------------
     def remove_distfile( self ):
-      raise NotImplementedError('')
+      # no error so 'close' will be successful
+      pass
 
     #-----------------------------------------------------------------------------
     def finalize( self ):
@@ -112,6 +115,9 @@ def test_dist_targz():
     with raises( ValueError ):
       dist.assert_recordable()
 
+    # should be able to call any number of times
+    dist.close_distfile()
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_dist_zip():
 
@@ -130,6 +136,9 @@ def test_dist_zip():
 
     with raises( ValueError ):
       dist.assert_recordable()
+
+    # should be able to call any number of times
+    dist.close_distfile()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_dist_source():

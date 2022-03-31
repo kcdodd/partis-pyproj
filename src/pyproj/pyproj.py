@@ -363,6 +363,8 @@ class PyProjBase:
       logger = self.logger.getChild( f"dist.binary.prep" ) )
 
     if compat_tags:
+      self.logger.debug(f"Compatibility tags returned from dist.binary.prep: {compat_tags}")
+
       compat_tags = as_list(compat_tags)
 
       compat_tags = [
@@ -374,7 +376,12 @@ class PyProjBase:
 
       tag = next(iter(sys_tags()))
 
-      compat_tags = [ ( tag.interpreter, tag.abi, tag.platform ) ]
+      # interpreter = "py{0}{1}".format(sys.version_info.major, sys.version_info.minor)
+      interpreter = tag.interpreter
+
+      compat_tags = [ CompatibilityTags( interpreter, tag.abi, tag.platform ) ]
+
+      self.logger.debug(f"Compatibility tags assumed: {compat_tags}")
 
     return compat_tags
 
