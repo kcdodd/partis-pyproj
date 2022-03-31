@@ -20,12 +20,6 @@ from .norms import (
   valid_keys,
   mapget )
 
-try:
-  import coverage
-  coverage.process_startup()
-except ImportError:  # pragma: no cover
-  pass
-
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class UnsupportedOperation( Exception ):
   """
