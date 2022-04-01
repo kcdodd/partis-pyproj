@@ -224,8 +224,8 @@ class PyProjBase:
 
 
     func = load_entrypoint(
-      root = self.root,
-      entry_point = entry_point )
+      entry_point = entry_point,
+      root = self.root )
 
     logger.info(f"loaded entry-point '{entry_point}'")
 

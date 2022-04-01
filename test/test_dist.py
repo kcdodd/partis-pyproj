@@ -112,6 +112,12 @@ def test_dist_targz():
 
       dist.assert_recordable()
 
+      dist.finalize()
+      dist.finalized = True
+
+      with raises( ValueError ):
+        dist.assert_recordable()
+
     with raises( ValueError ):
       dist.assert_recordable()
 

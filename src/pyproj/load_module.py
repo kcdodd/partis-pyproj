@@ -1,49 +1,49 @@
 import os
+import os.path as osp
 import sys
 import importlib
 from pathlib import Path
 
+from .norms import (
+  norm_path_to_os )
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def module_name_from_path( path, root ):
+  """Generates an importable module name from a file system path
+
+  Parameters
+  ----------
+  path : str
+    Path to the module directory relative to 'root'
+  root : str
+    Base path from which the module will be imported
+  """
   path = Path( path )
   root = Path( root )
 
-  path = path.with_suffix("")
+  # path = path.with_suffix("")
 
-  try:
-    relative_path = path.relative_to(root)
-  except ValueError:
-    path_parts = path.parts[1:]
-  else:
-    path_parts = relative_path.parts
+  relative_path = osp.relpath( path, start = root )
+
+  path_parts = Path(relative_path).parts
 
   if len(path_parts) == 0:
-    return "."
+    raise ValueError("Empty module name")
 
   return ".".join(path_parts)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def load_module( path, root ):
 
-  path = Path( path )
-  root = Path( root )
-
-  path = path.resolve()
-
-  if not path.is_dir():
+  if not osp.isdir(path):
     raise ValueError(f"Not a directory: {path}")
 
-  init_file = path.joinpath( "__init__.py" )
+  init_file = osp.join( path, "__init__.py" )
 
-  if not init_file.exists():
-    return None
+  if not osp.isfile(init_file):
+    raise ValueError(f"Not a module: {init_file}")
 
   module_name = module_name_from_path( path = path, root = root )
-
-  try:
-    return __import__( module_name )
-  except ImportError:
-    pass
 
   spec = importlib.util.spec_from_file_location(
     name = module_name,
@@ -57,7 +57,7 @@ def load_module( path, root ):
   return mod
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def load_entrypoint( root, entry_point ):
+def load_entrypoint( entry_point, root ):
 
   mod_name, attr_name = entry_point.split(':')
 
@@ -65,7 +65,7 @@ def load_entrypoint( root, entry_point ):
   attr_name = attr_name.strip()
 
   mod = load_module(
-    path = mod_name,
+    path = osp.join( root, norm_path_to_os( mod_name.replace('.', '/') ) ),
     root = root )
 
   if not hasattr( mod, attr_name ):
