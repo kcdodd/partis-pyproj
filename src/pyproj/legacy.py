@@ -46,7 +46,7 @@ def legacy_setup_content( pyproj, sdist ):
     requires = requires,
     build_requires = str(build_requires),
     sources = sources,
-    top_level = '',
+    top_level = b'',
     entry_points = pkg_info.encode_entry_points(),
     build_backend = f"'{pyproj.build_backend}'",
     backend_path = pyproj.backend_path )
