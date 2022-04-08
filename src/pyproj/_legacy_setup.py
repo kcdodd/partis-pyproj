@@ -57,7 +57,7 @@ def bdist_wheel( args ):
   backend = importlib.import_module( build_backend )
 
   backend.build_wheel(
-    wheel_directory = args.dist_dir )
+    wheel_directory = args.dist_dir or args.bdist_dir or '.' )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def install( args ):
@@ -67,7 +67,12 @@ def install( args ):
 
   reqs = [ f"{{r}}" for r in build_requires ]
 
-  subprocess.check_call(['pip', 'install'] + reqs )
+  subprocess.check_call([
+    sys.executable,
+    '-m',
+    'pip',
+    'install',
+    *reqs ] )
 
   sys.path = backend_path + sys.path
 
@@ -77,7 +82,12 @@ def install( args ):
     wheel_name = backend.build_wheel(
       wheel_directory = tmpdir )
 
-    subprocess.check_call(['pip', 'install', osp.join(tmpdir, wheel_name) ])
+    subprocess.check_call([
+      sys.executable,
+      '-m',
+      'pip',
+      'install',
+      osp.join(tmpdir, wheel_name) ])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dummy( args ):
@@ -117,11 +127,11 @@ def main():
 
   bdist_wheel_parser.add_argument( "-b", "--bdist-dir",
     type = str,
-    default = '.' )
+    default = '' )
 
   bdist_wheel_parser.add_argument( "-d", "--dist-dir",
     type = str,
-    default = '.' )
+    default = '' )
 
   bdist_wheel_parser.add_argument( "--python-tag",
     type = str,

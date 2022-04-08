@@ -128,6 +128,8 @@ class PyProjBase:
         'copy',
         'add_legacy_setup' ] )
 
+    self.add_legacy_setup = self.dist_source.get('add_legacy_setup', False )
+
     valid_keys(
       name = 'tool.pyproj.dist.binary',
       obj = self.dist_binary,
@@ -345,7 +347,7 @@ class PyProjBase:
       ignore = ignore,
       dist = dist )
 
-    if self.dist_source.get('add_legacy_setup', False ):
+    if self.add_legacy_setup:
       self.logger.info(f"generating legacy 'setup.py'")
       legacy_setup_content( self, dist )
 
