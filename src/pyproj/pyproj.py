@@ -64,8 +64,10 @@ class PyProjBase:
 
     self.pptoml_file = osp.join( self.root, 'pyproject.toml' )
 
-    with open( self.pptoml_file, 'r' ) as fp:
-      self.pptoml = tomli.loads( fp.read() )
+    with open( self.pptoml_file, 'rb' ) as fp:
+      src = fp.read()
+      src = src.decode( 'utf-8', errors = 'replace' )
+      self.pptoml = tomli.loads( src )
 
     #...........................................................................
     valid_keys(
