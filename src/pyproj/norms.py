@@ -70,16 +70,33 @@ def valid_keys(
   obj,
   allow_keys = None,
   require_keys = None,
+  min_keys = None,
+  wedge_keys = None,
   mutex_keys = None ):
   """Check that a mapping does not contain un-expected keys
   """
 
   if not isinstance( obj, Mapping ):
     raise ValidationError(
-      f"{name} must be mapping with keys {allow_keys}: {type(obj)}" )
+      f"{name} must be mapping: {type(obj)}" )
 
   if allow_keys:
     allow_keys.extend( require_keys or [] )
+
+    if min_keys:
+      for k1, k2 in min_keys:
+        allow_keys.append(k1)
+        allow_keys.append(k2)
+
+    if wedge_keys:
+      for k1, k2 in wedge_keys:
+        allow_keys.append(k1)
+        allow_keys.append(k2)
+
+    if mutex_keys:
+      for k1, k2 in mutex_keys:
+        allow_keys.append(k1)
+        allow_keys.append(k2)
 
     for k in obj.keys():
       if k not in allow_keys:
@@ -92,11 +109,23 @@ def valid_keys(
         raise ValidationError(
           f"{name} required keys {require_keys}: {k}" )
 
-  if mutex_keys:
-    for k1, k2 in mutex_keys:
-      if k1 in obj and k2 in obj:
+  if min_keys:
+    for keys in min_keys:
+      if not any(k in obj for k in keys):
         raise ValidationError(
-          f"{name} mututally exclusive keys: {k1}, {k2}" )
+          f"{name} must have at least one of keys: {keys}" )
+
+  if wedge_keys:
+    for keys in wedge_keys:
+      if any(k in obj for k in keys) and not all(k in obj for k in keys):
+        raise ValidationError(
+          f"{name} must have either all, or none, of keys: {keys}" )
+
+  if mutex_keys:
+    for keys in mutex_keys:
+      if sum(k in obj for k in keys) > 1:
+        raise ValidationError(
+          f"{name} may not have more than one of keys: {keys}" )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def valid_type(

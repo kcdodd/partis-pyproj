@@ -85,6 +85,23 @@ Use with 'pyproject.toml' files
   ``{ src = '...', dst = '...', ignore = [...] }``.
   The ignore patterns are accumulated at each level of specificity.
 
+Optionally, a ``glob`` pattern may also be used to match files or directories,
+with is expanded to zero or more matches.
+However, when ``glob`` is used, the purpose of ``src`` and ``dst`` is strictly
+to specify relative paths.
+All accumulated ``ignore`` patterns, however, remain relative to the root project
+directory.
+For example, the following will recursively copy all files ending int ``.py``,
+except for files named ``bad_file.py``.
+
+.. code-block:: toml
+
+  [[tool.pyproj.dist.binary.purelib.copy]]
+  glob = '**/*.py'
+  ignore = '**/bad_file.py'
+  src = 'src/my_project'
+  dst = 'my_project'
+
 Binary distribution install paths
 ---------------------------------
 

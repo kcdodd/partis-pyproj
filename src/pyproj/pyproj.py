@@ -10,7 +10,7 @@ from collections.abc import (
   Sequence )
 import subprocess
 import multiprocessing
-
+import glob
 import tomli
 
 try:
@@ -458,40 +458,7 @@ class PyProjBase:
     if len(include) == 0:
       return
 
-    include = copy(include)
-    ignore_patterns = shutil.ignore_patterns(*ignore) if ignore else None
-
-    for i, incl in enumerate(include):
-      incl_name = f'{name}.copy[{i}]'
-
-      _ignore_patterns = ignore_patterns
-
-      typ = valid_type(
-        name = incl_name,
-        obj = incl,
-        types = [ str, Mapping ] )
-
-      if typ is str:
-        include[i] = ( incl, incl, _ignore_patterns )
-
-      else:
-        valid_keys(
-          name = incl_name,
-          obj = incl,
-          require_keys = [
-            'src' ],
-          allow_keys = [
-            'dst',
-            'ignore' ] )
-
-        dst = incl.get( 'dst', incl['src'] )
-
-        _ignore = as_list( incl.get( 'ignore', list() ) )
-        _ignore_patterns = shutil.ignore_patterns(*(ignore + _ignore)) if _ignore else _ignore_patterns
-
-        include[i] = ( incl['src'], dst, _ignore_patterns )
-
-    for src, dst, ignore in include:
+    for src, dst, ignore in self.dist_iter(name, include, ignore):
 
       src = osp.normpath( src )
       dst = '/'.join( [base_path, norm_path(dst)] )
@@ -505,6 +472,58 @@ class PyProjBase:
           ignore = ignore )
 
       else:
+        if ignore and src in ignore('.', [src]):
+          continue
+
         dist.copyfile(
           src = src,
           dst = dst )
+
+  #-----------------------------------------------------------------------------
+  def dist_iter( self,
+    name,
+    include,
+    ignore ):
+
+    ignore_patterns = shutil.ignore_patterns(*ignore) if ignore else None
+
+    for i, incl in enumerate(include):
+      incl_name = f'{name}.copy[{i}]'
+
+      _ignore_patterns = ignore_patterns
+
+      typ = valid_type(
+        name = incl_name,
+        obj = incl,
+        types = [ str, Mapping ] )
+
+      if typ is str:
+        yield ( incl, incl, _ignore_patterns )
+
+      else:
+        valid_keys(
+          name = incl_name,
+          obj = incl,
+          min_keys = [
+            ('src', 'glob') ],
+          allow_keys = [
+            'dst',
+            'ignore' ])
+
+        _ignore = as_list( incl.get( 'ignore', list() ) )
+        _ignore_patterns = shutil.ignore_patterns(*(ignore + _ignore)) if _ignore else _ignore_patterns
+
+        src = incl.get('src', '')
+        dst = incl.get('dst', src)
+
+        if 'glob' in incl:
+          _glob = osp.join(src, incl['glob'])
+
+          for _src in glob.iglob(_glob, recursive = True):
+            _dst = osp.join( dst, osp.relpath(_src, start = src) )
+
+            yield ( _src, _dst, _ignore_patterns )
+
+        else:
+
+          yield ( src, dst, _ignore_patterns )
