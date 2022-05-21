@@ -7,6 +7,7 @@ import stat
 import re
 import pathlib
 import inspect
+from copy import copy
 from collections.abc import (
   Mapping,
   Sequence,
@@ -126,6 +127,61 @@ def valid_keys(
       if sum(k in obj for k in keys) > 1:
         raise ValidationError(
           f"{name} may not have more than one of keys: {keys}" )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def update_config_settings(config, default):
+  """Updates values from PEP 517 config_settings
+  """
+
+  if config is None:
+    config = dict()
+
+  valid_keys(
+    'config_settings',
+    config,
+    allow_keys = list(default.keys()) )
+
+  config = copy(config)
+
+  for k, v in default.items():
+    typ = valid_type(
+      f'tool.pyproj.config.{k}',
+      v,
+      [bool, int, float, str] )
+
+    if k not in config:
+      config[k] = v
+
+    else:
+      _v = config[k]
+
+      if typ is bool:
+        t = [True, 'true', 'True', 'yes', 'y', 'enable', 'enabled']
+        f = [False, 'false', 'False', 'no', 'n', 'disable', 'disabled']
+
+        if _v not in t + f:
+          raise ValidationError(
+            f"config_settings {k} could not be interpreted as boolean: {_v}")
+
+        _v = True if _v in t else False
+
+      elif typ is int:
+        try:
+          _v = int(_v)
+        except Exception as e:
+          raise ValidationError(
+            f"config_settings {k} could not be interpreted as integer: {_v}") from e
+
+      elif typ is float:
+        try:
+          _v = float(_v)
+        except Exception as e:
+          raise ValidationError(
+            f"config_settings {k} could not be interpreted as float: {_v}") from e
+
+      config[k] = _v
+
+  return config
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def valid_type(

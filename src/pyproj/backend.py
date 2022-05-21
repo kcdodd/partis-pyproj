@@ -39,6 +39,7 @@ class UnsupportedOperation( Exception ):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def backend_init(
   root = '.',
+  config_settings = None,
   logger = None ):
   """Called to inialialize the backend upon a call to one of the hooks
 
@@ -59,6 +60,7 @@ def backend_init(
 
   pyproj = PyProjBase(
     root = root,
+    config_settings = config_settings,
     logger = logger )
 
   # logging.basicConfig(
@@ -103,7 +105,7 @@ def build_sdist(
   * https://www.python.org/dev/peps/pep-0517/#build-sdist
   """
 
-  pyproj = backend_init()
+  pyproj = backend_init(config_settings = config_settings)
 
   pyproj.dist_prep()
 
@@ -141,7 +143,7 @@ def get_requires_for_build_wheel(
   * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-wheel
   """
 
-  pyproj = backend_init()
+  pyproj = backend_init(config_settings = config_settings)
 
   # filter out any dependencies already listed in the 'build-system'.
   # NOTE: pip appears to not process environment markers for deps returned
@@ -173,7 +175,7 @@ def prepare_metadata_for_build_wheel(
   * https://www.python.org/dev/peps/pep-0517/#prepare-metadata-for-build-wheel
   """
 
-  pyproj = backend_init()
+  pyproj = backend_init(config_settings = config_settings)
 
   # TODO: abstract 'wheel metadata' from needing to actually make a dummy wheel file
   with dist_binary_wheel(
@@ -208,7 +210,7 @@ def build_wheel(
   * https://www.python.org/dev/peps/pep-0517/#build-wheel
   """
 
-  pyproj = backend_init()
+  pyproj = backend_init(config_settings = config_settings)
 
   pyproj.dist_prep()
 

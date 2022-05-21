@@ -97,10 +97,10 @@ except for files named ``bad_file.py``.
 .. code-block:: toml
 
   [[tool.pyproj.dist.binary.purelib.copy]]
-  glob = '**/*.py'
-  ignore = '**/bad_file.py'
   src = 'src/my_project'
+  glob = '**/*.py'
   dst = 'my_project'
+  ignore = '**/bad_file.py'
 
 Binary distribution install paths
 ---------------------------------
@@ -232,6 +232,8 @@ Processing hooks
 The backend provides a mechanism to perform an arbitrary operation before any
 files are copied into either the source or binary distribution:
 
+* ``tool.pyproj.prep`` : called to fill in 'dynamic' metadata, or update
+  the 'build_requires' list of requirements needed to build a binary distribution.
 * ``tool.pyproj.dist.prep`` : called first for both source or binary distributions.
 * ``tool.pyproj.dist.source.prep``: called before copying files to a source distribution.
 * ``tool.pyproj.dist.binary.prep``: called before copying files to a binary distribution.
@@ -293,6 +295,79 @@ is an instance of :class:`logging.Logger`.
   Only those requirements listed in ``build-system.requires``
   will be importable by the specified code.
 
+Dynamic Metadata
+----------------
+
+As described in PEP 621, field values in the 'project' table may be deferred
+to the backend by listing the keys in 'dynamic'.
+If 'dynamic' is a non-empty list, the 'tool.pyproj.prep' processing hook must
+be used to fill in the missing values.
+
+.. code-block:: toml
+
+  [project]
+  dynamic = ["version"]
+  name = "my_pkg"
+
+  ...
+
+  [tool.pyproj.prep]
+  entry = "aux:prep"
+
+The hook should return a dictionary that contains the keys of the 'project'
+table to update.
+
+.. code-block:: python
+  :caption: aux/__init__.py
+
+  def prep( build_system, logger ):
+    return dict(
+      version = "1.2.3" )
+
+Config Settings
+---------------
+
+As described in PEP 517, an installer front-end may implement support for
+passing additional options to the backend
+(e.g. '--config-settings' in 'pip' and 'build').
+These options may be defined in the 'tool.pyproj.config' table, which is used
+to validate the allowed options, fill in default values, and cast to
+desired types.
+These settings, updated by any values passed from the front-end installer,
+are available in any processing hook.
+The 'kwargs' option can also be used to keep all dependencies listed in
+'pyproject.toml'.
+
+.. note::
+
+  The type is derived from the value parsed from 'pyproject.toml'.
+  For example, the value of '3' is parsed as an integer, while '3.0' is parsed
+  as a float.
+
+  Boolean values passed to '--config-settings' are parsed by comparing to
+  string values ``['true', 'True', 'yes', 'y', 'enable', 'enabled']``
+  or ``['false', 'False', 'no', 'n', 'disable', 'disabled']``.
+
+.. code-block:: toml
+
+  [tool.pyproj.prep]
+  entry = "aux:prep"
+  kwargs = { deps = ["additional_build_dep >= 1.2.3"] }
+
+  [tool.pyproj.config]
+  a_cfg_option = false
+
+.. code-block:: python
+  :caption: aux/__init__.py
+
+  def prep( build_system, logger, deps ):
+
+    if build_system.config['a_cfg_option']:
+      self.build_requires |= set(deps)
+
+In this example, the command
+``pip install --config-settings a_cfg_option=true ...`` will cause the
+'additional_build_dep' to be installed before the build occurs.
 
 Support for 'legacy setup.py'
 -----------------------------

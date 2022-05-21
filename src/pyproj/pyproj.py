@@ -28,6 +28,7 @@ from .norms import (
   norm_path,
   valid_type,
   valid_keys,
+  update_config_settings,
   mapget,
   as_list,
   CompatibilityTags,
@@ -57,6 +58,7 @@ class PyProjBase:
   #-----------------------------------------------------------------------------
   def __init__( self, *,
     root,
+    config_settings = None,
     logger = None ):
 
     self.logger = logger or logging.getLogger( __name__ )
@@ -96,9 +98,12 @@ class PyProjBase:
       name = 'tool.pyproj',
       obj = self.pyproj,
       allow_keys = [
+        'config',
         'prep',
         'dist',
         'meson' ] )
+
+    self.config = config_settings
 
     #...........................................................................
     self.dist = mapget( self.pyproj, 'dist', dict() )
@@ -190,9 +195,7 @@ class PyProjBase:
       list() )
 
     #...........................................................................
-    self.build_requires = set([
-      PkgInfoReq(r)
-      for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
+    self.build_requires = mapget( self.pptoml, 'build-system.requires', list() )
 
     if self.meson['compile']:
       v = metadata('partis-pyproj')['Version']
@@ -216,6 +219,28 @@ class PyProjBase:
 
     # Update logger once package info is created
     self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )
+
+  #-----------------------------------------------------------------------------
+  @property
+  def config(self):
+    return self._config
+
+  #-----------------------------------------------------------------------------
+  @config.setter
+  def config(self, val):
+    self._config = update_config_settings(val, self.pyproj.get('config', dict()))
+
+  #-----------------------------------------------------------------------------
+  @property
+  def build_requires(self):
+    return self._build_requires
+
+  #-----------------------------------------------------------------------------
+  @build_requires.setter
+  def build_requires(self, val):
+    self._build_requires = set([
+      PkgInfoReq(r)
+      for r in val ])
 
   #-----------------------------------------------------------------------------
   def prep_entrypoint( self, name, obj, logger ):
@@ -346,7 +371,7 @@ class PyProjBase:
     # was modified directly it needs to be checked anyway
     for k in dynamic:
       # require all dynamic keys are updated by prep
-      if k not in self.project or (k in project and project[k] == self.project[k]):
+      if k not in self.project:
         raise ValidationError(
           f"project.dynamic listed key as dynamic not updated from prep: {k}" )
 

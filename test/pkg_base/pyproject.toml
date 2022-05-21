@@ -22,6 +22,11 @@ requires = [
 build-backend = "partis.pyproj.backend"
 
 #...............................................................................
+[tool.pyproj.config]
+opt_a = 1
+opt_b = "xyz"
+
+#...............................................................................
 [tool.pyproj.prep]
 entry = "aux:prep"
 
