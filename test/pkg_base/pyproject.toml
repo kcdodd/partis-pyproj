@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 [project]
+dynamic = [ "version" ]
 name = "test_pkg_base"
-version = "0.0.1"
 description = "Test Package"
 
 requires-python = ">= 3.6.2"
@@ -20,6 +20,10 @@ requires = [
   "partis-pyproj== 0.0.1"]
 
 build-backend = "partis.pyproj.backend"
+
+#...............................................................................
+[tool.pyproj.prep]
+entry = "aux:prep"
 
 #...............................................................................
 [tool.pyproj.dist.prep]

@@ -4,7 +4,7 @@ import sys
 import shutil
 import logging
 import tempfile
-from copy import copy
+from copy import copy, deepcopy
 from collections.abc import (
   Mapping,
   Sequence )
@@ -30,7 +30,8 @@ from .norms import (
   valid_keys,
   mapget,
   as_list,
-  CompatibilityTags )
+  CompatibilityTags,
+  ValidationError )
 
 from .load_module import (
   load_module,
@@ -58,7 +59,7 @@ class PyProjBase:
     root,
     logger = None ):
 
-    logger = logger or logging.getLogger( __name__ )
+    self.logger = logger or logging.getLogger( __name__ )
 
     self.root = osp.abspath(root)
 
@@ -79,14 +80,6 @@ class PyProjBase:
       allow_keys = [
         'build-system' ] )
 
-    self.pkg_info = PkgInfo(
-      project = self.pptoml['project'],
-      root = root )
-
-    # Update logger once package info is created
-    self.logger = logger.getChild( f"['{self.pkg_info.name_normed}']" )
-
-
     #...........................................................................
     tool = self.pptoml['tool']
 
@@ -96,13 +89,14 @@ class PyProjBase:
       require_keys = [
         'pyproj' ] )
 
+    #...........................................................................
     self.pyproj = tool['pyproj']
 
-    #...........................................................................
     valid_keys(
       name = 'tool.pyproj',
       obj = self.pyproj,
       allow_keys = [
+        'prep',
         'dist',
         'meson' ] )
 
@@ -205,6 +199,24 @@ class PyProjBase:
 
       self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
 
+    #...........................................................................
+    self.project = self.pptoml['project']
+
+    valid_keys(
+      name = 'project',
+      obj = self.project,
+      require_keys = [
+        'name' ])
+
+    self.prep()
+
+    self.pkg_info = PkgInfo(
+      project = self.project,
+      root = root )
+
+    # Update logger once package info is created
+    self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )
+
   #-----------------------------------------------------------------------------
   def prep_entrypoint( self, name, obj, logger ):
 
@@ -302,6 +314,50 @@ class PyProjBase:
       self.logger.debug(' '.join(install_args))
 
       subprocess.check_call(install_args)
+
+  #-----------------------------------------------------------------------------
+  def prep( self ):
+    """Prepares project metadata
+    """
+    # backup project to detect changes made by prep
+    project = deepcopy(self.project)
+    dynamic = project.get( 'dynamic', list() )
+
+    if 'name' in dynamic:
+      raise ValidationError(f"project.dynamic may not contain 'name'")
+
+    if dynamic and 'prep' not in self.pyproj:
+      raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
+
+    _project = self.prep_entrypoint(
+      name = f"tool.pyproj.prep",
+      obj = self.pyproj,
+      logger = self.logger.getChild( f"prep" ) )
+
+    if _project is not None:
+
+      if not isinstance( _project, Mapping ):
+        raise ValidationError(
+          f"tool.pyproj.prep must return a mapping: {type(_project)}" )
+
+      self.project.update(_project)
+
+    # NOTE: return value treated as update to project, but if self.project
+    # was modified directly it needs to be checked anyway
+    for k in dynamic:
+      # require all dynamic keys are updated by prep
+      if k not in self.project or (k in project and project[k] == self.project[k]):
+        raise ValidationError(
+          f"project.dynamic listed key as dynamic not updated from prep: {k}" )
+
+    for k, v in self.project.items():
+      if (k not in project or project[k] != v) and k not in dynamic:
+        # don't allow keys to be updated unless they were listed in dynamic
+        raise ValidationError(
+          f"prep updated key not listed in project.dynamic: {k}" )
+
+    # fields are no longer dynamic
+    self.project['dynamic'] = list()
 
   #-----------------------------------------------------------------------------
   def dist_prep( self ):
