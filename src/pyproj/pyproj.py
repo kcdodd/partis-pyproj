@@ -70,12 +70,12 @@ class PyProjBase:
     with open( self.pptoml_file, 'rb' ) as fp:
       src = fp.read()
       src = src.decode( 'utf-8', errors = 'replace' )
-      self.pptoml = tomli.loads( src )
+      self._pptoml = tomli.loads( src )
 
     #...........................................................................
     valid_keys(
       name = 'pyproject.toml',
-      obj = self.pptoml,
+      obj = self._pptoml,
       require_keys = [
         'project',
         'tool' ],
@@ -83,7 +83,7 @@ class PyProjBase:
         'build-system' ] )
 
     #...........................................................................
-    tool = self.pptoml['tool']
+    tool = self._pptoml['tool']
 
     valid_keys(
       name = 'tool',
@@ -103,7 +103,9 @@ class PyProjBase:
         'dist',
         'meson' ] )
 
-    self.config = config_settings
+    self.config = update_config_settings(
+      config_settings,
+      self.pyproj.get('config', dict()))
 
     #...........................................................................
     self.dist = mapget( self.pyproj, 'dist', dict() )
@@ -186,16 +188,18 @@ class PyProjBase:
       norm_path_to_os(self.meson['prefix'] ) )
 
     #...........................................................................
-    self.build_backend = mapget( self.pptoml,
+    self.build_backend = mapget( self._pptoml,
       'build-system.build-backend',
       "" )
 
-    self.backend_path = mapget( self.pptoml,
+    self.backend_path = mapget( self._pptoml,
       'build-system.backend-path',
       list() )
 
     #...........................................................................
-    self.build_requires = mapget( self.pptoml, 'build-system.requires', list() )
+    self.build_requires = set([
+      PkgInfoReq(r)
+      for r in mapget( self._pptoml, 'build-system.requires', list() ) ])
 
     if self.meson['compile']:
       v = metadata('partis-pyproj')['Version']
@@ -203,7 +207,7 @@ class PyProjBase:
       self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
 
     #...........................................................................
-    self.project = self.pptoml['project']
+    self.project = self._pptoml['project']
 
     valid_keys(
       name = 'project',
@@ -219,28 +223,6 @@ class PyProjBase:
 
     # Update logger once package info is created
     self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )
-
-  #-----------------------------------------------------------------------------
-  @property
-  def config(self):
-    return self._config
-
-  #-----------------------------------------------------------------------------
-  @config.setter
-  def config(self, val):
-    self._config = update_config_settings(val, self.pyproj.get('config', dict()))
-
-  #-----------------------------------------------------------------------------
-  @property
-  def build_requires(self):
-    return self._build_requires
-
-  #-----------------------------------------------------------------------------
-  @build_requires.setter
-  def build_requires(self, val):
-    self._build_requires = set([
-      PkgInfoReq(r)
-      for r in val ])
 
   #-----------------------------------------------------------------------------
   def prep_entrypoint( self, name, obj, logger ):
@@ -282,6 +264,56 @@ class PyProjBase:
 
     finally:
       os.chdir(cwd)
+
+
+  #-----------------------------------------------------------------------------
+  def prep( self ):
+    """Prepares project metadata
+    """
+    # backup project to detect changes made by prep
+    project = deepcopy(self.project)
+    dynamic = project.get( 'dynamic', list() )
+
+    if 'name' in dynamic:
+      raise ValidationError(f"project.dynamic may not contain 'name'")
+
+    if dynamic and 'prep' not in self.pyproj:
+      raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
+
+    _project = self.prep_entrypoint(
+      name = f"tool.pyproj.prep",
+      obj = self.pyproj,
+      logger = self.logger.getChild( f"prep" ) )
+
+    if _project is not None:
+
+      if not isinstance( _project, Mapping ):
+        raise ValidationError(
+          f"tool.pyproj.prep must return a mapping: {type(_project)}" )
+
+      self.project.update(_project)
+
+    # NOTE: return value treated as update to project, but if self.project
+    # was modified directly it needs to be checked anyway
+    for k in dynamic:
+      # require all dynamic keys are updated by prep
+      if k not in self.project:
+        raise ValidationError(
+          f"project.dynamic listed key as dynamic not updated from prep: {k}" )
+
+    for k, v in self.project.items():
+      if (k not in project or project[k] != v) and k not in dynamic:
+        # don't allow keys to be updated unless they were listed in dynamic
+        raise ValidationError(
+          f"prep updated key not listed in project.dynamic: {k}" )
+
+    # fields are no longer dynamic
+    self.project['dynamic'] = list()
+
+    # make sure build requirements are still a set of PkgInfoReq
+    self.build_requires = set([
+      PkgInfoReq(r)
+      for r in self.build_requires ])
 
   #-----------------------------------------------------------------------------
   def meson_build( self ):
@@ -339,50 +371,6 @@ class PyProjBase:
       self.logger.debug(' '.join(install_args))
 
       subprocess.check_call(install_args)
-
-  #-----------------------------------------------------------------------------
-  def prep( self ):
-    """Prepares project metadata
-    """
-    # backup project to detect changes made by prep
-    project = deepcopy(self.project)
-    dynamic = project.get( 'dynamic', list() )
-
-    if 'name' in dynamic:
-      raise ValidationError(f"project.dynamic may not contain 'name'")
-
-    if dynamic and 'prep' not in self.pyproj:
-      raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
-
-    _project = self.prep_entrypoint(
-      name = f"tool.pyproj.prep",
-      obj = self.pyproj,
-      logger = self.logger.getChild( f"prep" ) )
-
-    if _project is not None:
-
-      if not isinstance( _project, Mapping ):
-        raise ValidationError(
-          f"tool.pyproj.prep must return a mapping: {type(_project)}" )
-
-      self.project.update(_project)
-
-    # NOTE: return value treated as update to project, but if self.project
-    # was modified directly it needs to be checked anyway
-    for k in dynamic:
-      # require all dynamic keys are updated by prep
-      if k not in self.project:
-        raise ValidationError(
-          f"project.dynamic listed key as dynamic not updated from prep: {k}" )
-
-    for k, v in self.project.items():
-      if (k not in project or project[k] != v) and k not in dynamic:
-        # don't allow keys to be updated unless they were listed in dynamic
-        raise ValidationError(
-          f"prep updated key not listed in project.dynamic: {k}" )
-
-    # fields are no longer dynamic
-    self.project['dynamic'] = list()
 
   #-----------------------------------------------------------------------------
   def dist_prep( self ):
