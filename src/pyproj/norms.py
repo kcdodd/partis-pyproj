@@ -22,6 +22,8 @@ from email.utils import parseaddr, formataddr
 from urllib.parse import urlparse
 import keyword
 
+from packaging.tags import sys_tags
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 CompatibilityTags = namedtuple('CompatibilityTags', ['py_tag', 'abi_tag', 'plat_tag'])
 
@@ -129,7 +131,7 @@ def valid_keys(
           f"{name} may not have more than one of keys: {keys}" )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def update_config_settings(config, default):
+def norm_config_settings(config, default):
   """Updates values from PEP 517 config_settings
   """
 
@@ -144,10 +146,32 @@ def update_config_settings(config, default):
   config = copy(config)
 
   for k, v in default.items():
+
+    restricted = False
+
+    if isinstance(v, Sequence) and not isinstance(v, str):
+      opts = v
+      restricted = True
+    else:
+      opts = [v]
+
+    if len(opts) == 0:
+      raise ValidationError(
+        f"default for config_settings {k} cannot be an empty list: {opts}")
+
+    # default value and type is first item in list
+    v = opts[0]
+
     typ = valid_type(
-      f'tool.pyproj.config.{k}',
+      f'tool.pyproj.config.{k} default',
       v,
       [bool, int, float, str] )
+
+    for i, _v in enumerate(opts[1:]):
+      valid_type(
+        f'tool.pyproj.config.{k} option[{i+1}]',
+        _v,
+        [typ] )
 
     if k not in config:
       config[k] = v
@@ -179,7 +203,13 @@ def update_config_settings(config, default):
           raise ValidationError(
             f"config_settings {k} could not be interpreted as float: {_v}") from e
 
+      if restricted and _v not in opts:
+        raise ValidationError(
+          f"config_settings {k} is restricted to one of {opts}: {_v}")
+
       config[k] = _v
+
+
 
   return config
 
@@ -570,6 +600,22 @@ def norm_dist_extra( extra ):
   return extra
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def dist_build( build_number = None, build_tag = None ):
+  if build_number is None and build_tag is None:
+    build = ''
+
+  elif build_tag is None:
+    build = str(int(build_number))
+
+  elif build_number is None:
+    build = f"0_{build_tag}"
+
+  else:
+    build = f"{int(build_number)}_{build_tag}"
+
+  return norm_dist_build(build)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_build( build ):
   """
   Note
@@ -674,6 +720,27 @@ def compress_dist_compat( compat ):
 
   return py_tags, abi_tags, plat_tags
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def purelib_compat_tags():
+  """Return general compatability tags for the current system
+  """
+
+  compat = [ CompatibilityTags( 'py3', 'none', 'any' ) ]
+
+  return compat
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def platlib_compat_tags():
+  """Get platform compatability tags for the current system
+  """
+  tag = next(iter(sys_tags()))
+
+  # interpreter = "py{0}{1}".format(sys.version_info.major, sys.version_info.minor)
+  interpreter = tag.interpreter
+
+  compat_tags = [ CompatibilityTags( interpreter, tag.abi, tag.platform ) ]
+
+  return compat_tags
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_data( data ):
@@ -1049,7 +1116,7 @@ pep440_version = re.compile(
 # digits, but given the form it is used in the filenames it really cannot
 # contain anything other than alpha-numeric characters.
 pep427_build = re.compile(
-  r'^([0-9]+[A-Z0-9]*)?$',
+  r'^([0-9]+[A-Z0-9_]*)?$',
   re.IGNORECASE )
 
 pep425_pytag = re.compile(

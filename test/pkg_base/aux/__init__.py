@@ -4,7 +4,7 @@ def prep( self, logger ):
   print(f'config opt_a: {x}')
   assert self.config['opt_b'] == 'xyz'
 
-  return dict( version = "0.0.1" )
+  self.project.update( version = "0.0.1" )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dist_prep( self, logger ):
@@ -16,4 +16,7 @@ def dist_source_prep( self, logger ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dist_binary_prep( self, logger ):
-  return [('py3', 'none', 'any')]
+  self.compat_tags = [('py3', 'none', 'any')]
+
+  self.build_number = 123
+  self.build_tag = 'test'

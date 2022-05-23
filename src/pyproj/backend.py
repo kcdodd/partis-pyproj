@@ -18,7 +18,8 @@ from . import (
 
 from .norms import (
   valid_keys,
-  mapget )
+  mapget,
+  dist_build )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class UnsupportedOperation( Exception ):
@@ -214,11 +215,12 @@ def build_wheel(
 
   pyproj.dist_prep()
 
-  compat_tags = pyproj.dist_binary_prep()
+  pyproj.dist_binary_prep()
 
   with dist_binary_wheel(
     pkg_info = pyproj.pkg_info,
-    compat = compat_tags,
+    build = dist_build( pyproj.build_number, pyproj.build_tag ),
+    compat = pyproj.compat_tags,
     outdir = wheel_directory,
     logger = pyproj.logger ) as dist:
 

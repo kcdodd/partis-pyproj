@@ -28,10 +28,12 @@ from .norms import (
   norm_path,
   valid_type,
   valid_keys,
-  update_config_settings,
+  norm_config_settings,
   mapget,
   as_list,
   CompatibilityTags,
+  purelib_compat_tags,
+  platlib_compat_tags,
   ValidationError )
 
 from .load_module import (
@@ -103,7 +105,7 @@ class PyProjBase:
         'dist',
         'meson' ] )
 
-    self.config = update_config_settings(
+    self.config = norm_config_settings(
       config_settings,
       self.pyproj.get('config', dict()))
 
@@ -146,6 +148,8 @@ class PyProjBase:
         'purelib',
         'platlib' ] )
 
+    # if any files are copied to the 'platlib' install path, assume this is
+    # **not** a purelib distribution
     self.is_platlib = bool( mapget( self.dist_binary, 'platlib.copy', list() ) )
 
     #...........................................................................
@@ -173,7 +177,7 @@ class PyProjBase:
     self.meson.setdefault('compile_args', list())
     self.meson.setdefault('install_args', list())
 
-    self.meson.setdefault('options', dict())
+    self.meson_options = self.meson.get('options', dict())
 
     self.meson['src_dir'] = osp.join(
       self.root,
@@ -187,6 +191,9 @@ class PyProjBase:
       self.root,
       norm_path_to_os(self.meson['prefix'] ) )
 
+    # temporary build directory created within 'build_dir'
+    self.meson_build_dir = None
+
     #...........................................................................
     self.build_backend = mapget( self._pptoml,
       'build-system.build-backend',
@@ -197,6 +204,7 @@ class PyProjBase:
       list() )
 
     #...........................................................................
+    # default build requirements
     self.build_requires = set([
       PkgInfoReq(r)
       for r in mapget( self._pptoml, 'build-system.requires', list() ) ])
@@ -213,8 +221,20 @@ class PyProjBase:
       name = 'project',
       obj = self.project,
       require_keys = [
+        # project 'name' is the only meta-data that **cannot** be dynamic
         'name' ])
 
+    #...........................................................................
+    # used to create name for binary distribution
+    self.build_number = None
+    self.build_tag = None
+
+    if self.is_platlib:
+      self.compat_tags = platlib_compat_tags()
+    else:
+      self.compat_tags = purelib_compat_tags()
+
+    #...........................................................................
     self.prep()
 
     self.pkg_info = PkgInfo(
@@ -255,12 +275,10 @@ class PyProjBase:
     try:
       cwd = os.getcwd()
 
-      res = func(
+      func(
         self,
         logger = logger,
         **entry_point_kwargs )
-
-      return res
 
     finally:
       os.chdir(cwd)
@@ -280,30 +298,21 @@ class PyProjBase:
     if dynamic and 'prep' not in self.pyproj:
       raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
 
-    _project = self.prep_entrypoint(
+    self.prep_entrypoint(
       name = f"tool.pyproj.prep",
       obj = self.pyproj,
       logger = self.logger.getChild( f"prep" ) )
 
-    if _project is not None:
-
-      if not isinstance( _project, Mapping ):
-        raise ValidationError(
-          f"tool.pyproj.prep must return a mapping: {type(_project)}" )
-
-      self.project.update(_project)
-
-    # NOTE: return value treated as update to project, but if self.project
-    # was modified directly it needs to be checked anyway
+    # NOTE: check that any dynamic meta-data is defined after prep
     for k in dynamic:
       # require all dynamic keys are updated by prep
       if k not in self.project:
         raise ValidationError(
-          f"project.dynamic listed key as dynamic not updated from prep: {k}" )
+          f"project.dynamic listed key as dynamic, but not updated in prep: {k}" )
 
     for k, v in self.project.items():
-      if (k not in project or project[k] != v) and k not in dynamic:
-        # don't allow keys to be updated unless they were listed in dynamic
+      if k not in dynamic and (k not in project or project[k] != v):
+        # don't allow keys to be added or changed unless they were listed in dynamic
         raise ValidationError(
           f"prep updated key not listed in project.dynamic: {k}" )
 
@@ -325,14 +334,20 @@ class PyProjBase:
         if not osp.exists(dir):
           os.makedirs(dir)
 
-      meson_build_dir = tempfile.mkdtemp(
+      self.meson_build_dir = tempfile.mkdtemp(
         dir = self.meson['build_dir'] )
 
       meson_out_dir = self.meson['prefix']
 
       self.logger.info(f"Running meson build")
-      self.logger.info(f"Meson tmp: {meson_build_dir}")
+      self.logger.info(f"Meson tmp: {self.meson_build_dir}")
       self.logger.info(f"Meson out: {meson_out_dir}")
+
+      def meson_option_arg(k, v):
+        if isinstance(v, bool):
+          v = ({True: 'true', False: 'false'})[v]
+
+        return f'-D{k}={v}'
 
       setup_args = [
         'meson',
@@ -340,8 +355,8 @@ class PyProjBase:
         *self.meson['setup_args'],
         '--prefix',
         meson_out_dir,
-        *[ f'-D{k}={v}' for k,v in self.meson['options'].items() ],
-        meson_build_dir,
+        *[ meson_option_arg(k,v) for k,v in self.meson_options.items() ],
+        self.meson_build_dir,
         self.meson['src_dir'] ]
 
       compile_args = [
@@ -349,7 +364,7 @@ class PyProjBase:
         'compile',
         *self.meson['compile_args'],
         '-C',
-        meson_build_dir ]
+        self.meson_build_dir ]
 
       install_args = [
         'meson',
@@ -357,7 +372,7 @@ class PyProjBase:
         *self.meson['install_args'],
         '--no-rebuild',
         '-C',
-        meson_build_dir ]
+        self.meson_build_dir ]
 
 
       self.logger.debug(' '.join(setup_args))
@@ -377,7 +392,7 @@ class PyProjBase:
     """Prepares project files for a distribution
     """
 
-    return self.prep_entrypoint(
+    self.prep_entrypoint(
       name = f"tool.pyproj.dist.prep",
       obj = self.dist,
       logger = self.logger.getChild( f"dist.prep" ) )
@@ -388,7 +403,7 @@ class PyProjBase:
     """Prepares project files for a source distribution
     """
 
-    return self.prep_entrypoint(
+    self.prep_entrypoint(
       name = f"tool.pyproj.dist.source.prep",
       obj = self.dist_source,
       logger = self.logger.getChild( f"dist.source.prep" ) )
@@ -430,33 +445,16 @@ class PyProjBase:
 
     self.meson_build()
 
-    compat_tags = self.prep_entrypoint(
+    self.prep_entrypoint(
       name = f"tool.pyproj.dist.binary.prep",
       obj = self.dist_binary,
       logger = self.logger.getChild( f"dist.binary.prep" ) )
 
-    if compat_tags:
-      self.logger.debug(f"Compatibility tags returned from dist.binary.prep: {compat_tags}")
+    self.compat_tags = [
+      CompatibilityTags(*tags)
+      for tags in as_list(self.compat_tags) ]
 
-      compat_tags = as_list(compat_tags)
-
-      compat_tags = [
-        CompatibilityTags(*tags)
-        for tags in compat_tags ]
-
-    elif self.is_platlib:
-      from packaging.tags import sys_tags
-
-      tag = next(iter(sys_tags()))
-
-      # interpreter = "py{0}{1}".format(sys.version_info.major, sys.version_info.minor)
-      interpreter = tag.interpreter
-
-      compat_tags = [ CompatibilityTags( interpreter, tag.abi, tag.platform ) ]
-
-      self.logger.debug(f"Compatibility tags assumed: {compat_tags}")
-
-    return compat_tags
+    self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.compat_tags}")
 
   #-----------------------------------------------------------------------------
   def dist_binary_copy( self, *, dist ):
@@ -541,7 +539,7 @@ class PyProjBase:
           ignore = ignore )
 
       else:
-        if ignore and src in ignore('.', [src]):
+        if ignore and ignore('.', [src]):
           continue
 
         dist.copyfile(
