@@ -210,9 +210,12 @@ class PyProjBase:
       for r in mapget( self._pptoml, 'build-system.requires', list() ) ])
 
     if self.meson['compile']:
-      v = metadata('partis-pyproj')['Version']
+      try:
+        metadata('meson')
+      except:
+        v = metadata('partis-pyproj')['Version']
 
-      self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
+        self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
 
     #...........................................................................
     self.project = self._pptoml['project']
