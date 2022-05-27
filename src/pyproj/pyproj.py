@@ -28,6 +28,8 @@ from .norms import (
   norm_path,
   valid_type,
   valid_keys,
+  valid_dict,
+  valid_list,
   norm_config_settings,
   mapget,
   as_list,
@@ -41,6 +43,164 @@ from .load_module import (
   load_entrypoint )
 
 from .legacy import legacy_setup_content
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_prep(valid_dict):
+  name = 'tool.pyproj.prep'
+  require_keys = [
+    'entry' ]
+
+  default = {
+    'entry': str,
+    'kwargs': dict }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_prep(pyproj_prep):
+  name = 'tool.pyproj.dist.prep'
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_source_prep(pyproj_prep):
+  name = 'tool.pyproj.dist.source.prep'
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_binary_prep(pyproj_prep):
+  name = 'tool.pyproj.dist.binary.prep'
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class str_list(valid_list):
+  name = 'str_list'
+  allow_type = str
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_meson(valid_dict):
+  name = 'tool.pyproj.meson'
+  default = {
+    'compile': False,
+    'src_dir': '.',
+    'build_dir': 'build',
+    'prefix': 'build',
+    'setup_args': str_list,
+    'compile_args': str_list,
+    'install_args': str_list,
+    'options': dict }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_copy(valid_dict):
+  name = 'tool.pyproj.dist.copy'
+  default = {
+    'src': str,
+    'dst': str,
+    'glob': str,
+    'ignore': str }
+
+  #---------------------------------------------------------------------------#
+  def __init__( self, val ):
+    if isinstance(val, str):
+      val = {
+        'src': val }
+
+    super().__init__(val)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_copy_list(valid_list):
+  name = 'tool.pyproj.dist.copy'
+  allow_type = pyproj_dist_copy
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_scheme(valid_dict):
+  name = 'tool.pyproj.dist.binary'
+  default = {
+    'ignore': str_list,
+    'copy': pyproj_dist_copy_list }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_binary(valid_dict):
+  name = 'tool.pyproj.dist.binary'
+  default = {
+    'prep': pyproj_dist_source_prep,
+    'ignore': str_list,
+    'copy': pyproj_dist_copy_list,
+    'data': pyproj_dist_scheme,
+    'headers': pyproj_dist_scheme,
+    'scripts': pyproj_dist_scheme,
+    'purelib': pyproj_dist_scheme,
+    'platlib': pyproj_dist_scheme }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist_source(valid_dict):
+  name = 'tool.pyproj.dist.source'
+  default = {
+    'prep': pyproj_dist_source_prep,
+    'ignore': str_list,
+    'copy': pyproj_dist_copy_list,
+    'add_legacy_setup': False }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_dist(valid_dict):
+  name = 'tool.pyproj.dist'
+  default = {
+    'prep': pyproj_dist_prep,
+    'ignore': list,
+    'source': pyproj_dist_source,
+    'binary': pyproj_dist_binary }
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj(valid_dict):
+  name = 'tool.pyproj'
+  default = {
+    'config': dict,
+    'prep': pyproj_prep,
+    'dist': pyproj_dist,
+    'meson': pyproj_meson }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class tool(valid_dict):
+  name = 'tool'
+
+  require_keys = ['pyproj']
+  default = {
+    'pyproj': pyproj }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class project(valid_dict):
+  name = 'project'
+
+  require_keys = [
+    'name']
+
+  allow_keys = [
+    'dynamic',
+    'version',
+    'description',
+    'readme',
+    'authors',
+    'maintainers',
+    'license',
+    'requires-python',
+    'dependencies',
+    'optional-dependencies',
+    'keywords',
+    'classifiers',
+    'urls',
+    'scripts',
+    'gui-scripts',
+    'entry-points' ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class valid_pptoml(valid_dict):
+  name = 'pyproject.toml'
+
+  require_keys = [
+    'project',
+    'tool' ]
+
+  allow_keys = [
+    'build-system' ]
+
+  default = {
+    'project': project,
+    'tool': tool }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PyProjBase:
@@ -65,7 +225,7 @@ class PyProjBase:
 
     self.logger = logger or logging.getLogger( __name__ )
 
-    self.root = osp.abspath(root)
+    self.root = osp.realpath(root)
 
     self.pptoml_file = osp.join( self.root, 'pyproject.toml' )
 
@@ -74,125 +234,131 @@ class PyProjBase:
       src = src.decode( 'utf-8', errors = 'replace' )
       self._pptoml = tomli.loads( src )
 
-    #...........................................................................
-    valid_keys(
-      name = 'pyproject.toml',
-      obj = self._pptoml,
-      require_keys = [
-        'project',
-        'tool' ],
-      allow_keys = [
-        'build-system' ] )
+    self.pptoml = valid_pptoml(self._pptoml)
+    self.pyproj = self.pptoml.tool.pyproj
+    self.config = self.pyproj.config
+    self.meson = self.pyproj.meson
+    self.dist = self.pyproj.dist
 
-    #...........................................................................
-    tool = self._pptoml['tool']
 
-    valid_keys(
-      name = 'tool',
-      obj = tool,
-      require_keys = [
-        'pyproj' ] )
-
-    #...........................................................................
-    self.pyproj = tool['pyproj']
-
-    valid_keys(
-      name = 'tool.pyproj',
-      obj = self.pyproj,
-      allow_keys = [
-        'config',
-        'prep',
-        'dist',
-        'meson' ] )
-
-    self.config = norm_config_settings(
-      config_settings,
-      self.pyproj.get('config', dict()))
-
-    #...........................................................................
-    self.dist = mapget( self.pyproj, 'dist', dict() )
-
-    valid_keys(
-      name = 'tool.pyproj.dist',
-      obj = self.dist,
-      allow_keys = [
-        'prep',
-        'ignore',
-        'source',
-        'binary' ] )
-
-    self.dist_source = mapget( self.dist, 'source', dict() )
-    self.dist_binary = mapget( self.dist, 'binary', dict() )
-
-    valid_keys(
-      name = 'tool.pyproj.dist.source',
-      obj = self.dist_source,
-      allow_keys = [
-        'prep',
-        'ignore',
-        'copy',
-        'add_legacy_setup' ] )
-
-    self.add_legacy_setup = self.dist_source.get('add_legacy_setup', False )
-
-    valid_keys(
-      name = 'tool.pyproj.dist.binary',
-      obj = self.dist_binary,
-      allow_keys = [
-        'prep',
-        'ignore',
-        'copy',
-        'data',
-        'headers',
-        'scripts',
-        'purelib',
-        'platlib' ] )
+    # #...........................................................................
+    # valid_keys(
+    #   name = 'pyproject.toml',
+    #   obj = self._pptoml,
+    #   require_keys = [
+    #     'project',
+    #     'tool' ],
+    #   allow_keys = [
+    #     'build-system' ] )
+    #
+    # #...........................................................................
+    # tool = self._pptoml['tool']
+    #
+    # valid_keys(
+    #   name = 'tool',
+    #   obj = tool,
+    #   require_keys = [
+    #     'pyproj' ] )
+    #
+    # #...........................................................................
+    # self.pyproj = tool['pyproj']
+    #
+    # valid_keys(
+    #   name = 'tool.pyproj',
+    #   obj = self.pyproj,
+    #   allow_keys = [
+    #     'config',
+    #     'prep',
+    #     'dist',
+    #     'meson' ] )
+    #
+    # self.config = norm_config_settings(
+    #   config_settings,
+    #   self.pyproj.get('config', dict()))
+    #
+    # #...........................................................................
+    # self.dist = mapget( self.pyproj, 'dist', dict() )
+    #
+    # valid_keys(
+    #   name = 'tool.pyproj.dist',
+    #   obj = self.dist,
+    #   allow_keys = [
+    #     'prep',
+    #     'ignore',
+    #     'source',
+    #     'binary' ] )
+    #
+    # self.dist_source = mapget( self.dist, 'source', dict() )
+    # self.dist_binary = mapget( self.dist, 'binary', dict() )
+    #
+    # valid_keys(
+    #   name = 'tool.pyproj.dist.source',
+    #   obj = self.dist_source,
+    #   allow_keys = [
+    #     'prep',
+    #     'ignore',
+    #     'copy',
+    #     'add_legacy_setup' ] )
+    #
+    self.add_legacy_setup = self.dist.source.add_legacy_setup
+    #
+    # valid_keys(
+    #   name = 'tool.pyproj.dist.binary',
+    #   obj = self.dist_binary,
+    #   allow_keys = [
+    #     'prep',
+    #     'ignore',
+    #     'copy',
+    #     'data',
+    #     'headers',
+    #     'scripts',
+    #     'purelib',
+    #     'platlib' ] )
+    #
 
     # if any files are copied to the 'platlib' install path, assume this is
     # **not** a purelib distribution
-    self.is_platlib = bool( mapget( self.dist_binary, 'platlib.copy', list() ) )
+    self.is_platlib = bool(self.dist.binary.platlib.copy)
 
-    #...........................................................................
-    self.meson = mapget( self.pyproj, 'meson', dict() )
+    # #...........................................................................
+    # self.meson = mapget( self.pyproj, 'meson', dict() )
+    #
+    # valid_keys(
+    #   name = 'tool.pyproj.meson',
+    #   obj = self.meson,
+    #   allow_keys = [
+    #     'compile',
+    #     'src_dir',
+    #     'build_dir',
+    #     'prefix',
+    #     'setup_args',
+    #     'compile_args',
+    #     'install_args',
+    #     'options' ] )
+    #
+    # self.meson.setdefault('src_dir', '.' )
+    # self.meson.setdefault('build_dir', 'build')
+    # self.meson.setdefault('prefix', 'build')
+    # self.meson.setdefault('compile', False)
+    # self.meson.setdefault('build_clean', True)
+    #
+    # self.meson.setdefault('setup_args', list())
+    # self.meson.setdefault('compile_args', list())
+    # self.meson.setdefault('install_args', list())
+    #
+    # self.meson_options = self.meson.get('options', dict())
 
-    valid_keys(
-      name = 'tool.pyproj.meson',
-      obj = self.meson,
-      allow_keys = [
-        'compile',
-        'src_dir',
-        'build_dir',
-        'prefix',
-        'setup_args',
-        'compile_args',
-        'install_args',
-        'options' ] )
-
-    self.meson.setdefault('src_dir', '.' )
-    self.meson.setdefault('build_dir', 'build')
-    self.meson.setdefault('prefix', 'build')
-    self.meson.setdefault('compile', False)
-
-    self.meson.setdefault('setup_args', list())
-    self.meson.setdefault('compile_args', list())
-    self.meson.setdefault('install_args', list())
-
-    self.meson_options = self.meson.get('options', dict())
-
-    self.meson['src_dir'] = osp.join(
-      self.root,
-      norm_path_to_os(self.meson['src_dir'] ) )
-
-    self.meson['build_dir'] = osp.join(
-      self.root,
-      norm_path_to_os(self.meson['build_dir']) )
-
-    self.meson['prefix'] = osp.join(
-      self.root,
-      norm_path_to_os(self.meson['prefix'] ) )
-
-    # temporary build directory created within 'build_dir'
-    self.meson_build_dir = None
+    # self.meson['src_dir'] = osp.join(
+    #   self.root,
+    #   norm_path_to_os(self.meson['src_dir'] ) )
+    #
+    # self.meson['build_dir'] = osp.join(
+    #   self.root,
+    #   norm_path_to_os(self.meson['build_dir']) )
+    #
+    # self.meson['prefix'] = osp.join(
+    #   self.root,
+    #   norm_path_to_os(self.meson['prefix'] ) )
 
     #...........................................................................
     self.build_backend = mapget( self._pptoml,
@@ -268,12 +434,19 @@ class PyProjBase:
     entry_point = prep['entry']
     entry_point_kwargs = prep.get('kwargs', dict() )
 
+    if not entry_point:
+      return None
 
-    func = load_entrypoint(
-      entry_point = entry_point,
-      root = self.root )
 
-    logger.info(f"loaded entry-point '{entry_point}'")
+    try:
+      func = load_entrypoint(
+        entry_point = entry_point,
+        root = self.root )
+
+      logger.info(f"loaded entry-point '{entry_point}'")
+
+    except Exception as e:
+      raise ValueError(f"failed to load entry-point '{entry_point}'") from e
 
     try:
       cwd = os.getcwd()
@@ -282,6 +455,9 @@ class PyProjBase:
         self,
         logger = logger,
         **entry_point_kwargs )
+        
+    except Exception as e:
+      raise ValueError(f"failed to run entry-point '{entry_point}'") from e
 
     finally:
       os.chdir(cwd)
@@ -333,18 +509,38 @@ class PyProjBase:
     #...........................................................................
     if self.meson['compile']:
 
-      for dir in [ self.meson['build_dir'], self.meson['prefix'] ]:
+      # check paths
+      meson_paths = dict()
+
+      for k in ['src_dir', 'build_dir', 'prefix']:
+
+        rel_path = norm_path_to_os(self.meson[k])
+
+        if osp.isabs(rel_path):
+          raise ValidationError(f"tool.pyproj.meson.{k} must be relative to pyproject.toml: {rel_path}")
+
+        abs_path = osp.realpath( osp.join(
+          self.root,
+          rel_path ) )
+
+        if osp.commonprefix([self.root, abs_path]) != self.root:
+          raise ValidationError(f"tool.pyproj.meson.{k} must resolve to a project directory: {abs_path}")
+
+        meson_paths[k] = abs_path
+
+
+      for dir in [ meson_paths['build_dir'], meson_paths['prefix'] ]:
         if not osp.exists(dir):
           os.makedirs(dir)
 
-      self.meson_build_dir = tempfile.mkdtemp(
-        dir = self.meson['build_dir'] )
+      meson_build_dir = tempfile.mkdtemp(
+        dir = meson_paths['build_dir'] )
 
-      meson_out_dir = self.meson['prefix']
+      meson_prefix = meson_paths['prefix']
 
       self.logger.info(f"Running meson build")
-      self.logger.info(f"Meson tmp: {self.meson_build_dir}")
-      self.logger.info(f"Meson out: {meson_out_dir}")
+      self.logger.info(f"Meson build dir: {meson_build_dir}")
+      self.logger.info(f"Meson prefix: {meson_prefix}")
 
       def meson_option_arg(k, v):
         if isinstance(v, bool):
@@ -352,22 +548,24 @@ class PyProjBase:
 
         return f'-D{k}={v}'
 
+      # TODO: ensure any paths in setup_args are normalized
+
       setup_args = [
         'meson',
         'setup',
         *self.meson['setup_args'],
         '--prefix',
-        meson_out_dir,
-        *[ meson_option_arg(k,v) for k,v in self.meson_options.items() ],
-        self.meson_build_dir,
-        self.meson['src_dir'] ]
+        meson_prefix,
+        *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
+        meson_build_dir,
+        meson_paths['src_dir'] ]
 
       compile_args = [
         'meson',
         'compile',
         *self.meson['compile_args'],
         '-C',
-        self.meson_build_dir ]
+        meson_build_dir ]
 
       install_args = [
         'meson',
@@ -375,7 +573,7 @@ class PyProjBase:
         *self.meson['install_args'],
         '--no-rebuild',
         '-C',
-        self.meson_build_dir ]
+        meson_build_dir ]
 
 
       self.logger.debug(' '.join(setup_args))
@@ -389,6 +587,10 @@ class PyProjBase:
       self.logger.debug(' '.join(install_args))
 
       subprocess.check_call(install_args)
+
+      if self.meson['build_clean']:
+        self.logger.info(f"Cleaning Meson build dir: {meson_build_dir}")
+        shutil.rmtree(meson_build_dir)
 
   #-----------------------------------------------------------------------------
   def dist_prep( self ):
@@ -408,7 +610,7 @@ class PyProjBase:
 
     self.prep_entrypoint(
       name = f"tool.pyproj.dist.source.prep",
-      obj = self.dist_source,
+      obj = self.dist.source,
       logger = self.logger.getChild( f"dist.source.prep" ) )
 
   #-----------------------------------------------------------------------------
@@ -423,11 +625,11 @@ class PyProjBase:
 
     name = f'tool.pyproj.dist.source'
 
-    include = list( mapget( self.dist_source, 'copy', list() ) )
+    include = list( mapget( self.dist.source, 'copy', list() ) )
 
     ignore = (
       mapget( self.dist, 'ignore', list() )
-      + mapget( self.dist_source, 'ignore', list() ) )
+      + mapget( self.dist.source, 'ignore', list() ) )
 
     self.dist_copy(
       name = name,
@@ -450,7 +652,7 @@ class PyProjBase:
 
     self.prep_entrypoint(
       name = f"tool.pyproj.dist.binary.prep",
-      obj = self.dist_binary,
+      obj = self.dist.binary,
       logger = self.logger.getChild( f"dist.binary.prep" ) )
 
     self.compat_tags = [
@@ -471,11 +673,11 @@ class PyProjBase:
 
     name = f'tool.pyproj.dist.binary'
 
-    include = list( mapget( self.dist_binary, 'copy', list() ) )
+    include = list( mapget( self.dist.binary, 'copy', list() ) )
 
     ignore = (
       mapget( self.dist, 'ignore', list() )
-      + mapget( self.dist_binary, 'ignore', list() ) )
+      + mapget( self.dist.binary, 'ignore', list() ) )
 
     self.dist_copy(
       name = name,
@@ -492,10 +694,10 @@ class PyProjBase:
       'platlib' ]
 
     for k in data_scheme:
-      if k in self.dist_binary:
+      if k in self.dist.binary:
         name = f'tool.pyproj.dist.binary.{k}'
 
-        dist_data = mapget( self.dist_binary, k, dict() )
+        dist_data = mapget( self.dist.binary, k, dict() )
 
         valid_keys(
           name = name,
