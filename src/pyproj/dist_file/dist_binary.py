@@ -8,15 +8,17 @@ import tempfile
 import shutil
 
 from ..norms import (
-  norm_dist_name,
-  norm_dist_build,
-  norm_dist_compat,
-  compress_dist_compat,
-  norm_dist_filename,
   norm_path,
   norm_data,
   hash_sha256,
   email_encode_items )
+
+from ..pep import (
+  norm_dist_name,
+  norm_dist_build,
+  norm_dist_compat,
+  compress_dist_compat,
+  norm_dist_filename )
 
 from ..pkginfo import PkgInfo
 

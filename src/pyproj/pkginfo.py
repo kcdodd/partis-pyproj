@@ -13,10 +13,19 @@ from collections.abc import (
   Mapping,
   Sequence )
 
-from .norms import (
+from .validate import (
   ValidationError,
   valid_type,
-  valid_keys,
+  valid_keys )
+
+from .norms import (
+  norm_path,
+  norm_data,
+  norm_zip_external_attr,
+  hash_sha256,
+  email_encode_items )
+
+from .pep import (
   norm_printable,
   valid_dist_name,
   norm_dist_name,
@@ -32,12 +41,7 @@ from .norms import (
   norm_dist_filename,
   norm_entry_point_group,
   norm_entry_point_name,
-  norm_entry_point_ref,
-  norm_path,
-  norm_data,
-  norm_zip_external_attr,
-  hash_sha256,
-  email_encode_items )
+  norm_entry_point_ref )
 
 import configparser
 

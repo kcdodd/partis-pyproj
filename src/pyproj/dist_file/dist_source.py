@@ -9,7 +9,9 @@ import shutil
 from ..norms import (
   norm_path,
   norm_data,
-  norm_mode,
+  norm_mode )
+
+from ..pep import (
   norm_dist_filename )
 
 from ..pkginfo import PkgInfo

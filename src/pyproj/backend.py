@@ -152,7 +152,7 @@ def get_requires_for_build_wheel(
   # > ERROR: Some build dependencies...conflict with the backend dependencies...
   build_requires = pyproj.build_requires - set([
     PkgInfoReq(r)
-    for r in mapget( pyproj._pptoml, 'build-system.requires', list() ) ])
+    for r in mapget( pyproj.pptoml, 'build-system.requires', list() ) ])
 
   reqs = [ str(r) for r in build_requires ]
 
