@@ -263,17 +263,18 @@ def test_dist_binary_wheel():
         version = '1.0',
         license = { 'file' : 'license.rst' } ) )
 
-    pkg_info_dynamic = PkgInfo(
-      project = dict(
-        name = 'my-package',
-        version = '1.0',
-        dynamic = ['dependencies'] ) )
+    with raises( ValueError ):
+      pkg_info_dynamic = PkgInfo(
+        project = dict(
+          name = 'my-package',
+          version = '1.0',
+          dynamic = ['dependencies'] ) )
 
     with raises( ValueError ):
       dist_binary_wheel( pkg_info = None )
 
-    with raises( ValueError ):
-      dist_binary_wheel( pkg_info = pkg_info_dynamic )
+    # with raises( ValueError ):
+    #   dist_binary_wheel( pkg_info = pkg_info_dynamic )
 
 
     dist_binary_wheel( pkg_info = pkg_info )

@@ -54,7 +54,13 @@ class ValidationError( ValueError ):
         parts.append(f"line {line}")
         parts.append(f"col {col}" )
 
-    return self.msg + "\n" + " ".join(parts)
+    loc = " ".join(parts)
+    msg = self.msg
+
+    if loc:
+      msg += '\n' + loc
+
+    return msg
 
   #-----------------------------------------------------------------------------
   def __repr__(self):
@@ -247,7 +253,7 @@ class Validator:
       elif isinstance(v, Validator):
         args.append(str(v))
       elif callable(v):
-        args.append('<function>')
+        args.append(f"<callable {v.__name__}>" if hasattr(v, '__name__') else '<callable>')
       elif v == '':
         args.append("''")
       else:
@@ -378,7 +384,7 @@ def valid_keys(
 
   if not isinstance( obj, Mapping ):
     raise ValidationError(
-      f"must be mapping: {type(obj)}" )
+      f"Must be mapping: {type(obj)}" )
 
   if forbid_keys:
     for k in forbid_keys:
@@ -403,6 +409,7 @@ def valid_keys(
         obj.pop(k_old)
 
   if allow_keys is not None:
+    allow_keys = copy(allow_keys)
     allow_keys.extend( require_keys or [] )
     allow_keys.extend( [k_new for k_old, k_new in deprecate_keys] if deprecate_keys else [] )
     allow_keys.extend( default.keys() if default else [] )
@@ -418,6 +425,8 @@ def valid_keys(
     if mutex_keys:
       for keys in mutex_keys:
         allow_keys.extend(keys)
+
+    allow_keys = set(allow_keys)
 
     for k in obj.keys():
       if k not in allow_keys:
@@ -459,12 +468,13 @@ def valid_keys(
         raise ValidationError(
           f"May not have more than one of keys: {keys}" )
 
-
+  # TODO: copy is not correct, since normalized key could add a new key
   if key_valid:
     _obj = copy(obj)
 
     for k, v in obj.items():
-      _obj[key_valid(k)] = v
+      with validating(key = k):
+        _obj[key_valid(k)] = v
 
     obj = _obj
 
@@ -472,7 +482,8 @@ def valid_keys(
     _obj = copy(obj)
 
     for k, v in obj.items():
-      _obj[k] = value_valid(v)
+      with validating(key = k):
+        _obj[k] = value_valid(v)
 
     obj = _obj
 
@@ -480,7 +491,9 @@ def valid_keys(
     _obj = copy(obj)
 
     for k,v in obj.items():
-      k,v = item_valid(k,v)
+      with validating(key = k):
+        k,v = item_valid((k,v))
+
       _obj[k] = v
 
     obj = _obj
@@ -561,9 +574,10 @@ class valid_dict(Mapping):
 
   #---------------------------------------------------------------------------#
   def __init__( self, *args, **kwargs ):
+    cls = type(self)
 
     if (
-      self._proxy_key
+      cls._proxy_key
       and len(kwargs) == 0
       and len(args) == 1
       and not isinstance(args[0], Mapping) ):
@@ -573,25 +587,13 @@ class valid_dict(Mapping):
       if v in [None, optional]:
         args = dict()
       else:
-        args = [{self._proxy_key : args[0]}]
+        args = [{cls._proxy_key : args[0]}]
 
     self._p_dict = dict(*args, **kwargs)
 
     with attrs_modify( self ):
-      self._value_valid = valid(self._value_valid) if self._value_valid else None
-      self._item_valid = valid(self._item_valid) if self._item_valid else None
-      self._key_valid = valid(self._key_valid) if self._key_valid else None
-
-      self._allow_keys = self._allow_keys
-      self._require_keys = self._require_keys
-      self._min_keys = self._min_keys
-      self._wedge_keys = self._wedge_keys
-      self._mutex_keys = self._mutex_keys
-      self._deprecate_keys = self._deprecate_keys
-      self._forbid_keys = self._forbid_keys
-
-      self._default = { k: valid(v) for k,v in ( self._default or dict() ).items() }
-      self._validator = valid(self._validator if self._validator else lambda v: v)
+      self._default = { k: valid(v) for k,v in ( cls._default or dict() ).items() }
+      self._validator = valid(cls._validator if cls._validator else lambda v: v)
 
       self._p_all_keys = list()
       self._validating = False
@@ -762,15 +764,21 @@ class valid_dict(Mapping):
 class valid_list(list):
   """Validated list
   """
-
+  _as_list = None
   _value_valid = None
 
   #---------------------------------------------------------------------------#
   def __init__( self, vals = None ):
+    cls = type(self)
+    self._as_list = cls._as_list or list
+    self._value_valid = valid(cls._value_valid)
 
-    self._value_valid = valid(self._value_valid)
+    if vals is None:
+      vals = list()
 
-    vals = vals or list()
+    elif self._as_list:
+      vals = self._as_list(vals)
+
     for i,v in enumerate(vals):
       with validating(key = i):
         vals[i] = self._value_valid(v)

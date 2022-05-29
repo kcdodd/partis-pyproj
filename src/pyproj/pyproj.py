@@ -132,9 +132,10 @@ class PyProjBase:
     #...........................................................................
     self.prep()
 
-    self.pkg_info = PkgInfo(
-      project = self.project,
-      root = root )
+    with validating(key = 'project', root = self._pptoml, file = self.pptoml_file):
+      self.pkg_info = PkgInfo(
+        project = self.project,
+        root = root )
 
     # Update logger once package info is created
     self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )

@@ -26,6 +26,7 @@ from packaging.tags import sys_tags
 
 from .validate import (
   ValidationError,
+  valid,
   valid_type,
   valid_keys,
   valid_dict,
@@ -68,14 +69,11 @@ def nonempty_str(val):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class str_list(valid_list):
-  name = 'str_list'
-  validator = str
+  _value_valid = valid(str)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class nonempty_str_list(valid_list):
-  name = 'nonempty_str_list'
-  validator = nonempty_str
-
+  _value_valid = valid(nonempty_str)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_data( data ):

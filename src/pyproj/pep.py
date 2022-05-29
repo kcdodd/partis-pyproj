@@ -28,6 +28,7 @@ from packaging.specifiers import SpecifierSet
 
 from .validate import (
   ValidationError,
+  validating,
   valid_type,
   valid_keys,
   valid_dict,
@@ -210,7 +211,7 @@ def norm_dist_version( version ):
   if not pep440_version.fullmatch( version ):
     raise PEPValidationError(
       pep = 440,
-      msg = """public version identifiers MUST comply with the following scheme,
+      msg = """Public version identifiers MUST comply with the following scheme,
         [N!]N(.N)*[{a|b|rc}N][.postN][.devN]""",
       val = version )
 
@@ -283,30 +284,32 @@ def norm_dist_author_dict(val):
   _name, _email = parseaddr( formataddr( (_name, _email) ) )
 
   #.............................................................................
-  if name and _name != name:
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The name value MUST be a valid email name, and not contain commas",
-      val = name )
+  with validating(key = 'name'):
+    if name and _name != name:
+      raise PEPValidationError(
+        pep = 621,
+        msg = "The name value MUST be a valid email name, and not contain commas",
+        val = name )
 
-  if not pep621_author_name.fullmatch(name):
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The name value MUST be a valid email name, and not contain commas",
-      val = name )
+    if not pep621_author_name.fullmatch(name):
+      raise PEPValidationError(
+        pep = 621,
+        msg = "The name value MUST be a valid email name, and not contain commas",
+        val = name )
 
   #.............................................................................
-  if email and _email != email:
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The email value MUST be a valid email address",
-      val = email )
+  with validating(key = 'email'):
+    if email and _email != email:
+      raise PEPValidationError(
+        pep = 621,
+        msg = "The email value MUST be a valid email address",
+        val = email )
 
-  if not pep621_author_email.fullmatch(email):
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The email value MUST be a valid email address",
-      val = email )
+    if not pep621_author_email.fullmatch(email):
+      raise PEPValidationError(
+        pep = 621,
+        msg = "The email value MUST be a valid email address",
+        val = email )
 
   val = {
     'name': name,
@@ -379,7 +382,7 @@ def norm_dist_url( label, url ):
     if not ( res.scheme and res.netloc ):
       raise PEPValidationError(
         pep = 621,
-        msg = "url must have a valid scheme and net location",
+        msg = "URL must have a valid scheme and net location",
         val = url )
 
   except Exception as e:
@@ -490,7 +493,7 @@ def norm_dist_compat( py_tag, abi_tag, plat_tag ):
     # use the same validation for platform tag
     raise PEPValidationError(
       pep = 425,
-      msg = """platform tag is simply distutils.util.get_platform() with all
+      msg = """Platform tag is simply distutils.util.get_platform() with all
         hyphens - and periods . replaced with underscore _""",
       val = plat_tag )
 

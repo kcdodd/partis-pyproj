@@ -49,10 +49,10 @@ from partis.pyproj._nonprintable import (
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_valid_type():
-  valid_type('xyz', 'xyz', types = [str])
+  valid_type('xyz', types = [str])
 
   with raises( ValidationError ):
-    valid_type('xyz', 'xyz', types = [int])
+    valid_type('xyz', types = [int])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_valid_keys():

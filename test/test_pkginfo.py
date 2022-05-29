@@ -56,11 +56,11 @@ def test_full():
       'name' : 'test_pkg',
       'version' : '1.2.3',
       'description' : "asd",
-      'readme' : '',
+      # 'readme' : '',
       'authors' : authors,
       'maintainers' : authors,
-      'license' : None,
-      'dynamic' : dynamic,
+      # 'license' : None,
+      # 'dynamic' : dynamic,
       'requires-python' : ">= 3.6.2",
       'dependencies' : ["numpy"],
       'optional-dependencies' : {
@@ -85,17 +85,17 @@ def test_full():
     #...........................................................................
     readme = "Test Package"
 
-    readme_file_txt = osp.join(tmpdir, 'readme')
-    readme_file_md = osp.join(tmpdir, 'readme.md')
-    readme_file_rst = osp.join(tmpdir, 'readme.rst')
+    readme_file_txt = 'readme'
+    readme_file_md = 'readme.md'
+    readme_file_rst = 'readme.rst'
 
-    with open(readme_file_txt, 'w') as fp:
+    with open(osp.join(tmpdir, readme_file_txt), 'w') as fp:
       fp.write(readme)
 
-    with open(readme_file_md, 'w') as fp:
+    with open(osp.join(tmpdir, readme_file_md), 'w') as fp:
       fp.write(readme)
 
-    with open(readme_file_rst, 'w') as fp:
+    with open(osp.join(tmpdir, readme_file_rst), 'w') as fp:
       fp.write(readme)
 
     #...........................................................................

@@ -9,7 +9,8 @@ from .validate import (
   union,
   valid_dict,
   valid_list,
-  ValidationError )
+  ValidationError,
+  as_list )
 
 from .norms import (
   empty_str,
@@ -128,8 +129,12 @@ class classifiers(valid_list):
   _value_valid = valid(norm_dist_classifier)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def norm_dist_url_item(kv):
+  return norm_dist_url(*kv)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class urls(valid_dict):
-  _item_valid = valid(norm_dist_url)
+  _item_valid = valid(norm_dist_url_item)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class project(valid_dict):
@@ -139,7 +144,7 @@ class project(valid_dict):
   _default = {
     'dynamic': nonempty_str_list,
     'name': valid_dist_name,
-    'version': valid(str, norm_dist_version),
+    'version': valid('0.0.0', norm_dist_version),
     'description': valid(str, norm_printable),
     'readme': valid(readme),
     'license': valid(license),
@@ -221,6 +226,11 @@ class pyproj_meson(valid_dict):
     'build_clean': valid(True, norm_bool) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class ignore_list(valid_list):
+  _as_list = as_list
+  _value_valid = valid(nonempty_str)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy(valid_dict):
   _proxy_key = 'src'
   _allow_keys = list()
@@ -231,7 +241,7 @@ class pyproj_dist_copy(valid_dict):
     'dst': valid(optional, union(empty_str, valid(norm_path, norm_path_to_os))),
     # TODO; how to normalize patterns?
     'glob': str,
-    'ignore': str_list }
+    'ignore': ignore_list }
 
   #---------------------------------------------------------------------------#
   def __init__( self, *args, **kwargs):
@@ -246,7 +256,7 @@ class pyproj_dist_copy_list(valid_list):
 class pyproj_dist_scheme(valid_dict):
   _allow_keys = list()
   _default = {
-    'ignore': nonempty_str_list,
+    'ignore': ignore_list,
     'copy': pyproj_dist_copy_list }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -254,7 +264,7 @@ class pyproj_dist_binary(valid_dict):
   _allow_keys = list()
   _default = {
     'prep': valid(optional, pyproj_dist_binary_prep),
-    'ignore': nonempty_str_list,
+    'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'data': pyproj_dist_scheme,
     'headers': pyproj_dist_scheme,
@@ -267,7 +277,7 @@ class pyproj_dist_source(valid_dict):
   _allow_keys = list()
   _default = {
     'prep': valid(optional, pyproj_dist_source_prep),
-    'ignore': nonempty_str_list,
+    'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'add_legacy_setup': valid(False, norm_bool) }
 
@@ -276,7 +286,7 @@ class pyproj_dist(valid_dict):
   _allow_keys = list()
   _default = {
     'prep': valid(optional, pyproj_dist_prep),
-    'ignore': nonempty_str_list,
+    'ignore': ignore_list,
     'source': pyproj_dist_source,
     'binary': pyproj_dist_binary }
 
@@ -296,7 +306,6 @@ class pyproj(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class tool(valid_dict):
-  _allow_keys = list()
   _require_keys = ['pyproj']
   _default = {
     'pyproj': pyproj }

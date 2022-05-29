@@ -126,10 +126,6 @@ class dist_binary_wheel( dist_zip ):
 
     self.pkg_info = pkg_info
 
-    if len(self.pkg_info.dynamic) > 0:
-      raise ValueError(
-        f'dynamic package meta-data must be resolved before building dist: {self.pkg_info.dynamic}')
-
     if gen_name is None:
       gen_name = f'{type(self).__module__}.{type(self).__name__}'
 

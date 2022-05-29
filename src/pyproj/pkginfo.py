@@ -15,6 +15,7 @@ from collections.abc import (
 
 from .validate import (
   ValidationError,
+  validating,
   valid_type,
   valid_keys )
 
@@ -171,19 +172,20 @@ class PkgInfo:
     if not isinstance(project, pptoml_project):
       project = pptoml_project(project)
 
+    with validating(key = 'dynamic'):
+      if project.dynamic:
+        raise ValidationError(
+          f"All dynamic metadata must be resolved before constructing core metadata: {project.dynamic}")
+
     self.name = project.name
     self.name_normed = norm_dist_name( self.name )
     self.version = project.version
     self.description = project.description
     self.readme = project.readme
     self.license = project.license
-    self.dynamic = project.dynamic
-
-    if self.dynamic:
-      raise ValidationError(
-        f"All dynamic meta-data must be resolved: {self.dynamic}")
-
     self.requires_python = SpecifierSet( project.requires_python )
+    self.keywords = set(project.keywords)
+    self.classifiers = set(project.classifiers)
 
     self.dependencies = set([ PkgInfoReq( req = d )
       for d in project.dependencies ])
@@ -193,10 +195,6 @@ class PkgInfo:
         PkgInfoReq( req = d, extra = extra )
         for d in deps ])
       for extra, deps in project.optional_dependencies.items() }
-
-    self.keywords = set(project.keywords)
-
-    self.classifiers = set(project.classifiers)
 
     self.urls = set([
       PkgInfoURL( label = k, url = v )
@@ -208,7 +206,9 @@ class PkgInfo:
     self.maintainers = set([ PkgInfoAuthor(**kw)
       for kw in project.maintainers ])
 
-    self.entry_points = project.entry_points
+    # NOTE: cannot use the pptoml validated dict
+    # since it does not allow combined entry points as in core meta-data
+    self.entry_points = dict(project.entry_points)
 
     # TODO: validate/normalize entrypoints
     if project.scripts:
@@ -231,30 +231,31 @@ class PkgInfo:
     self._desc = ''
     self._desc_type = 'text/plain'
 
-    if 'file' in self.readme:
+    with validating(key = 'readme'):
+      if 'file' in self.readme:
 
-      if not root:
-        raise ValidationError(
-          f"'root' must be given to resolve a 'readme.file' path")
+        if not root:
+          raise ValidationError(
+            f"'root' must be given to resolve a 'readme.file' path")
 
-      readme_file = osp.join( root, self.readme.file )
+        readme_file = osp.join( root, self.readme.file )
 
-      if readme_file.lower().endswith('.rst'):
-        self._desc_type = 'text/x-rst'
+        if readme_file.lower().endswith('.rst'):
+          self._desc_type = 'text/x-rst'
 
-      elif readme_file.lower().endswith('.md'):
-        self._desc_type = 'text/markdown'
+        elif readme_file.lower().endswith('.md'):
+          self._desc_type = 'text/markdown'
 
-      if not osp.exists(readme_file):
-        raise ValidationError(
-          f"'readme' file not found: {readme_file}")
+        if not osp.exists(readme_file):
+          raise ValidationError(
+            f"'readme' file not found: {readme_file}")
 
-      with open( readme_file, 'rb' ) as fp:
-        self._desc = norm_printable(
-          fp.read().decode('utf-8', errors = 'replace') )
+        with open( readme_file, 'rb' ) as fp:
+          self._desc = norm_printable(
+            fp.read().decode('utf-8', errors = 'replace') )
 
-    elif 'text' in self.readme:
-      self._desc = self.readme.text
+      elif 'text' in self.readme:
+        self._desc = self.readme.text
 
     #...........................................................................
     # https://www.python.org/dev/peps/pep-0621/#license
@@ -262,58 +263,58 @@ class PkgInfo:
     self.license_file = ''
     self.license_file_content = None
 
-    if self.license:
-      # NOTE: PEP 621 specifically says
-      # > The text key has a string value which is the license of the project
-      # > whose meaning is that of the License field from the core metadata.
-      # > These keys are mutually exclusive, so a tool MUST raise an error
-      # > if the metadata specifies both keys.
-      # However, many tools seem to assign both a 'short' license description
-      # to License, in addition to a filename to 'License-File'.
-      # It's not clear how to accomidate both with the above restriction.
+    with validating(key = 'license'):
+      if self.license:
+        # NOTE: PEP 621 specifically says
+        # > The text key has a string value which is the license of the project
+        # > whose meaning is that of the License field from the core metadata.
+        # > These keys are mutually exclusive, so a tool MUST raise an error
+        # > if the metadata specifies both keys.
+        # However, many tools seem to assign both a 'short' license description
+        # to License, in addition to a filename to 'License-File'.
+        # It's not clear how to accomidate both with the above restriction.
 
 
-      # > The table may have one of two keys. The file key has a string value that is
-      # > a relative file path to the file which contains the license for the project.
-      # > Tools MUST assume the file's encoding is UTF-8. The text key has a string
-      # > value which is the license of the project whose meaning is that of the
-      # > License field from the core metadata. These keys are mutually exclusive,
-      # > so a tool MUST raise an error if the metadata specifies both keys.
+        # > The table may have one of two keys. The file key has a string value that is
+        # > a relative file path to the file which contains the license for the project.
+        # > Tools MUST assume the file's encoding is UTF-8. The text key has a string
+        # > value which is the license of the project whose meaning is that of the
+        # > License field from the core metadata. These keys are mutually exclusive,
+        # > so a tool MUST raise an error if the metadata specifies both keys.
 
-      valid_keys(
-        name = 'project.license',
-        obj = self.license,
-        allow_keys = [
-          'file',
-          'text' ] )
+        valid_keys(
+          obj = self.license,
+          allow_keys = [
+            'file',
+            'text' ] )
 
-      if 'file' in self.license:
-        if not root:
-          raise ValidationError(f"'root' must be given to resolve 'license.file' path")
+        if 'file' in self.license:
+          if not root:
+            raise ValidationError(f"'root' must be given to resolve 'license.file' path")
 
-        # if 'text' in self.license:
-        #   raise ValidationError(f"'license' cannot have both 'text' and 'file': {self.license}")
+          # if 'text' in self.license:
+          #   raise ValidationError(f"'license' cannot have both 'text' and 'file': {self.license}")
 
-        # TODO: Core Metadata standar does not mention a 'License-File' header
-        # but many tools seem to assign this value.
-        # https://packaging.python.org/en/latest/specifications/core-metadata/
-        # It is not clear if this is now deprecated, or if any tools actually
-        # expect this to be set
+          # TODO: Core Metadata standar does not mention a 'License-File' header
+          # but many tools seem to assign this value.
+          # https://packaging.python.org/en/latest/specifications/core-metadata/
+          # It is not clear if this is now deprecated, or if any tools actually
+          # expect this to be set
 
-        self.license_file = self.license.file
+          self.license_file = self.license.file
 
-        license_file = osp.join( root, self.license_file )
+          license_file = osp.join( root, self.license_file )
 
-        if not osp.exists(license_file):
-          raise ValidationError(
-            f"'license' file not found: {license_file}")
+          if not osp.exists(license_file):
+            raise ValidationError(
+              f"'license' file not found: {license_file}")
 
-        with open( license_file, 'rb' ) as fp:
-          self.license_file_content = norm_printable(
-            fp.read().decode('utf-8', errors = 'replace') ).encode('utf-8')
+          with open( license_file, 'rb' ) as fp:
+            self.license_file_content = norm_printable(
+              fp.read().decode('utf-8', errors = 'replace') ).encode('utf-8')
 
-      if 'text' in self.license:
-        self._license = norm_printable( self.license.text )
+        if 'text' in self.license:
+          self._license = norm_printable( self.license.text )
 
   #-----------------------------------------------------------------------------
   def add_dependencies( self, deps ):
