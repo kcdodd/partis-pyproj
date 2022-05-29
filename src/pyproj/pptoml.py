@@ -35,9 +35,9 @@ from .pep import (
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class readme(valid_dict):
-  _name = 'project.readme'
   # a string at top-level interpreted as a path to the readme file
   _proxy_key = 'file'
+  _allow_keys = list()
   # _min_keys = [
   #   ('file', 'text')]
   _mutex_keys = [
@@ -48,7 +48,7 @@ class readme(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class license(valid_dict):
-  _name = 'project.license'
+  _allow_keys = list()
   # _min_keys = [
   #   ('file', 'text')]
   _default = {
@@ -57,8 +57,8 @@ class license(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class author(valid_dict):
-  _name = 'project.authors'
   _validator = valid(norm_dist_author_dict)
+  _allow_keys = list()
   _min_keys = [
     ('name', 'email')]
   _default = {
@@ -67,50 +67,44 @@ class author(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class authors(valid_list):
-  _name = 'project.authors'
   _value_valid = valid(author)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class maintainer(author):
-  _name = 'project.maintainers'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class maintainers(valid_list):
-  _name = 'project.maintainers'
   _value_valid = valid(maintainer)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class dependencies(valid_list):
-  _name = 'project.dependencies'
   _value_valid = valid(norm_printable, Requirement, str)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class optional_dependency_group(dependencies):
-  _name = 'project.optional-dependencies'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class optional_dependencies(valid_dict):
-  _name = 'project.optional-dependencies'
   _key_valid = valid(norm_dist_extra)
   _value_valid = valid(optional_dependency_group)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class entry_point_group(valid_dict):
-  _name = 'project.entry-points'
   _key_valid = valid(norm_entry_point_name)
   _value_valid = valid(norm_entry_point_ref)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class scripts(entry_point_group):
-  _name = 'project.scripts'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class gui_scripts(entry_point_group):
-  _name = 'project.gui-scripts'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class entry_points(valid_dict):
-  _name = 'project.entry-points'
   _key_valid = valid(norm_entry_point_group)
   _value_valid = valid(entry_point_group)
 
@@ -127,22 +121,19 @@ class entry_points(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class keywords(valid_list):
-  _name = 'project.keywords'
   _value_valid = valid(norm_dist_keyword)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class classifiers(valid_list):
-  _name = 'project.classifiers'
   _value_valid = valid(norm_dist_classifier)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class urls(valid_dict):
-  _name = 'project.urls'
   _item_valid = valid(norm_dist_url)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class project(valid_dict):
-  _name = 'project'
+  _allow_keys = list()
   _require_keys = [
     'name']
   _default = {
@@ -178,7 +169,7 @@ class project(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_requires(dependencies):
-  _name = 'build-system.requires'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class path_parts(valid_list):
@@ -186,7 +177,7 @@ class path_parts(valid_list):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_system(valid_dict):
-  _name = 'build-system'
+  _allow_keys = list()
   _require_keys = [
     'build-backend']
   _default = {
@@ -196,7 +187,7 @@ class build_system(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_prep(valid_dict):
-  _name = 'tool.pyproj.prep'
+  _allow_keys = list()
   _require_keys = [
     'entry' ]
   _default = {
@@ -205,19 +196,19 @@ class pyproj_prep(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_prep(pyproj_prep):
-  _name = 'tool.pyproj.dist.prep'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_source_prep(pyproj_prep):
-  _name = 'tool.pyproj.dist.source.prep'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_binary_prep(pyproj_prep):
-  _name = 'tool.pyproj.dist.binary.prep'
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_meson(valid_dict):
-  _name = 'tool.pyproj.meson'
+  _allow_keys = list()
   _default = {
     'compile': valid(False, norm_bool),
     'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
@@ -231,8 +222,8 @@ class pyproj_meson(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy(valid_dict):
-  _name = 'tool.pyproj.dist.copy'
   _proxy_key = 'src'
+  _allow_keys = list()
   _min_keys = [
     ('src', 'glob') ]
   _default = {
@@ -249,19 +240,18 @@ class pyproj_dist_copy(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy_list(valid_list):
-  _name = 'tool.pyproj.dist.copy'
   _value_valid = valid(pyproj_dist_copy)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_scheme(valid_dict):
-  _name = 'tool.pyproj.dist.binary'
+  _allow_keys = list()
   _default = {
     'ignore': nonempty_str_list,
     'copy': pyproj_dist_copy_list }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_binary(valid_dict):
-  _name = 'tool.pyproj.dist.binary'
+  _allow_keys = list()
   _default = {
     'prep': valid(optional, pyproj_dist_binary_prep),
     'ignore': nonempty_str_list,
@@ -274,7 +264,7 @@ class pyproj_dist_binary(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_source(valid_dict):
-  _name = 'tool.pyproj.dist.source'
+  _allow_keys = list()
   _default = {
     'prep': valid(optional, pyproj_dist_source_prep),
     'ignore': nonempty_str_list,
@@ -283,7 +273,7 @@ class pyproj_dist_source(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist(valid_dict):
-  _name = 'tool.pyproj.dist'
+  _allow_keys = list()
   _default = {
     'prep': valid(optional, pyproj_dist_prep),
     'ignore': nonempty_str_list,
@@ -292,13 +282,12 @@ class pyproj_dist(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_config(valid_dict):
-  _name = 'tool.pyproj.config'
   _value_valid = union(bool, int, float, nonempty_str)
   _key_valid = valid(norm_dist_extra)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj(valid_dict):
-  _name = 'tool.pyproj'
+  _allow_keys = list()
   _default = {
     'config': pyproj_config,
     'prep': valid(optional, pyproj_prep),
@@ -307,14 +296,14 @@ class pyproj(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class tool(valid_dict):
-  _name = 'tool'
+  _allow_keys = list()
   _require_keys = ['pyproj']
   _default = {
     'pyproj': pyproj }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pptoml(valid_dict):
-  _name = 'pyproject.toml'
+  _allow_keys = list()
   _require_keys = [
     'project',
     'tool',

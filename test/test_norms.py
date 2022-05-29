@@ -57,31 +57,31 @@ def test_valid_type():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_valid_keys():
   with raises( ValidationError ):
-    valid_keys( 'xyz', 'xyz', allow_keys = ['x', 'y', 'z'] )
+    valid_keys( 'xyz', allow_keys = ['x', 'y', 'z'] )
 
   with raises( ValidationError ):
-    valid_keys( 'xyz', list(), allow_keys = ['x', 'y', 'z'] )
+    valid_keys( list(), allow_keys = ['x', 'y', 'z'] )
 
-  valid_keys( 'xyz', dict(), allow_keys = ['x', 'y', 'z'] )
+  valid_keys( dict(), allow_keys = ['x', 'y', 'z'] )
 
   obj = {
     'x': 1,
     'y': 2,
     'z': 3 }
 
-  valid_keys( 'xyz', obj, allow_keys = ['w', 'x', 'y', 'z'] )
+  valid_keys( obj, allow_keys = ['w', 'x', 'y', 'z'] )
 
   with raises( ValidationError ):
-    valid_keys( 'xyz', obj, allow_keys = ['x', 'y'] )
+    valid_keys( obj, allow_keys = ['x', 'y'] )
 
   with raises( ValidationError ):
-    valid_keys( 'xyz', obj,
+    valid_keys( obj,
       allow_keys = ['x', 'y', 'z'],
       require_keys = ['w'] )
 
   with raises( ValidationError ):
-    valid_keys( 'xyz', obj,
-      allow_keys = ['x', 'y', 'z'], 
+    valid_keys( obj,
+      allow_keys = ['x', 'y', 'z'],
       mutex_keys = [('x', 'y')] )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

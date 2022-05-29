@@ -30,6 +30,7 @@ from .validate import (
   valid_keys,
   valid_dict,
   valid_list,
+  validating,
   mapget,
   as_list )
 
@@ -82,7 +83,9 @@ class PyProjBase:
       src = src.decode( 'utf-8', errors = 'replace' )
       self._pptoml = tomli.loads( src )
 
-    self.pptoml = pptoml(self._pptoml)
+    with validating(root = self._pptoml, file = self.pptoml_file):
+      self.pptoml = pptoml(self._pptoml)
+
     self.pyproj = self.pptoml.tool.pyproj
     self.config = self.pyproj.config
     self.meson = self.pyproj.meson

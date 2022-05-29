@@ -20,11 +20,108 @@ class ValidationError( ValueError ):
   msg : str
     Error message
   """
-  def __init__( self, msg ):
+  def __init__( self, msg,
+    doc_root = None,
+    doc_file = None,
+    doc_path = None ):
 
     msg = inspect.cleandoc( msg )
 
+    self.msg = msg
+    self.doc_root = doc_root
+    self.doc_file = doc_file
+    self.doc_path = doc_path or list()
+
     super().__init__( msg )
+
+  #-----------------------------------------------------------------------------
+  def __str__(self):
+
+    parts = list()
+    _path = ".".join(self.doc_path)
+
+    if _path:
+      parts.append( f"at `{_path}`" )
+
+    if self.doc_file:
+      parts.append(f"in file \"{self.doc_file}\"")
+
+    if self.doc_root:
+      lc = get_line_col(self.doc_root, self.doc_path)
+
+      if lc:
+        line, col = lc
+        parts.append(f"line {line}")
+        parts.append(f"col {col}" )
+
+    return self.msg + "\n" + " ".join(parts)
+
+  #-----------------------------------------------------------------------------
+  def __repr__(self):
+    return str(self)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class validating:
+  #-----------------------------------------------------------------------------
+  def __init__(self, key = None, root = None, file = None):
+    self.key = key
+    self.root = root
+    self.file = file
+
+  #-----------------------------------------------------------------------------
+  def __enter__(self):
+    return self
+
+  #-----------------------------------------------------------------------------
+  def __exit__(self, type, value, traceback):
+    if type is not None:
+      if issubclass(type, ValidationError):
+        value.doc_root = value.doc_root or self.root
+        value.doc_file = value.doc_file or self.file
+
+        if self.key:
+          value.doc_path.insert(0, self.key)
+
+      else:
+        raise ValidationError(
+          f"Error while validating",
+          doc_root = self.root,
+          doc_file = self.file,
+          doc_path = [self.key]) from value
+
+    # do not handle any exceptions here
+    return False
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def get_line_col(obj, path):
+
+  # key = None
+  #
+  # if len(path):
+  #   key = path[0]
+  #   path = path[1:]
+  #
+  # if len(path):
+  #   lc = get_line_col(obj[key], path)
+  #
+  #   if lc:
+  #     return lc
+  #
+  # if isinstance( obj, CommentedBase ):
+  #   # NOTE: ruamel appears to store line/col in zero-based indexing
+  #   if (
+  #     key is None
+  #     or not ( isinstance(obj, CommentedMap) or isinstance(obj, CommentedSeq) )
+  #     or obj.lc.data is None
+  #     or (isinstance(obj, CommentedMap) and key not in obj)
+  #     or (isinstance(obj, CommentedSeq) and ( key < 0 or key >= len(obj) ) ) ):
+  #
+  #     return ( obj.lc.line + 1, obj.lc.col + 1 )
+  #
+  #   else:
+  #     return ( obj.lc.data[key][0] + 1, obj.lc.data[key][1] + 1 )
+
+  return None
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Special:
@@ -170,7 +267,6 @@ class Validator:
 
   #-----------------------------------------------------------------------------
   def __call__(self, val):
-    print(str(self))
     return validate(val, self._default, self._validators)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -223,7 +319,6 @@ def restrict(*options):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def valid_type(
-  name,
   obj,
   types ):
 
@@ -232,11 +327,10 @@ def valid_type(
       return t
 
   raise ValidationError(
-    f"{name} must be of type {types}: {type(obj)}" )
+    f"Must be of type {types}: {type(obj)}" )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def valid_keys(
-  name,
   obj,
   key_valid = None,
   value_valid = None,
@@ -253,8 +347,6 @@ def valid_keys(
 
   Parameters
   ----------
-  name : str
-    Name of the validation
   obj: Mapping
     Mapping object to validate
   key_valid: None | callable
@@ -286,41 +378,31 @@ def valid_keys(
 
   if not isinstance( obj, Mapping ):
     raise ValidationError(
-      f"{name} must be mapping: {type(obj)}" )
+      f"must be mapping: {type(obj)}" )
 
   if forbid_keys:
     for k in forbid_keys:
       if k in obj:
-        raise ValidationError(f"Use of {name} key '{k}' is not allowed")
+        raise ValidationError(f"Use of key '{k}' is not allowed")
 
   if deprecate_keys:
     for k_old, k_new in deprecate_keys:
       if k_old in obj:
         if k_new:
           if k_new is required:
-            raise ValidationError(f"Use of {name} key '{k_old}' is deprecated")
+            raise ValidationError(f"Use of key '{k_old}' is deprecated")
           else:
-            warnings.warn(f"Use of {name} key '{k_old}' is deprecated, replaced by '{k_new}'")
+            warnings.warn(f"Use of key '{k_old}' is deprecated, replaced by '{k_new}'")
 
           if k_new not in obj:
             obj[k_new] = obj[k_old]
 
         else:
-          warnings.warn(f"Use of {name} key '{k_old}' is deprecated")
+          warnings.warn(f"Use of key '{k_old}' is deprecated")
 
         obj.pop(k_old)
 
-  if default:
-    for k, v in default.items():
-      if not isinstance(v, Validator):
-        v = valid(v)
-
-      val = v( obj.get(k, None) )
-
-      if val is not None:
-        obj[k] = val
-
-  if allow_keys:
+  if allow_keys is not None:
     allow_keys.extend( require_keys or [] )
     allow_keys.extend( [k_new for k_old, k_new in deprecate_keys] if deprecate_keys else [] )
     allow_keys.extend( default.keys() if default else [] )
@@ -340,31 +422,42 @@ def valid_keys(
     for k in obj.keys():
       if k not in allow_keys:
         raise ValidationError(
-          f"{name} allowed keys {allow_keys}: '{k}'" )
+          f"Allowed keys {allow_keys}: '{k}'" )
+
+  if default:
+    for k, v in default.items():
+      if not isinstance(v, Validator):
+        v = valid(v)
+
+      with validating(key = k):
+        val = v( obj.get(k, None) )
+
+      if val is not None:
+        obj[k] = val
 
   if require_keys:
     for k in require_keys:
       if k not in obj:
         raise ValidationError(
-          f"{name} required keys {require_keys}: '{k}'" )
+          f"Required keys {require_keys}: '{k}'" )
 
   if min_keys:
     for keys in min_keys:
       if not any(k in obj for k in keys):
         raise ValidationError(
-          f"{name} must have at least one of keys: {keys}" )
+          f"Must have at least one of keys: {keys}" )
 
   if wedge_keys:
     for keys in wedge_keys:
       if any(k in obj for k in keys) and not all(k in obj for k in keys):
         raise ValidationError(
-          f"{name} must have either all, or none, of keys: {keys}" )
+          f"Must have either all, or none, of keys: {keys}" )
 
   if mutex_keys:
     for keys in mutex_keys:
       if sum(k in obj for k in keys) > 1:
         raise ValidationError(
-          f"{name} may not have more than one of keys: {keys}" )
+          f"May not have more than one of keys: {keys}" )
 
 
   if key_valid:
@@ -395,7 +488,7 @@ def valid_keys(
   return obj
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class validating:
+class validating_block:
   def __init__(self, obj):
     self._obj = obj
 
@@ -437,7 +530,6 @@ class valid_dict(Mapping):
   * :func:`valid_keys`
   """
 
-  _name = ''
   _proxy_key = None
   _value_valid = None
   _item_valid = None
@@ -609,7 +701,7 @@ class valid_dict(Mapping):
         super().__getattribute__(name)
 
         if name in self._p_key_attr:
-          warnings.warn(f"{self._name} attribute shadows mapping key: {name}")
+          warnings.warn(f"'{type(self).__name__}' attribute shadows mapping key: {name}")
 
       object.__setattr__( self, name, val )
 
@@ -633,7 +725,7 @@ class valid_dict(Mapping):
       val = super().__getattribute__(name)
 
       if name != '_p_dict' and name != '_p_key_attr' and name in self._p_key_attr:
-        warnings.warn(f"{self._name} attribute shadows mapping key: {name}")
+        warnings.warn(f"'{type(self).__name__}' attribute shadows mapping key: {name}")
 
       return val
 
@@ -651,9 +743,8 @@ class valid_dict(Mapping):
     if self._validating:
       return
 
-    with validating(self):
+    with validating_block(self):
       self.update( **self._validator( valid_keys(
-        self._name,
         self._p_dict,
         key_valid = self._key_valid,
         value_valid = self._value_valid,
@@ -671,7 +762,7 @@ class valid_dict(Mapping):
 class valid_list(list):
   """Validated list
   """
-  _name = ''
+
   _value_valid = None
 
   #---------------------------------------------------------------------------#
@@ -680,7 +771,10 @@ class valid_list(list):
     self._value_valid = valid(self._value_valid)
 
     vals = vals or list()
-    vals = [ self._value_valid(v) for v in vals ]
+    for i,v in enumerate(vals):
+      with validating(key = i):
+        vals[i] = self._value_valid(v)
+
     super().__init__(vals)
 
   #-----------------------------------------------------------------------------
@@ -689,17 +783,26 @@ class valid_list(list):
 
   #---------------------------------------------------------------------------#
   def append(self, val ):
-    val = self._value_valid(val)
+    with validating(key = len(self)):
+      val = self._value_valid(val)
+
     super().append(val)
 
   #---------------------------------------------------------------------------#
   def extend(self, vals ):
-    vals = [ self._value_valid(v) for v in vals ]
+    vals = list(vals)
+
+    for i,v in enumerate(vals):
+      with validating(key = len(self) + i):
+        vals[i] = self._value_valid(v)
+
     super().extend(vals)
 
   #-----------------------------------------------------------------------------
   def __setitem__( self, key, val ):
-    val = self._value_valid(val)
+    with validating(key = key):
+      val = self._value_valid(val)
+
     super().__setitem__(key, val)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
