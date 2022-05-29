@@ -11,15 +11,13 @@ from collections.abc import (
   Sequence )
 
 from . import (
+  valid_keys,
+  mapget,
+  dist_build,
   PkgInfoReq,
   PyProjBase,
   dist_binary_wheel,
   dist_source_targz )
-
-from .norms import (
-  valid_keys,
-  mapget,
-  dist_build )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class UnsupportedOperation( Exception ):

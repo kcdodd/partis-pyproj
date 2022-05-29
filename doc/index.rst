@@ -15,8 +15,12 @@ Package Reference
   :maxdepth: 2
 
   src/backend
+  src/pptoml
   src/pkginfo
   src/pyproj
   src/dist_file
+  src/validate
   src/norms
+  src/pep
+
   ../README

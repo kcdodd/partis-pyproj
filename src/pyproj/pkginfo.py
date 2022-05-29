@@ -43,6 +43,8 @@ from .pep import (
   norm_entry_point_name,
   norm_entry_point_ref )
 
+from .pptoml import project as pptoml_project
+
 import configparser
 
 from packaging.requirements import Requirement
@@ -166,102 +168,54 @@ class PkgInfo:
     * https://packaging.python.org/en/latest/specifications/core-metadata/
     """
 
-    valid_keys(
-      name = 'project',
-      obj = project,
-      require_keys = [
-        'name',
-        'version' ],
-      allow_keys = [
-        'description',
-        'readme',
-        'authors',
-        'maintainers',
-        'license',
-        'dynamic',
-        'requires-python',
-        'dependencies',
-        'optional-dependencies',
-        'keywords',
-        'classifiers',
-        'urls',
-        'scripts',
-        'gui-scripts',
-        'entry-points' ] )
+    if not isinstance(project, pptoml_project):
+      project = pptoml_project(project)
 
-    self.name = valid_dist_name( project.get('name') )
+    self.name = project.name
     self.name_normed = norm_dist_name( self.name )
-    self.version = norm_dist_version( project.get('version') )
-    self.description = project.get( 'description', None )
-    self.readme = project.get( 'readme', None )
-    self.license = project.get( 'license', None )
-    self.dynamic = project.get( 'dynamic', list() )
+    self.version = project.version
+    self.description = project.description
+    self.readme = project.readme
+    self.license = project.license
+    self.dynamic = project.dynamic
 
-    self.requires_python = SpecifierSet(
-      norm_printable( project.get( 'requires-python', '' ) ) )
+    if self.dynamic:
+      raise ValidationError(
+        f"All dynamic meta-data must be resolved: {self.dynamic}")
+
+    self.requires_python = SpecifierSet( project.requires_python )
 
     self.dependencies = set([ PkgInfoReq( req = d )
-      for d in project.get( 'dependencies', list() ) ])
+      for d in project.dependencies ])
 
     self.optional_dependencies = {
-      norm_dist_extra(extra) : set([
+      extra : set([
         PkgInfoReq( req = d, extra = extra )
         for d in deps ])
-      for extra, deps in project.get( 'optional-dependencies', dict() ).items() }
+      for extra, deps in project.optional_dependencies.items() }
 
-    self.keywords = set([
-      norm_dist_keyword(k)
-      for k in project.get( 'keywords', list() ) ])
+    self.keywords = set(project.keywords)
 
-    self.classifiers = set([ norm_dist_classifier(c)
-      for c in project.get( 'classifiers', list() ) ])
+    self.classifiers = set(project.classifiers)
 
     self.urls = set([
       PkgInfoURL( label = k, url = v )
-      for k,v in project.get( 'urls', dict() ).items() ])
+      for k,v in project.urls.items() ])
 
     self.authors = set([ PkgInfoAuthor(**kw)
-      for kw in project.get( 'authors', list() ) ])
+      for kw in project.authors ])
 
     self.maintainers = set([ PkgInfoAuthor(**kw)
-      for kw in project.get( 'maintainers', list() ) ])
+      for kw in project.maintainers ])
 
-    self.entry_points = dict()
+    self.entry_points = project.entry_points
 
     # TODO: validate/normalize entrypoints
-    if 'scripts' in project:
-      self.entry_points['console_scripts'] = {
-        norm_entry_point_name(k) : norm_entry_point_ref(v)
-        for k,v in project.get('scripts').items() }
+    if project.scripts:
+      self.entry_points['console_scripts'] = project.scripts
 
-    if 'gui-scripts' in project:
-      self.entry_points['gui_scripts'] = {
-        norm_entry_point_name(k) : norm_entry_point_ref(v)
-        for k,v in project.get('gui-scripts').items() }
-
-    if 'entry-points' in project:
-
-      for k, v in project.get('entry-points').items():
-        k = norm_entry_point_group(k)
-
-        # PEP 621
-        # > Build back-ends MUST raise an error if the metadata defines a
-        # > [project.entry-points.console_scripts] or [project.entry-points.gui_scripts]
-        # > table, as they would be ambiguous in the face of [project.scripts]
-        # > and [project.gui-scripts], respectively.
-        if k in [ 'scripts', 'console_scripts' ]:
-          raise ValidationError(
-            f"""'console_scripts' should be defined in [project.scripts] instead
-            of [project.entry-points]""")
-
-        if k in [ 'gui-scripts', 'gui_scripts' ]:
-          raise ValidationError(
-            f"""'gui_scripts' should be defined in [project.gui-scripts] instead
-            of [project.entry-points]""")
-
-        self.entry_points[k] = {
-          norm_entry_point_name(_k) : norm_entry_point_ref(_v)
-          for _k, _v in v.items() }
+    if project.gui_scripts:
+      self.entry_points['gui_scripts'] = project.gui_scripts
 
     #...........................................................................
     # > PEP 621
@@ -277,60 +231,30 @@ class PkgInfo:
     self._desc = ''
     self._desc_type = 'text/plain'
 
-    readme_file = None
+    if 'file' in self.readme:
 
-    if self.readme:
+      if not root:
+        raise ValidationError(
+          f"'root' must be given to resolve a 'readme.file' path")
 
-      typ = valid_type(
-        name = 'project.readme',
-        obj = self.readme,
-        types = [ str, Mapping ] )
+      readme_file = osp.join( root, self.readme.file )
 
-      if typ is str:
-        # a string at top-level interpreted as a path to the readme file
-        if not root:
-          raise ValidationError(
-            f"'root' must be given to resolve 'readme' file path")
+      if readme_file.lower().endswith('.rst'):
+        self._desc_type = 'text/x-rst'
 
-        readme_file = osp.join( root, self.readme )
+      elif readme_file.lower().endswith('.md'):
+        self._desc_type = 'text/markdown'
 
-      else:
-        valid_keys(
-          name = 'project.readme',
-          obj = self.readme,
-          allow_keys = [
-            'file',
-            'text' ],
-          mutex_keys = [
-            ('file', 'text')] )
+      if not osp.exists(readme_file):
+        raise ValidationError(
+          f"'readme' file not found: {readme_file}")
 
-        if 'file' in self.readme:
+      with open( readme_file, 'rb' ) as fp:
+        self._desc = norm_printable(
+          fp.read().decode('utf-8', errors = 'replace') )
 
-          if not root:
-            raise ValidationError(
-              f"'root' must be given to resolve a 'readme.file' path")
-
-          readme_file = osp.join( root, self.readme['file'] )
-
-        else:
-          # NOTE: only 'file' and 'text' are allowed keys, so a non-empty dict
-          # without 'file' must have 'text'
-          self._desc = norm_printable( self.readme['text'] )
-
-
-      if readme_file:
-        if readme_file.lower().endswith('.rst'):
-          self._desc_type = 'text/x-rst'
-
-        elif readme_file.lower().endswith('.md'):
-          self._desc_type = 'text/markdown'
-
-        if not osp.exists(readme_file):
-          raise ValidationError(
-            f"'readme' file not found: {readme_file}")
-
-        with open( readme_file, 'r' ) as fp:
-          self._desc = norm_printable( fp.read() )
+    elif 'text' in self.readme:
+      self._desc = self.readme.text
 
     #...........................................................................
     # https://www.python.org/dev/peps/pep-0621/#license
@@ -376,7 +300,7 @@ class PkgInfo:
         # It is not clear if this is now deprecated, or if any tools actually
         # expect this to be set
 
-        self.license_file = self.license['file']
+        self.license_file = self.license.file
 
         license_file = osp.join( root, self.license_file )
 
@@ -384,12 +308,12 @@ class PkgInfo:
           raise ValidationError(
             f"'license' file not found: {license_file}")
 
-        with open( license_file, 'r' ) as fp:
-          self.license_file_content = norm_printable( fp.read() ).encode('utf-8')
+        with open( license_file, 'rb' ) as fp:
+          self.license_file_content = norm_printable(
+            fp.read().decode('utf-8', errors = 'replace') ).encode('utf-8')
 
       if 'text' in self.license:
-
-        self._license = norm_printable( self.license['text'] )
+        self._license = norm_printable( self.license.text )
 
   #-----------------------------------------------------------------------------
   def add_dependencies( self, deps ):

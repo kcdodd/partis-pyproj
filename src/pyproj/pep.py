@@ -254,41 +254,7 @@ def norm_dist_author(
   * https://www.python.org/dev/peps/pep-0621/#authors-maintainers
   """
 
-  name = norm_printable( name )
-  email = norm_printable( email )
-
-  if not ( name or email ):
-    return '', ''
-
-  # ensure that at least that the standard Python library can understand the
-  # "name" <email> combination
-  _name, _email = parseaddr( formataddr( (name, email) ) )
-
-  #.............................................................................
-  if _name != name:
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The name value MUST be a valid email name, and not contain commas",
-      val = name )
-
-  if not pep621_author_name.fullmatch(name):
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The name value MUST be a valid email name, and not contain commas",
-      val = name )
-
-  #.............................................................................
-  if _email != email:
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The email value MUST be a valid email address",
-      val = email )
-
-  if not pep621_author_email.fullmatch(email):
-    raise PEPValidationError(
-      pep = 621,
-      msg = "The email value MUST be a valid email address",
-      val = email )
+  val = norm_dist_author_dict(dict(name = name, email = email))
 
   #.............................................................................
   # > If both email and name are provided, the value goes in
@@ -305,17 +271,48 @@ def norm_dist_author(
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_author_dict(val):
-  name, email = norm_dist_author(**val)
 
-  _val = dict()
+  name = norm_printable( val.get('name', '') )
+  email = norm_printable( val.get('email', '') )
 
-  if name:
-    _val['name'] = name
+  _name = name or "Placeholder Name"
+  _email = email or "place@holder.com"
 
-  if email:
-    _val['email'] = email
+  # ensure that at least that the standard Python library can understand the
+  # "name" <email> combination
+  _name, _email = parseaddr( formataddr( (_name, _email) ) )
 
-  return _val
+  #.............................................................................
+  if name and _name != name:
+    raise PEPValidationError(
+      pep = 621,
+      msg = "The name value MUST be a valid email name, and not contain commas",
+      val = name )
+
+  if not pep621_author_name.fullmatch(name):
+    raise PEPValidationError(
+      pep = 621,
+      msg = "The name value MUST be a valid email name, and not contain commas",
+      val = name )
+
+  #.............................................................................
+  if email and _email != email:
+    raise PEPValidationError(
+      pep = 621,
+      msg = "The email value MUST be a valid email address",
+      val = email )
+
+  if not pep621_author_email.fullmatch(email):
+    raise PEPValidationError(
+      pep = 621,
+      msg = "The email value MUST be a valid email address",
+      val = email )
+
+  val = {
+    'name': name,
+    'email': email }
+
+  return val
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_dist_classifier( classifier ):

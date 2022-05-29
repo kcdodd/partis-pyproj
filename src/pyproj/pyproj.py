@@ -35,7 +35,9 @@ from .validate import (
 
 from .norms import (
   norm_path_to_os,
-  norm_path,
+  norm_path )
+
+from .pep import (
   CompatibilityTags,
   purelib_compat_tags,
   platlib_compat_tags )
@@ -460,7 +462,7 @@ class PyProjBase:
       src = incl.src
       dst = incl.dst
 
-      if 'glob' in incl:
+      if incl.glob:
         _glob = osp.join(src, incl.glob)
 
         for _src in glob.iglob(_glob, recursive = True):

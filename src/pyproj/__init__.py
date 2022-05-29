@@ -1,13 +1,25 @@
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-from .norms import (
-  CompatibilityTags,
+from .validate import (
   ValidationError,
-  PEPValidationError,
   valid_type,
   valid_keys,
   mapget,
-  as_list,
+  as_list )
+
+from .norms import (
+  norm_path,
+  norm_path_to_os,
+  norm_mode,
+  norm_zip_external_attr,
+  norm_data,
+  b64_nopad,
+  hash_sha256,
+  email_encode_items )
+
+from .pep import (
+  CompatibilityTags,
+  PEPValidationError,
   norm_printable,
   valid_dist_name,
   norm_dist_name,
@@ -20,21 +32,14 @@ from .norms import (
   norm_dist_url,
   norm_dist_extra,
   norm_dist_build,
+  dist_build,
   norm_dist_compat,
   join_dist_compat,
   compress_dist_compat,
-  norm_data,
   norm_py_identifier,
   norm_entry_point_group,
   norm_entry_point_name,
-  norm_entry_point_ref,
-  norm_path,
-  norm_path_to_os,
-  norm_mode,
-  norm_zip_external_attr,
-  b64_nopad,
-  hash_sha256,
-  email_encode_items )
+  norm_entry_point_ref )
 
 from .dist_file import (
   dist_base,

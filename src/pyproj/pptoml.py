@@ -16,6 +16,7 @@ from .norms import (
   nonempty_str,
   str_list,
   nonempty_str_list,
+  norm_bool,
   norm_path,
   norm_path_to_os )
 
@@ -34,81 +35,91 @@ from .pep import (
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class readme(valid_dict):
-  name = 'project.readme'
-  proxy_key = 'file'
-  min_keys = [
+  _name = 'project.readme'
+  # a string at top-level interpreted as a path to the readme file
+  _proxy_key = 'file'
+  # _min_keys = [
+  #   ('file', 'text')]
+  _mutex_keys = [
     ('file', 'text')]
-  mutex_keys = [
-    ('file', 'text')]
-  default = {
-    'file': valid(optional, norm_path, norm_path_to_os),
-    'text': valid(optional, norm_printable) }
+  _default = {
+    'file': valid(optional, nonempty_str, norm_path, norm_path_to_os),
+    'text': valid(optional, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class license(valid_dict):
-  name = 'project.license'
-  min_keys = [
-    ('file', 'text')]
-  default = {
-    'file': valid(optional, norm_path, norm_path_to_os),
-    'text': valid(optional, norm_printable) }
+  _name = 'project.license'
+  # _min_keys = [
+  #   ('file', 'text')]
+  _default = {
+    'file': valid(optional, nonempty_str, norm_path, norm_path_to_os),
+    'text': valid(optional, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class author(valid_dict):
-  name = 'project.authors'
-  min_keys = [
+  _name = 'project.authors'
+  _validator = valid(norm_dist_author_dict)
+  _min_keys = [
     ('name', 'email')]
-  validator = norm_dist_author_dict
+  _default = {
+    'name': valid(str),
+    'email': valid(str) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class authors(valid_list):
-  name = 'project.authors'
-  value_valid = author
+  _name = 'project.authors'
+  _value_valid = valid(author)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class maintainer(author):
-  name = 'project.maintainers'
+  _name = 'project.maintainers'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class maintainers(valid_list):
-  name = 'project.maintainers'
-  value_valid = maintainer
+  _name = 'project.maintainers'
+  _value_valid = valid(maintainer)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class dependencies(valid_list):
-  name = 'project.dependencies'
-  value_valid = valid(norm_printable, Requirement, str)
+  _name = 'project.dependencies'
+  _value_valid = valid(norm_printable, Requirement, str)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class optional_dependency_group(dependencies):
-  name = 'project.optional-dependencies'
+  _name = 'project.optional-dependencies'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class optional_dependencies(valid_dict):
-  name = 'project.optional-dependencies'
-  key_valid = norm_dist_extra
-  value_valid = optional_dependency_group
+  _name = 'project.optional-dependencies'
+  _key_valid = valid(norm_dist_extra)
+  _value_valid = valid(optional_dependency_group)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class entry_point_group(valid_dict):
-  name = 'project.entry-points'
-  key_valid = norm_entry_point_name
-  value_valid = norm_entry_point_ref
+  _name = 'project.entry-points'
+  _key_valid = valid(norm_entry_point_name)
+  _value_valid = valid(norm_entry_point_ref)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class scripts(entry_point_group):
-  name = 'project.scripts'
+  _name = 'project.scripts'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class gui_scripts(entry_point_group):
-  name = 'project.gui-scripts'
+  _name = 'project.gui-scripts'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class entry_points(valid_dict):
-  name = 'project.entry-points'
-  key_valid = norm_entry_point_group
-  value_valid = entry_point_group
-  forbid_keys = [
+  _name = 'project.entry-points'
+  _key_valid = valid(norm_entry_point_group)
+  _value_valid = valid(entry_point_group)
+
+  # PEP 621
+  # > Build back-ends MUST raise an error if the metadata defines a
+  # > [project.entry-points.console_scripts] or [project.entry-points.gui_scripts]
+  # > table, as they would be ambiguous in the face of [project.scripts]
+  # > and [project.gui-scripts], respectively.
+  _forbid_keys = [
     'scripts',
     'console_scripts',
     'gui-scripts',
@@ -116,42 +127,42 @@ class entry_points(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class keywords(valid_list):
-  name = 'project.keywords'
-  value_valid = norm_dist_keyword
+  _name = 'project.keywords'
+  _value_valid = valid(norm_dist_keyword)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class classifiers(valid_list):
-  name = 'project.classifiers'
-  value_valid = norm_dist_classifier
+  _name = 'project.classifiers'
+  _value_valid = valid(norm_dist_classifier)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class urls(valid_dict):
-  name = 'project.urls'
-  item_valid = norm_dist_url
+  _name = 'project.urls'
+  _item_valid = valid(norm_dist_url)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class project(valid_dict):
-  name = 'project'
-  require_keys = [
+  _name = 'project'
+  _require_keys = [
     'name']
-  default = {
+  _default = {
     'dynamic': nonempty_str_list,
     'name': valid_dist_name,
-    'version': valid(optional, norm_dist_version),
-    'description': valid(optional, norm_printable),
-    'readme': valid(optional, readme),
-    'license': valid(optional, license),
-    'authors': valid(optional, authors),
-    'maintainers': valid(optional, maintainers),
-    'keywords': valid(optional, keywords),
-    'classifiers': valid(optional, classifiers),
-    'urls': valid(optional, urls),
-    'requires-python': valid(optional, norm_printable, SpecifierSet, str),
-    'dependencies': valid(optional, dependencies),
-    'optional-dependencies': valid(optional, optional_dependencies),
-    'scripts': valid(optional, scripts),
-    'gui-scripts': valid(optional, gui_scripts),
-    'entry-points': valid(optional, entry_points) }
+    'version': valid(str, norm_dist_version),
+    'description': valid(str, norm_printable),
+    'readme': valid(readme),
+    'license': valid(license),
+    'authors': valid(authors),
+    'maintainers': valid(maintainers),
+    'keywords': valid(keywords),
+    'classifiers': valid(classifiers),
+    'urls': valid(urls),
+    'requires-python': valid(str, norm_printable, SpecifierSet, str),
+    'dependencies': valid(dependencies),
+    'optional-dependencies': valid(optional_dependencies),
+    'scripts': valid(scripts),
+    'gui-scripts': valid(gui_scripts),
+    'entry-points': valid(entry_points) }
 
   #-----------------------------------------------------------------------------
   def __init__(self, *args, **kwargs):
@@ -161,53 +172,53 @@ class project(valid_dict):
       if k == 'name':
         raise ValidationError(f"project.dynamic may not contain 'name'")
 
-      if k not in self._all_keys:
-        keys = list(self.default.keys())
+      if k not in self._p_all_keys:
+        keys = list(self._default.keys())
         raise ValidationError(f"project.dynamic may only contain {keys}: {k}")
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_requires(dependencies):
-  name = 'build-system.requires'
+  _name = 'build-system.requires'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class path_parts(valid_list):
-  value_valid = nonempty_str
+  _value_valid = valid(nonempty_str)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_system(valid_dict):
-  name = 'build-system'
-  require_keys = [
+  _name = 'build-system'
+  _require_keys = [
     'build-backend']
-  default = {
+  _default = {
     'requires': build_requires,
     'build-backend': norm_entry_point_ref,
     'backend-path': valid(optional, path_parts) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_prep(valid_dict):
-  name = 'tool.pyproj.prep'
-  require_keys = [
+  _name = 'tool.pyproj.prep'
+  _require_keys = [
     'entry' ]
-  default = {
+  _default = {
     'entry': norm_entry_point_ref,
     'kwargs': dict }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_prep(pyproj_prep):
-  name = 'tool.pyproj.dist.prep'
+  _name = 'tool.pyproj.dist.prep'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_source_prep(pyproj_prep):
-  name = 'tool.pyproj.dist.source.prep'
+  _name = 'tool.pyproj.dist.source.prep'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_binary_prep(pyproj_prep):
-  name = 'tool.pyproj.dist.binary.prep'
+  _name = 'tool.pyproj.dist.binary.prep'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_meson(valid_dict):
-  name = 'tool.pyproj.meson'
-  default = {
+  _name = 'tool.pyproj.meson'
+  _default = {
     'compile': valid(False, norm_bool),
     'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
     'build_dir': valid('build', nonempty_str, norm_path, norm_path_to_os),
@@ -220,38 +231,38 @@ class pyproj_meson(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy(valid_dict):
-  name = 'tool.pyproj.dist.copy'
-  proxy_key = 'src'
-  min_keys = [
-    ('src', 'glob') ],
-  default = {
+  _name = 'tool.pyproj.dist.copy'
+  _proxy_key = 'src'
+  _min_keys = [
+    ('src', 'glob') ]
+  _default = {
     'src': valid('', union(empty_str, valid(norm_path, norm_path_to_os))),
     'dst': valid(optional, union(empty_str, valid(norm_path, norm_path_to_os))),
-    # TODO; now to normalize patterns?
+    # TODO; how to normalize patterns?
     'glob': str,
     'ignore': str_list }
 
   #---------------------------------------------------------------------------#
   def __init__( self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    self.setdefault('dst', self['src']))
+    self.setdefault('dst', self['src'])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy_list(valid_list):
-  name = 'tool.pyproj.dist.copy'
-  value_valid = pyproj_dist_copy
+  _name = 'tool.pyproj.dist.copy'
+  _value_valid = valid(pyproj_dist_copy)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_scheme(valid_dict):
-  name = 'tool.pyproj.dist.binary'
-  default = {
+  _name = 'tool.pyproj.dist.binary'
+  _default = {
     'ignore': nonempty_str_list,
     'copy': pyproj_dist_copy_list }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_binary(valid_dict):
-  name = 'tool.pyproj.dist.binary'
-  default = {
+  _name = 'tool.pyproj.dist.binary'
+  _default = {
     'prep': valid(optional, pyproj_dist_binary_prep),
     'ignore': nonempty_str_list,
     'copy': pyproj_dist_copy_list,
@@ -263,8 +274,8 @@ class pyproj_dist_binary(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_source(valid_dict):
-  name = 'tool.pyproj.dist.source'
-  default = {
+  _name = 'tool.pyproj.dist.source'
+  _default = {
     'prep': valid(optional, pyproj_dist_source_prep),
     'ignore': nonempty_str_list,
     'copy': pyproj_dist_copy_list,
@@ -272,8 +283,8 @@ class pyproj_dist_source(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist(valid_dict):
-  name = 'tool.pyproj.dist'
-  default = {
+  _name = 'tool.pyproj.dist'
+  _default = {
     'prep': valid(optional, pyproj_dist_prep),
     'ignore': nonempty_str_list,
     'source': pyproj_dist_source,
@@ -281,14 +292,14 @@ class pyproj_dist(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_config(valid_dict):
-  name = 'tool.pyproj.config'
-  value_valid = union(bool, int, float, nonempty_str)
-  key_valid = norm_dist_extra
+  _name = 'tool.pyproj.config'
+  _value_valid = union(bool, int, float, nonempty_str)
+  _key_valid = valid(norm_dist_extra)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj(valid_dict):
-  name = 'tool.pyproj'
-  default = {
+  _name = 'tool.pyproj'
+  _default = {
     'config': pyproj_config,
     'prep': valid(optional, pyproj_prep),
     'dist': pyproj_dist,
@@ -296,19 +307,19 @@ class pyproj(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class tool(valid_dict):
-  name = 'tool'
-  require_keys = ['pyproj']
-  default = {
+  _name = 'tool'
+  _require_keys = ['pyproj']
+  _default = {
     'pyproj': pyproj }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pptoml(valid_dict):
-  name = 'pyproject.toml'
-  require_keys = [
+  _name = 'pyproject.toml'
+  _require_keys = [
     'project',
     'tool',
     'build-system']
-  default = {
-    'project': project,
-    'tool': tool,
-    'build-system': build_system }
+  _default = {
+    'project': valid(required, project),
+    'tool': valid(required, tool),
+    'build-system': valid(required, build_system) }

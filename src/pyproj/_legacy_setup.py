@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def egg_info( args ):
 
-  logger.warn(
+  logger.warning(
     "running legacy 'setup.py egg_info'" )
 
   dir = osp.join( args.egg_base, EGG_INFO_NAME )
@@ -49,7 +49,7 @@ def egg_info( args ):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def bdist_wheel( args ):
 
-  logger.warn(
+  logger.warning(
     "running legacy 'setup.py bdist_wheel'" )
 
   sys.path = backend_path + sys.path
@@ -62,7 +62,7 @@ def bdist_wheel( args ):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def install( args ):
 
-  logger.warn(
+  logger.warning(
     "running legacy 'setup.py install'" )
 
   reqs = [ f"{{r}}" for r in build_requires ]
@@ -102,7 +102,7 @@ def main():
     style = "{{" )
 
 
-  logger.warn(
+  logger.warning(
     "'setup.py' is deprecated, limited support for legacy installs. Upgrade pip." )
 
   parser = argparse.ArgumentParser(
