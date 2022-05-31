@@ -49,8 +49,7 @@ from .load_module import (
 from .legacy import legacy_setup_content
 
 from .pptoml import (
-  pptoml,
-  build )
+  pptoml )
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -86,14 +85,10 @@ class PyProjBase:
       self._pptoml = tomli.loads( src )
 
     with validating(root = self._pptoml, file = self.pptoml_file):
-      self.pptoml = pptoml(self._pptoml)
+      self._pptoml = pptoml(self._pptoml)
 
-    self.pyproj = self.pptoml.tool.pyproj
-    self.config = self.pyproj.config
-    self.meson = self.pyproj.meson
-    self.dist = self.pyproj.dist
-    self.add_legacy_setup = self.dist.source.add_legacy_setup
-    self.is_platlib = bool(self.dist.binary.platlib.copy)
+    if config_settings:
+      self.pyproj.config.update(config_settings)
 
     #...........................................................................
     self.build_backend = mapget( self.pptoml,
@@ -110,7 +105,7 @@ class PyProjBase:
       PkgInfoReq(r)
       for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
 
-    if self.meson['compile']:
+    if self.pyproj.meson['compile']:
       try:
         metadata('meson')
       except:
@@ -118,17 +113,15 @@ class PyProjBase:
 
         self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
 
-    #...........................................................................
-    self.project = self.pptoml.project
 
     #...........................................................................
     # used to create name for binary distribution
-    self.build = build()
+    self.is_platlib = bool(self.binary.platlib.copy)
 
     if self.is_platlib:
-      self.build.compat_tags = platlib_compat_tags()
+      self.binary.compat_tags = platlib_compat_tags()
     else:
-      self.build.compat_tags = purelib_compat_tags()
+      self.binary.compat_tags = purelib_compat_tags()
 
     #...........................................................................
     self.prep()
@@ -140,6 +133,51 @@ class PyProjBase:
 
     # Update logger once package info is created
     self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )
+
+  #-----------------------------------------------------------------------------
+  @property
+  def pptoml(self):
+    return self._pptoml
+
+  #-----------------------------------------------------------------------------
+  @property
+  def project(self):
+    return self._pptoml.project
+
+  #-----------------------------------------------------------------------------
+  @property
+  def pyproj(self):
+    return self._pptoml.tool.pyproj
+
+  #-----------------------------------------------------------------------------
+  @property
+  def config(self):
+    return self._pptoml.tool.pyproj.config
+
+  #-----------------------------------------------------------------------------
+  @property
+  def meson(self):
+    return self._pptoml.tool.pyproj.meson
+
+  #-----------------------------------------------------------------------------
+  @property
+  def dist(self):
+    return self._pptoml.tool.pyproj.dist
+
+  #-----------------------------------------------------------------------------
+  @property
+  def binary(self):
+    return self._pptoml.tool.pyproj.dist.binary
+
+  #-----------------------------------------------------------------------------
+  @property
+  def source(self):
+    return self._pptoml.tool.pyproj.dist.source
+
+  #-----------------------------------------------------------------------------
+  @property
+  def add_legacy_setup(self):
+    return self.dist.source.add_legacy_setup
 
   #-----------------------------------------------------------------------------
   def prep_entrypoint( self, name, obj, logger ):
@@ -223,93 +261,94 @@ class PyProjBase:
       for r in self.build_requires ])
 
   #-----------------------------------------------------------------------------
-  def meson_build( self ):
+  def meson_compile( self ):
 
     #...........................................................................
-    if self.meson.compile:
+    if not self.meson.compile:
+      return
 
-      # check paths
-      meson_paths = dict()
+    # check paths
+    meson_paths = dict()
 
-      for k in ['src_dir', 'build_dir', 'prefix']:
+    for k in ['src_dir', 'build_dir', 'prefix']:
 
-        rel_path = norm_path_to_os(self.meson[k])
+      rel_path = norm_path_to_os(self.meson[k])
 
-        if osp.isabs(rel_path):
-          raise ValidationError(f"tool.pyproj.meson.{k} must be relative to pyproject.toml: {rel_path}")
+      if osp.isabs(rel_path):
+        raise ValidationError(f"tool.pyproj.meson.{k} must be relative to pyproject.toml: {rel_path}")
 
-        abs_path = osp.realpath( osp.join(
-          self.root,
-          rel_path ) )
+      abs_path = osp.realpath( osp.join(
+        self.root,
+        rel_path ) )
 
-        if osp.commonprefix([self.root, abs_path]) != self.root:
-          raise ValidationError(f"tool.pyproj.meson.{k} must resolve to a project directory: {abs_path}")
+      if osp.commonprefix([self.root, abs_path]) != self.root:
+        raise ValidationError(f"tool.pyproj.meson.{k} must resolve to a project directory: {abs_path}")
 
-        meson_paths[k] = abs_path
-
-
-      for dir in [ meson_paths['build_dir'], meson_paths['prefix'] ]:
-        if not osp.exists(dir):
-          os.makedirs(dir)
-
-      meson_build_dir = tempfile.mkdtemp(
-        dir = meson_paths['build_dir'] )
-
-      meson_prefix = meson_paths['prefix']
-
-      self.logger.info(f"Running meson build")
-      self.logger.info(f"Meson build dir: {meson_build_dir}")
-      self.logger.info(f"Meson prefix: {meson_prefix}")
-
-      def meson_option_arg(k, v):
-        if isinstance(v, bool):
-          v = ({True: 'true', False: 'false'})[v]
-
-        return f'-D{k}={v}'
-
-      # TODO: ensure any paths in setup_args are normalized
-
-      setup_args = [
-        'meson',
-        'setup',
-        *self.meson.setup_args,
-        '--prefix',
-        meson_prefix,
-        *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
-        meson_build_dir,
-        meson_paths['src_dir'] ]
-
-      compile_args = [
-        'meson',
-        'compile',
-        *self.meson.compile_args,
-        '-C',
-        meson_build_dir ]
-
-      install_args = [
-        'meson',
-        'install',
-        *self.meson.install_args,
-        '--no-rebuild',
-        '-C',
-        meson_build_dir ]
+      meson_paths[k] = abs_path
 
 
-      self.logger.debug(' '.join(setup_args))
+    for dir in [ meson_paths['build_dir'], meson_paths['prefix'] ]:
+      if not osp.exists(dir):
+        os.makedirs(dir)
 
-      subprocess.check_call(setup_args)
+    meson_build_dir = tempfile.mkdtemp(
+      dir = meson_paths['build_dir'] )
 
-      self.logger.debug(' '.join(compile_args))
+    meson_prefix = meson_paths['prefix']
 
-      subprocess.check_call(compile_args)
+    self.logger.info(f"Running meson build")
+    self.logger.info(f"Meson build dir: {meson_build_dir}")
+    self.logger.info(f"Meson prefix: {meson_prefix}")
 
-      self.logger.debug(' '.join(install_args))
+    def meson_option_arg(k, v):
+      if isinstance(v, bool):
+        v = ({True: 'true', False: 'false'})[v]
 
-      subprocess.check_call(install_args)
+      return f'-D{k}={v}'
 
-      if self.meson.build_clean:
-        self.logger.info(f"Cleaning Meson build dir: {meson_build_dir}")
-        shutil.rmtree(meson_build_dir)
+    # TODO: ensure any paths in setup_args are normalized
+
+    setup_args = [
+      'meson',
+      'setup',
+      *self.meson.setup_args,
+      '--prefix',
+      meson_prefix,
+      *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
+      meson_build_dir,
+      meson_paths['src_dir'] ]
+
+    compile_args = [
+      'meson',
+      'compile',
+      *self.meson.compile_args,
+      '-C',
+      meson_build_dir ]
+
+    install_args = [
+      'meson',
+      'install',
+      *self.meson.install_args,
+      '--no-rebuild',
+      '-C',
+      meson_build_dir ]
+
+
+    self.logger.debug(' '.join(setup_args))
+
+    subprocess.check_call(setup_args)
+
+    self.logger.debug(' '.join(compile_args))
+
+    subprocess.check_call(compile_args)
+
+    self.logger.debug(' '.join(install_args))
+
+    subprocess.check_call(install_args)
+
+    if self.meson.build_clean:
+      self.logger.info(f"Cleaning Meson build dir: {meson_build_dir}")
+      shutil.rmtree(meson_build_dir)
 
   #-----------------------------------------------------------------------------
   def dist_prep( self ):
@@ -347,8 +386,8 @@ class PyProjBase:
     self.dist_copy(
       name = name,
       base_path = dist.named_dirs['root'],
-      include = self.dist.source.copy,
-      ignore = self.dist.ignore + self.dist.source.ignore,
+      include = self.source.copy,
+      ignore = self.dist.ignore + self.source.ignore,
       dist = dist )
 
     if self.add_legacy_setup:
@@ -360,17 +399,17 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
-    self.meson_build()
+    self.meson_compile()
 
     self.prep_entrypoint(
       name = f"tool.pyproj.dist.binary.prep",
-      obj = self.dist.binary,
+      obj = self.binary,
       logger = self.logger.getChild( f"dist.binary.prep" ) )
 
-    if not self.build.compat_tags:
-      raise ValidationError(f"At least one set of binary compatability tags is required: {self.build}")
+    if not self.binary.compat_tags:
+      raise ValidationError(f"At least one set of binary compatability tags is required: {self.binary}")
 
-    self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.build.compat_tags}")
+    self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.binary.compat_tags}")
 
   #-----------------------------------------------------------------------------
   def dist_binary_copy( self, *, dist ):
@@ -389,7 +428,7 @@ class PyProjBase:
     self.dist_copy(
       name = name,
       base_path = dist.named_dirs['root'],
-      include = self.dist.binary.copy,
+      include = self.binary.copy,
       ignore = ignore,
       dist = dist )
 
@@ -401,10 +440,10 @@ class PyProjBase:
       'platlib' ]
 
     for k in data_scheme:
-      if k in self.dist.binary:
+      if k in self.binary:
         name = f'tool.pyproj.dist.binary.{k}'
 
-        dist_data = self.dist.binary[k]
+        dist_data = self.binary[k]
 
         _include = dist_data.copy
         _ignore = ignore + dist_data.ignore

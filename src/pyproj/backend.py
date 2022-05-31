@@ -218,9 +218,9 @@ def build_wheel(
   with dist_binary_wheel(
     pkg_info = pyproj.pkg_info,
     build = dist_build(
-      pyproj.build.get('number', None),
-      pyproj.build.get('suffix', None) ),
-    compat = pyproj.build.compat_tags,
+      pyproj.binary.get('build_number', None),
+      pyproj.binary.get('build_suffix', None) ),
+    compat = pyproj.binary.compat_tags,
     outdir = wheel_directory,
     logger = pyproj.logger ) as dist:
 

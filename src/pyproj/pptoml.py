@@ -222,15 +222,7 @@ def compat_tag(v):
 class compat_tags(valid_list):
   _as_list = valid(as_list)
   _value_valid = valid(compat_tag)
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class build(valid_dict):
-  _allow_keys = list()
-  _default = {
-    'number': valid(optional, int),
-    'suffix': valid(optional, str),
-    'compat_tags': compat_tags }
-
+  
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_prep(valid_dict):
   _allow_keys = list()
@@ -304,6 +296,9 @@ class pyproj_dist_scheme(valid_dict):
 class pyproj_dist_binary(valid_dict):
   _allow_keys = list()
   _default = {
+    'build_number': valid(optional, int),
+    'build_suffix': valid(optional, str),
+    'compat_tags': compat_tags,
     'prep': valid(optional, pyproj_dist_binary_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,

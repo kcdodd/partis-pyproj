@@ -16,7 +16,6 @@ def dist_source_prep( self, logger ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dist_binary_prep( self, logger ):
-  self.build.compat_tags = [('py3', 'none', 'any')]
-
-  self.build.number = 123
-  self.build.suffix = 'test'
+  self.binary.compat_tags = [('py3', 'none', 'any')]
+  self.binary.build_number = 123
+  self.binary.build_suffix = 'test'
