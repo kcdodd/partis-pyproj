@@ -28,9 +28,11 @@ from .validate import (
   valid_dict,
   validating,
   valid,
+  restrict,
   mapget )
 
 from .norms import (
+  scalar_list,
   norm_bool,
   norm_path_to_os,
   norm_path )
@@ -84,24 +86,28 @@ class PyProjBase:
     with validating(root = self._pptoml, file = self.pptoml_file):
       self._pptoml = pptoml(self._pptoml)
 
-    if config_settings:
-      # construct a validator from the tool.pyproj.config table
-      config_default = dict()
+    #...........................................................................
+    # construct a validator from the tool.pyproj.config table
+    config_default = dict()
 
-      for k,v in self.pyproj.config.items():
-        if isinstance(v, bool):
-          config_default[k] = valid(v, norm_bool)
-        else:
-          config_default[k] = valid(v, type(v))
+    for k,v in self.pyproj.config.items():
+      if isinstance(v, bool):
+        config_default[k] = valid(v, norm_bool)
 
-      class config(valid_dict):
-        _allow_keys = list()
-        _default = config_default
+      elif isinstance(v, scalar_list):
+        config_default[k] = restrict(*v)
 
-      with validating( key = 'config_settings' ):
-        config_settings = config(config_settings)
+      else:
+        config_default[k] = valid(v, type(v))
 
-        self.pyproj.config.update(config_settings)
+    class valid_config(valid_dict):
+      _allow_keys = list()
+      _default = config_default
+
+    with validating( key = 'config_settings' ):
+      _config_settings = valid_config(config_settings or dict())
+
+      self.pyproj.config = _config_settings
 
     #...........................................................................
     self.build_backend = mapget( self.pptoml,

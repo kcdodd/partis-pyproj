@@ -19,6 +19,7 @@ from .validate import (
 
 from .norms import (
   scalar,
+  scalar_list,
   empty_str,
   nonempty_str,
   str_list,
@@ -322,7 +323,7 @@ class pyproj_dist(valid_dict):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_config(valid_dict):
   _key_valid = valid(norm_dist_extra)
-  _value_valid = valid(scalar)
+  _value_valid = union(scalar, scalar_list)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj(valid_dict):

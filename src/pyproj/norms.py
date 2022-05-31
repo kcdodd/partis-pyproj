@@ -45,6 +45,10 @@ def scalar(val):
   return val
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class scalar_list(valid_list):
+  _value_valid = valid(scalar)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_bool(val):
   t = [True, 'true', 'True', 'yes', 'y', 'enable', 'enabled']
   f = [False, 'false', 'False', 'no', 'n', 'disable', 'disabled']

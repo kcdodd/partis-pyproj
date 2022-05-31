@@ -118,7 +118,6 @@ def test_full():
     #...........................................................................
 
     valid_readme = [
-      {},
       { 'text' : readme },
       { 'file': readme_file_md },
       { 'file': readme_file_rst },
@@ -126,6 +125,7 @@ def test_full():
 
     invalid_readme = [
       'junk',
+      {},
       { 'text' : readme, 'file': readme_file_md },
       { 'file': 'junk' },
       { 'junk' : 'junk' } ]

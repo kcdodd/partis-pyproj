@@ -276,9 +276,12 @@ conditional dependencies listed in ``pyproject.toml``.
   The type is derived from the value parsed from ``pyproject.toml``.
   For example, the value of ``3`` is parsed as an integer, while ``3.0`` is parsed
   as a float.
-  Additionally, the ``tool.pyproj.config`` table may **not** contain nested tables
-  or lists, since it must be able to map 1:1 with arguments passed on
+  Additionally, the ``tool.pyproj.config`` table may **not** contain nested tables,
+  since it must be able to map 1:1 with arguments passed on
   the command line.
+  A single-level list may be set as a value to restrict the allowed value to
+  one of those in the list, with the first item in the list being used as the
+  default value.
 
   Boolean values passed to ``--config-settings`` are parsed by comparing to
   string values ``['true', 'True', 'yes', 'y', 'enable', 'enabled']``
@@ -288,6 +291,7 @@ conditional dependencies listed in ``pyproject.toml``.
 
   [tool.pyproj.config]
   a_cfg_option = false
+  another_option = ["foo", "bar"]
 
   [tool.pyproj.prep]
   entry = "aux:prep"
@@ -301,9 +305,17 @@ conditional dependencies listed in ``pyproject.toml``.
     if builder.config.a_cfg_option:
       builder.build_requires |= set(deps)
 
+    if builder.config.another_option == 'foo':
+      ...
+
+    elif builder.config.another_option == 'bar':
+      ...
+
 In this example, the command
 ``pip install --config-settings a_cfg_option=true ...`` will cause the
 'additional_build_dep' to be installed before the build occurs.
+The value of ``another_option`` may be either ``foo`` or ``bar``,
+and all other values will raise an exception before reaching the entry-point.
 
 
 Meson Build system
