@@ -39,7 +39,6 @@ from .norms import (
   norm_path )
 
 from .pep import (
-  CompatibilityTags,
   purelib_compat_tags,
   platlib_compat_tags )
 
@@ -49,7 +48,10 @@ from .load_module import (
 
 from .legacy import legacy_setup_content
 
-from .pptoml import pptoml
+from .pptoml import (
+  pptoml,
+  build )
+
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PyProjBase:
@@ -121,13 +123,12 @@ class PyProjBase:
 
     #...........................................................................
     # used to create name for binary distribution
-    self.build_number = None
-    self.build_tag = None
+    self.build = build()
 
     if self.is_platlib:
-      self.compat_tags = platlib_compat_tags()
+      self.build.compat_tags = platlib_compat_tags()
     else:
-      self.compat_tags = purelib_compat_tags()
+      self.build.compat_tags = purelib_compat_tags()
 
     #...........................................................................
     self.prep()
@@ -170,10 +171,11 @@ class PyProjBase:
     try:
       cwd = os.getcwd()
 
-      func(
-        self,
-        logger = logger,
-        **entry_point_kwargs )
+      with validating( file = entry_point ):
+        func(
+          self,
+          logger = logger,
+          **entry_point_kwargs )
 
     except Exception as e:
       raise ValueError(f"failed to run entry-point '{entry_point}'") from e
@@ -188,10 +190,8 @@ class PyProjBase:
     """
     # backup project to detect changes made by prep
     project = deepcopy(self.project)
-    dynamic = project.get( 'dynamic', list() )
+    dynamic = project.dynamic
 
-    if 'name' in dynamic:
-      raise ValidationError(f"project.dynamic may not contain 'name'")
 
     if dynamic and 'prep' not in self.pyproj:
       raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
@@ -215,7 +215,7 @@ class PyProjBase:
           f"prep updated key not listed in project.dynamic: {k}" )
 
     # fields are no longer dynamic
-    self.project['dynamic'] = list()
+    self.project.dynamic = list()
 
     # make sure build requirements are still a set of PkgInfoReq
     self.build_requires = set([
@@ -367,11 +367,10 @@ class PyProjBase:
       obj = self.dist.binary,
       logger = self.logger.getChild( f"dist.binary.prep" ) )
 
-    self.compat_tags = [
-      CompatibilityTags(*tags)
-      for tags in as_list(self.compat_tags) ]
+    if not self.build.compat_tags:
+      raise ValidationError(f"At least one set of binary compatability tags is required: {self.build}")
 
-    self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.compat_tags}")
+    self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.build.compat_tags}")
 
   #-----------------------------------------------------------------------------
   def dist_binary_copy( self, *, dist ):
@@ -460,7 +459,7 @@ class PyProjBase:
     for i, incl in enumerate(include):
       incl_name = f'{name}.copy[{i}]'
 
-      _ignore = as_list( incl.get( 'ignore', list() ) )
+      _ignore = incl.ignore
       _ignore_patterns = shutil.ignore_patterns(*(ignore + _ignore)) if _ignore else ignore_patterns
 
       src = incl.src

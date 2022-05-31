@@ -7,6 +7,7 @@ from .validate import (
   required,
   valid,
   union,
+  restrict,
   valid_dict,
   valid_list,
   ValidationError,
@@ -22,6 +23,7 @@ from .norms import (
   norm_path_to_os )
 
 from .pep import (
+  CompatibilityTags,
   norm_printable,
   valid_dist_name,
   norm_dist_version,
@@ -35,12 +37,32 @@ from .pep import (
   norm_dist_url )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class dynamic(valid_list):
+  _value_valid = restrict(
+    'version',
+    'description',
+    'readme',
+    'authors',
+    'maintainers',
+    'license',
+    'dynamic',
+    'requires-python',
+    'dependencies',
+    'optional-dependencies',
+    'keywords',
+    'classifiers',
+    'urls',
+    'scripts',
+    'gui-scripts',
+    'entry-points' )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class readme(valid_dict):
   # a string at top-level interpreted as a path to the readme file
   _proxy_key = 'file'
   _allow_keys = list()
-  # _min_keys = [
-  #   ('file', 'text')]
+  _min_keys = [
+    ('file', 'text')]
   _mutex_keys = [
     ('file', 'text')]
   _default = {
@@ -50,8 +72,8 @@ class readme(valid_dict):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class license(valid_dict):
   _allow_keys = list()
-  # _min_keys = [
-  #   ('file', 'text')]
+  _min_keys = [
+    ('file', 'text')]
   _default = {
     'file': valid(optional, nonempty_str, norm_path, norm_path_to_os),
     'text': valid(optional, nonempty_str, norm_printable) }
@@ -142,12 +164,14 @@ class project(valid_dict):
   _require_keys = [
     'name']
   _default = {
-    'dynamic': nonempty_str_list,
-    'name': valid_dist_name,
+    'dynamic': dynamic,
+    'name': valid(valid_dist_name),
     'version': valid('0.0.0', norm_dist_version),
     'description': valid(str, norm_printable),
-    'readme': valid(readme),
-    'license': valid(license),
+    # must be optional because there is no default value
+    'readme': valid(optional, readme),
+    # must be optional because there is no default value
+    'license': valid(optional, license),
     'authors': valid(authors),
     'maintainers': valid(maintainers),
     'keywords': valid(keywords),
@@ -191,6 +215,23 @@ class build_system(valid_dict):
     'backend-path': valid(optional, path_parts) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def compat_tag(v):
+  return CompatibilityTags(*v)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class compat_tags(valid_list):
+  _as_list = valid(as_list)
+  _value_valid = valid(compat_tag)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class build(valid_dict):
+  _allow_keys = list()
+  _default = {
+    'number': valid(optional, int),
+    'suffix': valid(optional, str),
+    'compat_tags': compat_tags }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_prep(valid_dict):
   _allow_keys = list()
   _require_keys = [
@@ -227,7 +268,7 @@ class pyproj_meson(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class ignore_list(valid_list):
-  _as_list = as_list
+  _as_list = valid(as_list)
   _value_valid = valid(nonempty_str)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -292,7 +333,7 @@ class pyproj_dist(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_config(valid_dict):
-  _value_valid = union(bool, int, float, nonempty_str)
+  _value_valid = union(bool, int, float, str)
   _key_valid = valid(norm_dist_extra)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

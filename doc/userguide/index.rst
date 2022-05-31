@@ -280,7 +280,7 @@ following code run from the `pyproject.toml` directory:
 
   import a_custom_prep_module
 
-  compat_tags = a_custom_prep_module.a_prep_function(
+  a_custom_prep_module.a_prep_function(
     build_system,
     logger,
     a_custom_argument = 'some value' )

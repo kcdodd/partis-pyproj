@@ -5,11 +5,40 @@ import stat
 import re
 import pathlib
 import inspect
+import types
 from copy import copy
 from collections.abc import (
   Mapping,
   Sequence,
   Iterable )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+FILTER_VALIDATING_FRAMES = True
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def filter_traceback(traceback, ignore):
+  tb = traceback
+  last_tb = tb
+  tb = tb.tb_next
+
+  while tb is not None:
+    frame = tb.tb_frame
+    lineno = tb.tb_lineno
+    code = frame.f_code
+
+    tb = tb.tb_next
+
+    if tb is not None and ignore(frame, lineno):
+      last_tb.tb_next = tb
+    else:
+      last_tb = tb
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def ignore_validating(frame, lineno):
+  if frame.f_code.co_filename == __file__:
+    return True
+
+  return False
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class ValidationError( ValueError ):
@@ -23,7 +52,8 @@ class ValidationError( ValueError ):
   def __init__( self, msg,
     doc_root = None,
     doc_file = None,
-    doc_path = None ):
+    doc_path = None,
+    doc_lc = None ):
 
     msg = inspect.cleandoc( msg )
 
@@ -31,6 +61,7 @@ class ValidationError( ValueError ):
     self.doc_root = doc_root
     self.doc_file = doc_file
     self.doc_path = doc_path or list()
+    self.doc_lc = doc_lc
 
     super().__init__( msg )
 
@@ -38,21 +69,33 @@ class ValidationError( ValueError ):
   def __str__(self):
 
     parts = list()
-    _path = ".".join(self.doc_path)
 
-    if _path:
+    if self.doc_path:
+      _path = self.doc_path[0]
+
+      for k in self.doc_path[1:]:
+        if isinstance(k, int):
+          _path += f"[{k}]"
+        else:
+          _path += f".{k}"
+
       parts.append( f"at `{_path}`" )
 
     if self.doc_file:
-      parts.append(f"in file \"{self.doc_file}\"")
+      parts.append(f"in \"{self.doc_file}\"")
 
-    if self.doc_root:
+    lc = None
+
+    if self.doc_lc:
+      lc = self.doc_lc
+
+    elif self.doc_root:
       lc = get_line_col(self.doc_root, self.doc_path)
 
-      if lc:
-        line, col = lc
-        parts.append(f"line {line}")
-        parts.append(f"col {col}" )
+    if lc:
+      line, col = lc
+      parts.append(f"line {line}")
+      parts.append(f"col {col}" )
 
     loc = " ".join(parts)
     msg = self.msg
@@ -67,9 +110,35 @@ class ValidationError( ValueError ):
     return str(self)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class ValidDefinitionError( ValidationError ):
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class validating:
+  """Context manager to append information to a ValidationError as it propagates
+
+  Intermediate frames for internal validating routines, except for the first
+  and last frame, are filtered out of any tracebacks.
+
+  Parameters
+  ----------
+  key: None | str
+    Insert the current key being validated to the head of the 'doc_path'
+  root: None | Mapping | Sequence
+    Set the root document being validated as 'doc_root'
+  file: None | str
+    Set a file as the source of the data being validated as 'doc_file'
+
+  See Also
+  --------
+  * ValidationError
+  """
   #-----------------------------------------------------------------------------
-  def __init__(self, key = None, root = None, file = None):
+  def __init__(self,
+    key = None,
+    root = None,
+    file = None):
+
     self.key = key
     self.root = root
     self.file = file
@@ -82,10 +151,14 @@ class validating:
   def __exit__(self, type, value, traceback):
     if type is not None:
       if issubclass(type, ValidationError):
+
+        if FILTER_VALIDATING_FRAMES:
+          filter_traceback(traceback, ignore_validating)
+
         value.doc_root = value.doc_root or self.root
         value.doc_file = value.doc_file or self.file
 
-        if self.key:
+        if self.key is not None:
           value.doc_path.insert(0, self.key)
 
       else:
@@ -145,6 +218,8 @@ class Required(Special):
   pass
 
 class NotSet(Special):
+  """Special value indicating a value is not set
+  """
   pass
 
 optional = Optional()
@@ -153,6 +228,8 @@ notset = NotSet()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def validate(val, default, validators):
+  """Internal method to apply default value and validators
+  """
   if val is None:
     if default is optional:
       return None
@@ -198,9 +275,51 @@ def validate(val, default, validators):
       else:
         if errs:
           errs = '\n'.join([f"- {k} -> {v}" for k,v in errs])
-          raise ValidationError(f"Union of validators failed:\n{errs}")
+          raise ValidationError(f"Value must pass at least one of the validators:\n{errs}")
 
   return val
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def fmt_validator(v):
+
+  if isinstance(v, Validator):
+    return str(v)
+
+  if v == '':
+    return "''"
+
+  if not (
+    callable(v)
+    or any(
+      isinstance(v,t)
+      for t in [type, types.BuiltinFunctionType, types.FunctionType]) ):
+
+    return str(v)
+
+  name = None
+
+  while name is None:
+    if hasattr(v, '__qualname__'):
+      name = v.__qualname__
+
+    elif hasattr(v, '__name__'):
+      name = v.__name__
+
+    else:
+      v = type(v)
+
+  if name.startswith('<'):
+    return name
+
+  mod = None
+
+  if hasattr(v, '__module__'):
+    mod = v.__module__
+
+    if mod != 'builtins':
+      name = f"{mod}.{name}"
+
+  return f"<{name}>"
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Validator:
@@ -230,12 +349,15 @@ class Validator:
             default = v()
           except Exception as e:
             # the type cannot be instantiated without arguments
-            raise ValidationError(
+            raise ValidDefinitionError(
               f"Default value must be specified, or explicitly set as optional or required") from e
 
         else:
           # cannot be used as default, put back to use as validator
           args.insert(0, v)
+
+    if default is None:
+      default = optional
 
     if len(args) == 0 and default not in [required, optional]:
       # convenience method to used default value to derive type
@@ -248,22 +370,9 @@ class Validator:
   def __str__(self):
     args = list()
     for v in self._validators:
-      if isinstance(v, type):
-        args.append(f"<type {v.__name__}>")
-      elif isinstance(v, Validator):
-        args.append(str(v))
-      elif callable(v):
-        args.append(f"<callable {v.__name__}>" if hasattr(v, '__name__') else '<callable>')
-      elif v == '':
-        args.append("''")
-      else:
-        args.append(str(v))
+      args.append(fmt_validator(v))
 
-    v = self._default
-    if v == '':
-      v = "''"
-
-    args.append(f"default = {v}")
+    args.append(f"default = {fmt_validator(self._default)}")
     args = ', '.join(args)
     return f"{type(self).__name__}({args})"
 
@@ -277,14 +386,16 @@ class Validator:
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Restricted(Validator):
+  """Restricts a value to one of listed options
+  """
   #-----------------------------------------------------------------------------
   def __init__(self, *options ):
     if len(options) == 0:
       raise ValueError(f"Must have at least one option")
 
-    self._options = options
-
     super().__init__(options[0], type(options[0]))
+
+    self._options = set(options)
 
   #-----------------------------------------------------------------------------
   def __call__(self, val):
@@ -298,16 +409,13 @@ class Restricted(Validator):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def valid(*validators):
-  """Casts list of objects to validator
+  """Casts list of objects to Validator, if needed
   """
   if len(validators) == 1:
     v = validators[0]
 
     if isinstance(v, Validator):
       return v
-
-    elif any(isinstance(v, t) for t in [bool, int, float, str, Sequence, Mapping]):
-      return Validator(v, type(v))
 
   return Validator(*validators)
 
@@ -538,15 +646,47 @@ class attrs_modify:
 class valid_dict(Mapping):
   """Validated Mapping
 
+  Attributes
+  ----------
+  _proxy_key: None | str
+    If initialized with a value that is not a Mapping, this key is assigned the
+    value before performing validation.
+  _key_valid: None | callable
+    Validates all keys
+  _value_valid: None | callable
+    Validates all values
+  _item_valid: None | callable
+    Validates all (key,value) pairs
+  _allow_keys: None | list[str]
+    Mapping may not contain keys that are not listed.
+  _require_keys: None | list[str]
+    Mapping must contain all listed keys.
+  _min_keys: None | list[ list[str] ]
+    Mapping must contain at least one key from each list.
+  _wedge_keys: None | list[ list[str] ]
+    Mapping must contain either none or all of the listed keys.
+  _mutex_keys: None | list[ list[str] ]
+    Mapping may contain at most one key from each list.
+  _deprecate_keys: None | list[ (str, None | str | Required) ]
+    First key is marked as deprecated and removed from the Mapping.
+    If new key is given, the value is remapped to the new key.
+    If new key is Required, an error is raised, otherwise a deprecation warning
+    is reported.
+  _forbid_keys: None | list[str]
+    Mapping must not contain any of the listed keys.
+  _default: None | Mapping[object, object | type | Validator]
+    Default value or validator for given keys.
+  _validator : None | Validator
+    General validator for entire Mapping after above constraints are satisfied.
   See Also
   --------
   * :func:`valid_keys`
   """
 
   _proxy_key = None
+  _key_valid = None
   _value_valid = None
   _item_valid = None
-  _key_valid = None
   _allow_keys = None
   _require_keys = None
   _min_keys = None
@@ -593,7 +733,7 @@ class valid_dict(Mapping):
 
     with attrs_modify( self ):
       self._default = { k: valid(v) for k,v in ( cls._default or dict() ).items() }
-      self._validator = valid(cls._validator if cls._validator else lambda v: v)
+      self._validator = valid(cls._validator or (lambda v: v))
 
       self._p_all_keys = list()
       self._validating = False
@@ -706,18 +846,20 @@ class valid_dict(Mapping):
           warnings.warn(f"'{type(self).__name__}' attribute shadows mapping key: {name}")
 
       object.__setattr__( self, name, val )
+      return
 
     except AttributeError as e:
+      pass
 
-      if name != '_p_dict' and name != '_p_key_attr' and name in self._p_key_attr:
-        self._p_dict[ self._p_key_attr[name] ] = val
-        self._validate()
+    if name != '_p_dict' and name != '_p_key_attr' and name in self._p_key_attr:
+      self._p_dict[ self._p_key_attr[name] ] = val
+      self._validate()
 
-      else:
-        raise AttributeError(
-          f"'{type(self).__name__}' object has no key '{name}'."
-          " New keys must be added using a Mapping method;"
-          f" E.G. x['{name}'] = {val}" ) from e
+    else:
+      raise AttributeError(
+        f"'{type(self).__name__}' object has no key '{name}'."
+        " New keys must be added using a Mapping method;"
+        f" E.G. x['{name}'] = {val}" )
 
 
   #-----------------------------------------------------------------------------
@@ -732,12 +874,14 @@ class valid_dict(Mapping):
       return val
 
     except AttributeError as e:
-      # only get mapping if base object does not have attribute
-      if name != '_p_dict' and name != '_p_key_attr' and name in self._p_key_attr:
-        return self._p_dict[ self._p_key_attr[name] ]
+      pass
 
-      raise AttributeError(
-        f"'{type(self).__name__}' object has no key '{name}'") from e
+    # only get mapping if base object does not have attribute
+    if name != '_p_dict' and name != '_p_key_attr' and name in self._p_key_attr:
+      return self._p_dict[ self._p_key_attr[name] ]
+
+    raise AttributeError(
+      f"'{type(self).__name__}' object has no key '{name}'")
 
 
   #-----------------------------------------------------------------------------
@@ -771,7 +915,8 @@ class valid_list(list):
   def __init__( self, vals = None ):
     cls = type(self)
     self._as_list = cls._as_list or list
-    self._value_valid = valid(cls._value_valid)
+    self._value_valid = valid(
+      cls._value_valid or (lambda v: v))
 
     if vals is None:
       vals = list()

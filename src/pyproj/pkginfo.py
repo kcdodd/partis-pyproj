@@ -181,8 +181,8 @@ class PkgInfo:
     self.name_normed = norm_dist_name( self.name )
     self.version = project.version
     self.description = project.description
-    self.readme = project.readme
-    self.license = project.license
+    self.readme = project.get('readme', None)
+    self.license = project.get('license', None)
     self.requires_python = SpecifierSet( project.requires_python )
     self.keywords = set(project.keywords)
     self.classifiers = set(project.classifiers)
@@ -231,31 +231,32 @@ class PkgInfo:
     self._desc = ''
     self._desc_type = 'text/plain'
 
-    with validating(key = 'readme'):
-      if 'file' in self.readme:
+    if self.readme:
+      with validating(key = 'readme'):
+        if 'file' in self.readme:
 
-        if not root:
-          raise ValidationError(
-            f"'root' must be given to resolve a 'readme.file' path")
+          if not root:
+            raise ValidationError(
+              f"'root' must be given to resolve a 'readme.file' path")
 
-        readme_file = osp.join( root, self.readme.file )
+          readme_file = osp.join( root, self.readme.file )
 
-        if readme_file.lower().endswith('.rst'):
-          self._desc_type = 'text/x-rst'
+          if readme_file.lower().endswith('.rst'):
+            self._desc_type = 'text/x-rst'
 
-        elif readme_file.lower().endswith('.md'):
-          self._desc_type = 'text/markdown'
+          elif readme_file.lower().endswith('.md'):
+            self._desc_type = 'text/markdown'
 
-        if not osp.exists(readme_file):
-          raise ValidationError(
-            f"'readme' file not found: {readme_file}")
+          if not osp.exists(readme_file):
+            raise ValidationError(
+              f"'readme' file not found: {readme_file}")
 
-        with open( readme_file, 'rb' ) as fp:
-          self._desc = norm_printable(
-            fp.read().decode('utf-8', errors = 'replace') )
+          with open( readme_file, 'rb' ) as fp:
+            self._desc = norm_printable(
+              fp.read().decode('utf-8', errors = 'replace') )
 
-      elif 'text' in self.readme:
-        self._desc = self.readme.text
+        elif 'text' in self.readme:
+          self._desc = self.readme.text
 
     #...........................................................................
     # https://www.python.org/dev/peps/pep-0621/#license
@@ -263,8 +264,8 @@ class PkgInfo:
     self.license_file = ''
     self.license_file_content = None
 
-    with validating(key = 'license'):
-      if self.license:
+    if self.license:
+      with validating(key = 'license'):
         # NOTE: PEP 621 specifically says
         # > The text key has a string value which is the license of the project
         # > whose meaning is that of the License field from the core metadata.
@@ -281,12 +282,6 @@ class PkgInfo:
         # > value which is the license of the project whose meaning is that of the
         # > License field from the core metadata. These keys are mutually exclusive,
         # > so a tool MUST raise an error if the metadata specifies both keys.
-
-        valid_keys(
-          obj = self.license,
-          allow_keys = [
-            'file',
-            'text' ] )
 
         if 'file' in self.license:
           if not root:

@@ -180,11 +180,11 @@ def run_pyproj( name ):
           dist_file = dist.outpath )
 
       # build and install binary dist
-      compat_tags = pyproj.dist_binary_prep()
+      pyproj.dist_binary_prep()
 
       with dist_binary_wheel(
         pkg_info = pyproj.pkg_info,
-        compat = compat_tags,
+        compat = pyproj.build.compat_tags,
         outdir = outdir,
         logger = pyproj.logger ) as dist:
 
