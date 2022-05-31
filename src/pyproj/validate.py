@@ -265,7 +265,7 @@ def validate(val, default, validators):
       # union (only one needs to succeed)
       errs = list()
 
-      for _validator in validator[::-1]:
+      for _validator in validator:
         try:
           val = validate(val, required, _validator)
           break
@@ -903,6 +903,14 @@ class valid_dict(Mapping):
         deprecate_keys = self._deprecate_keys,
         forbid_keys = self._forbid_keys,
         default = self._default ) ) )
+
+  #-----------------------------------------------------------------------------
+  def __str__(self):
+    return str(self._p_dict)
+
+  #-----------------------------------------------------------------------------
+  def __repr__(self):
+    return str(self)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class valid_list(list):

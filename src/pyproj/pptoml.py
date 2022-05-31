@@ -222,7 +222,7 @@ def compat_tag(v):
 class compat_tags(valid_list):
   _as_list = valid(as_list)
   _value_valid = valid(compat_tag)
-  
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_prep(valid_dict):
   _allow_keys = list()
@@ -328,7 +328,6 @@ class pyproj_dist(valid_dict):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_config(valid_dict):
-  _value_valid = union(bool, int, float, str)
   _key_valid = valid(norm_dist_extra)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
