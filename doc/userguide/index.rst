@@ -2,35 +2,32 @@
 User Guide
 ==========
 
-The :mod:`partis.pyproj <partis.pyproj>` package aims to be very simple and
-transparent PEP-517 :cite:`pep0517` build back-end.
-This package was developed to avoid dependence on the opaque lack of control
-provided by :mod:`setuptools` in the distribution process,
-and to address the limited selection of utilities available for seemingly
-simple packaging tasks, such as creating a wheel file.
-It does not attempt to inspect anything from the contents of the package
-being distributed / installed, and instead relies on an understanding that a
-distribution is simply a collection of files including package meta-data written
-in particular formats.
-The back-end implementation strives to be compliant with all relevant
-specifications.
+While the :pep:`517` standard describes the outward interface to a general
+build backend, it does not restrict how the backend should be configured.
+The approach to configuration options is to make them similar to operations
+available in the standard library.
+For example, specifying what is included in a distribution is modeled on
+file manipulation routines from the
+:mod:`shutil` module, where the destination of the
+operation is into a distribution file ( ``*.tar.gz`` or ``*.whl`` ).
+However, the backend handles tracking of added files to build the wheel
+manifest.
 
-While the standards describe the form of package meta-data, they do not describe
-what information is needed to turn the files in a repository into a
-distribution.
-The approach to those needed but unspecified configuration options is to make
-them behave like the file manipulation routines available in the Python
-standard library
-:mod:`shutil`,
-but where the ``dst`` of the
-operation is actually into a distribution file ( ``*.tar.gz`` or ``*.whl`` ).
+The process of building a source or binary distribution is broken down into
+a 'prep' stage followed by 'copy' stage.
+The 'prep' may be any custom function the developer wants to occur before files
+are copied into the distribution, such as filling in dynamic metadata,
+generating files, or running another build program (E.G. https://mesonbuild.com/).
+The 'copy' operation is specified by a sequence of find-filter-copy pattern based
+rules. Instead of using a ``MANIFEST.in`` file or ``find_packages`` routine,
+this gives full control within the ``pyproject.toml`` file over what goes into
+the distribution and where it ends up.
 
-Use with 'pyproject.toml' files
--------------------------------
+Copy Operations
+---------------
 
 .. code-block:: toml
-
-  # pyproject.toml
+  :caption: ``pyproject.toml``
 
   [project]
   # required project metadata
@@ -46,7 +43,7 @@ Use with 'pyproject.toml' files
   build-backend = "partis.pyproj.backend"
 
   [tool.pyproj.dist]
-  # define glob patterns of files to ignore for any type of distribution
+  # define patterns of files to ignore for any type of distribution
   ignore = [
     '__pycache__',
     '*.py[cod]',
@@ -66,7 +63,7 @@ Use with 'pyproject.toml' files
     { src = 'src/my_project', dst = 'my_project' } ]
 
 
-* Each item listed in ``copy`` for a distribution are treated like the
+* Each item listed in ``copy`` for a distribution is treated like the
   keyword arguments of
   :func:`shutil.copyfile`
   or
@@ -76,7 +73,7 @@ Use with 'pyproject.toml' files
 * If the item is a single string, it is expanded as ``dst = src``.
 * The ``ignore`` list is treated like the arguments to
   :func:`shutil.ignore_patterns`,
-  which is then passed to the :func:`shutil.copytree` function.
+  before it is passed to the :func:`shutil.copytree` function.
 * Every *file* explicitly listed as a ``src`` will be copied, even if it
   matches one of the ``ignore`` patterns.
 * The ``ignore`` patterns may be specified for all distributions in
@@ -85,13 +82,13 @@ Use with 'pyproject.toml' files
   ``{ src = '...', dst = '...', ignore = [...] }``.
   The ignore patterns are accumulated at each level of specificity.
 
-Optionally, a ``glob`` pattern may also be used to match files or directories,
-with is expanded to zero or more matches.
+Optionally, a ``glob`` pattern may be used to match files or directories,
+which is expanded to zero or more matches relative to ``src``.
 However, when ``glob`` is used, the purpose of ``src`` and ``dst`` is strictly
 to specify relative paths.
 All accumulated ``ignore`` patterns, however, remain relative to the root project
 directory.
-For example, the following will recursively copy all files ending int ``.py``,
+For example, the following will recursively copy all files ending in ``.py``,
 except for files named ``bad_file.py``.
 
 .. code-block:: toml
@@ -102,6 +99,110 @@ except for files named ``bad_file.py``.
   dst = 'my_project'
   ignore = '**/bad_file.py'
 
+
+Prep Processing Hooks
+---------------------
+
+The backend provides a mechanism to perform an arbitrary operation before any
+files are copied into either the source or binary distribution:
+
+* ``tool.pyproj.prep`` : called to fill in 'dynamic' metadata, or update
+  the 'build_requires' list of requirements needed to build a binary distribution.
+* ``tool.pyproj.dist.prep`` : called first for both source or binary distributions.
+* ``tool.pyproj.dist.source.prep``: called before copying files to a source distribution.
+* ``tool.pyproj.dist.binary.prep``: called before copying files to a binary distribution.
+
+  .. note::
+
+    If the Meson Build commands are specified, those will be run
+    **before** ``tool.pyproj.dist.binary.prep``, but
+    **after** ``tool.pyproj.dist.prep``.
+
+    The ``tool.pyproj.dist.binary.prep`` hook may also be used to
+    customize the compatibility tags for the binary distribution
+    (according to :pep:`425`) as a list of tuples
+    ``( py_tag, abi_tag, plat_tag )`` assigned to
+    the ``compat_tags`` key of
+    :py:obj:`PyProjBase.binary <partis.pyproj.pyproj.PyProjBase.binary>`.
+
+    If no tags are returned from the hook, the default tags
+    will be used for the current Python interpreter if any files are copied to
+    the ``platlib`` install path.
+    Otherwise, ``[( 'py{X}', 'none', 'any' )]`` is the default.
+
+Each hook must be a pure python module (a directory with an
+``__init__.py`` file), either directly importable or relative to the 'pyproject.toml'.
+The hook is specified according to the ``entry_points`` specification, and
+must resolve to a function that takes the instance of the build system and
+a logger.
+Keyword arguments may also be defined to be passed to the function,
+configured in the same section of the 'pyproject.toml'.
+
+.. code-block:: toml
+
+  [tool.pyproj.dist.binary.prep]
+  # hook defined in a python module
+  entry = "a_custom_prep_module:a_prep_function"
+
+  [tool.pyproj.dist.binary.prep.kwargs]
+  # define keyword argument values to be passed to the pre-processing hook
+  a_custom_argument = 'some value'
+
+
+This will be treated by the backend **equivalent to the
+following code** run from the `pyproject.toml` directory:
+
+.. code:: python
+
+  import a_custom_prep_module
+
+  a_custom_prep_module.a_prep_function(
+    builder,
+    logger,
+    a_custom_argument = 'some value' )
+
+
+The ``builder`` argument is an instance of
+:class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>`, and ``logger``
+is an instance of :class:`logging.Logger`.
+
+.. attention::
+
+  Only those requirements listed in ``build-system.requires``
+  will be importable by ``tool.pyproj.prep``, and only those added to
+  :py:obj:`PyProjBase.build_requires <partis.pyproj.pyproj.PyProjBase.build_requires>`
+  will be available in subsequent hooks.
+
+Dynamic Metadata
+----------------
+
+As described in :pep:`621`, field values in the 'project' table may be deferred
+to the backend by listing the keys in 'dynamic'.
+If 'dynamic' is a non-empty list, the 'tool.pyproj.prep' processing hook must
+be used to fill in the missing values.
+
+.. code-block:: toml
+
+  [project]
+  dynamic = [
+    "version" ]
+
+  name = "my_pkg"
+
+  ...
+
+  [tool.pyproj.prep]
+  entry = "aux:prep"
+
+The hook should set values for all keys of the ``project`` table listed
+in ``project.dynamic``.
+
+.. code-block:: python
+  :caption: ``aux/__init__.py``
+
+  def prep( builder, logger ):
+    builder.project.version = "1.2.3"
+
 Binary distribution install paths
 ---------------------------------
 
@@ -110,8 +211,8 @@ location according to a local installation scheme
 these can be specified within sub-tables.
 Available install scheme keys, and **example** corresponding install locations, are:
 
-* ``purelib`` (generic Python path): '{prefix}/lib/python{X}.{Y}/site-packages/'
-* ``platlib`` (platform specific Python path): '{prefix}/lib{platform}/python{X}.{Y}/site-packages/'
+* ``purelib`` ("pure" library Python path): ``{prefix}/lib/python{X}.{Y}/site-packages/``
+* ``platlib`` (platform specific Python path): ``{prefix}/lib{platform}/python{X}.{Y}/site-packages/``
 
   .. note::
 
@@ -119,8 +220,8 @@ Available install scheme keys, and **example** corresponding install locations, 
     directory, so any files copied to these paths should be placed within a
     desired top-level package directory.
 
-* ``headers`` (INCLUDE search paths): '{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/'
-* ``scripts`` (executable search path): '{prefix}/bin/'
+* ``headers`` (INCLUDE search paths): ``{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/``
+* ``scripts`` (executable search path): ``{prefix}/bin/``
 
   .. attention::
 
@@ -131,7 +232,7 @@ Available install scheme keys, and **example** corresponding install locations, 
     use the ``[project.scripts]`` section to add an entry point that will then
     run the desired executable as a sub-process.
 
-* ``data`` (generic data): '{prefix}/'
+* ``data`` (generic data path): ``{prefix}/``
 
 .. code-block:: toml
 
@@ -154,6 +255,55 @@ Available install scheme keys, and **example** corresponding install locations, 
   [tool.pyproj.dist.binary.data]
   copy = [
     { src = 'build/data.dat', dst = 'data.dat' } ]
+
+
+Config Settings
+---------------
+
+As described in :pep:`517`, an installer front-end may implement support for
+passing additional options to the backend
+(e.g. ``--config-settings`` in ``pip``).
+These options may be defined in the ``tool.pyproj.config`` table, which is used
+to validate the allowed options, fill in default values, and cast to
+desired types.
+These settings, updated by any values passed from the front-end installer,
+are available in any processing hook.
+Combined with an entry-point ``kwargs``, these can be used to keep all
+conditional dependencies listed in ``pyproject.toml``.
+
+.. note::
+
+  The type is derived from the value parsed from ``pyproject.toml``.
+  For example, the value of ``3`` is parsed as an integer, while ``3.0`` is parsed
+  as a float.
+  Additionally, the ``tool.pyproj.config`` table may **not** contain nested tables
+  or lists, since it must be able to map 1:1 with arguments passed on
+  the command line.
+
+  Boolean values passed to ``--config-settings`` are parsed by comparing to
+  string values ``['true', 'True', 'yes', 'y', 'enable', 'enabled']``
+  or ``['false', 'False', 'no', 'n', 'disable', 'disabled']``.
+
+.. code-block:: toml
+
+  [tool.pyproj.config]
+  a_cfg_option = false
+
+  [tool.pyproj.prep]
+  entry = "aux:prep"
+  kwargs = { deps = ["additional_build_dep >= 1.2.3"] }
+
+.. code-block:: python
+  :caption: ``aux/__init__.py``
+
+  def prep( builder, logger, deps ):
+
+    if builder.config.a_cfg_option:
+      builder.build_requires |= set(deps)
+
+In this example, the command
+``pip install --config-settings a_cfg_option=true ...`` will cause the
+'additional_build_dep' to be installed before the build occurs.
 
 
 Meson Build system
@@ -226,148 +376,6 @@ followed by copying all files in 'build/lib' into the binary distribution's
   extensions, for example to ensure that the extension shared object '.so' are
   actually copied into the binary distribution.
 
-Processing hooks
-----------------
-
-The backend provides a mechanism to perform an arbitrary operation before any
-files are copied into either the source or binary distribution:
-
-* ``tool.pyproj.prep`` : called to fill in 'dynamic' metadata, or update
-  the 'build_requires' list of requirements needed to build a binary distribution.
-* ``tool.pyproj.dist.prep`` : called first for both source or binary distributions.
-* ``tool.pyproj.dist.source.prep``: called before copying files to a source distribution.
-* ``tool.pyproj.dist.binary.prep``: called before copying files to a binary distribution.
-
-  .. note::
-
-    If the Meson Build commands are specified, those will be run
-    **before** ``tool.pyproj.dist.binary.prep``, but
-    **after** ``tool.pyproj.dist.prep``.
-
-    The return value of the ``tool.pyproj.dist.binary.prep`` hook is also used to
-    customize the compatibility tags for the binary distribution
-    (according to https://peps.python.org/pep-0425/) as a list of tuples
-    ``( py_tag, abi_tag, plat_tag )``.
-
-    If no tags are returned from the hook, the default tags will be set to
-    ``( 'py{X}', 'none', 'any' )``, or if any files are copied to the
-    ``platlib`` install path the compatibility will be used for the current Python
-    interpreter.
-
-The hook must be a pure python module (a directory with an
-``__init__.py`` file), relative to the 'pyproject.toml'.
-The hook is specified according to the ``entry_points`` specification, and
-must resolve to a function that takes the instance of the build system and
-a logger.
-Keyword arguments may also be defined to be passed to the function,
-configured in the same section of the 'pyproject.toml'.
-
-.. code-block:: toml
-
-  [tool.pyproj.dist.binary.prep]
-  # hook defined in a python module
-  entry = "a_custom_prep_module:a_prep_function"
-
-  [tool.pyproj.dist.binary.prep.kwargs]
-  # define keyword argument values to be passed to the pre-processing hook
-  a_custom_argument = 'some value'
-
-
-This will be treated by the back-end equivalent to the
-following code run from the `pyproject.toml` directory:
-
-.. code:: python
-
-  import a_custom_prep_module
-
-  a_custom_prep_module.a_prep_function(
-    build_system,
-    logger,
-    a_custom_argument = 'some value' )
-
-
-The ``build_system`` argument is an instance of
-:class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>`, and ``logger``
-is an instance of :class:`logging.Logger`.
-
-.. attention::
-
-  Only those requirements listed in ``build-system.requires``
-  will be importable by the specified code.
-
-Dynamic Metadata
-----------------
-
-As described in PEP 621, field values in the 'project' table may be deferred
-to the backend by listing the keys in 'dynamic'.
-If 'dynamic' is a non-empty list, the 'tool.pyproj.prep' processing hook must
-be used to fill in the missing values.
-
-.. code-block:: toml
-
-  [project]
-  dynamic = ["version"]
-  name = "my_pkg"
-
-  ...
-
-  [tool.pyproj.prep]
-  entry = "aux:prep"
-
-The hook should return a dictionary that contains the keys of the 'project'
-table to update.
-
-.. code-block:: python
-  :caption: aux/__init__.py
-
-  def prep( build_system, logger ):
-    return dict(
-      version = "1.2.3" )
-
-Config Settings
----------------
-
-As described in PEP 517, an installer front-end may implement support for
-passing additional options to the backend
-(e.g. '--config-settings' in 'pip' and 'build').
-These options may be defined in the 'tool.pyproj.config' table, which is used
-to validate the allowed options, fill in default values, and cast to
-desired types.
-These settings, updated by any values passed from the front-end installer,
-are available in any processing hook.
-The 'kwargs' option can also be used to keep all dependencies listed in
-'pyproject.toml'.
-
-.. note::
-
-  The type is derived from the value parsed from 'pyproject.toml'.
-  For example, the value of '3' is parsed as an integer, while '3.0' is parsed
-  as a float.
-
-  Boolean values passed to '--config-settings' are parsed by comparing to
-  string values ``['true', 'True', 'yes', 'y', 'enable', 'enabled']``
-  or ``['false', 'False', 'no', 'n', 'disable', 'disabled']``.
-
-.. code-block:: toml
-
-  [tool.pyproj.prep]
-  entry = "aux:prep"
-  kwargs = { deps = ["additional_build_dep >= 1.2.3"] }
-
-  [tool.pyproj.config]
-  a_cfg_option = false
-
-.. code-block:: python
-  :caption: aux/__init__.py
-
-  def prep( build_system, logger, deps ):
-
-    if build_system.config['a_cfg_option']:
-      self.build_requires |= set(deps)
-
-In this example, the command
-``pip install --config-settings a_cfg_option=true ...`` will cause the
-'additional_build_dep' to be installed before the build occurs.
 
 Support for 'legacy setup.py'
 -----------------------------

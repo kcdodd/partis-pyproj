@@ -1,5 +1,5 @@
-Distribution Files :mod:`partis.pyproj.dist_file`
-=================================================
+Distribution Utilities :mod:`partis.pyproj.dist_file`
+=====================================================
 
 .. currentmodule:: partis.pyproj.dist_file
 

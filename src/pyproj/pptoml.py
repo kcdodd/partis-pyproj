@@ -1,6 +1,10 @@
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
+from collections.abc import (
+  Mapping,
+  Sequence,
+  Iterable )
 
 from .validate import (
   optional,
@@ -14,6 +18,7 @@ from .validate import (
   as_list )
 
 from .norms import (
+  scalar,
   empty_str,
   nonempty_str,
   str_list,
@@ -184,18 +189,6 @@ class project(valid_dict):
     'gui-scripts': valid(gui_scripts),
     'entry-points': valid(entry_points) }
 
-  #-----------------------------------------------------------------------------
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-
-    for k in self.dynamic:
-      if k == 'name':
-        raise ValidationError(f"project.dynamic may not contain 'name'")
-
-      if k not in self._p_all_keys:
-        keys = list(self._default.keys())
-        raise ValidationError(f"project.dynamic may only contain {keys}: {k}")
-
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class build_requires(dependencies):
   pass
@@ -329,6 +322,7 @@ class pyproj_dist(valid_dict):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_config(valid_dict):
   _key_valid = valid(norm_dist_extra)
+  _value_valid = valid(scalar)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj(valid_dict):

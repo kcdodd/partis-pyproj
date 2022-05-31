@@ -53,7 +53,7 @@ from .pptoml import (
 class PyProjBase:
   """Minimal build system for a Python project
 
-  Extends beyond PEP 517 :cite:`pep0517` and 621 :cite:`pep0621`.
+  Extends beyond :pep:`517` and :pep:`621`
 
 
   Parameters
@@ -114,18 +114,15 @@ class PyProjBase:
 
     #...........................................................................
     # default build requirements
-    self.build_requires = set([
-      PkgInfoReq(r)
-      for r in mapget( self.pptoml, 'build-system.requires', list() ) ])
+    self.build_requires = self.pptoml.build_system.requires
 
-    if self.pyproj.meson['compile']:
+    if self.meson.compile:
       try:
         metadata('meson')
       except:
         v = metadata('partis-pyproj')['Version']
 
         self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
-
 
     #...........................................................................
     # used to create name for binary distribution
@@ -150,47 +147,78 @@ class PyProjBase:
   #-----------------------------------------------------------------------------
   @property
   def pptoml(self):
+    """pptoml : Parsed and validated pyproject.toml document
+    """
     return self._pptoml
 
   #-----------------------------------------------------------------------------
   @property
   def project(self):
+    """:class:`partis.pyproj.pptoml.project`
+    """
     return self._pptoml.project
 
   #-----------------------------------------------------------------------------
   @property
   def pyproj(self):
+    """:class:`partis.pyproj.pptoml.pyproj`
+    """
     return self._pptoml.tool.pyproj
 
   #-----------------------------------------------------------------------------
   @property
   def config(self):
+    """:class:`partis.pyproj.pptoml.pyproj_config`
+    """
     return self._pptoml.tool.pyproj.config
 
   #-----------------------------------------------------------------------------
   @property
   def meson(self):
+    """:class:`partis.pyproj.pptoml.pyproj_meson`
+    """
     return self._pptoml.tool.pyproj.meson
 
   #-----------------------------------------------------------------------------
   @property
   def dist(self):
+    """:class:`partis.pyproj.pptoml.pyproj_dist`
+    """
     return self._pptoml.tool.pyproj.dist
 
   #-----------------------------------------------------------------------------
   @property
-  def binary(self):
-    return self._pptoml.tool.pyproj.dist.binary
-
-  #-----------------------------------------------------------------------------
-  @property
   def source(self):
+    """:class:`partis.pyproj.pptoml.pyproj_dist_source`
+    """
     return self._pptoml.tool.pyproj.dist.source
 
   #-----------------------------------------------------------------------------
   @property
+  def binary(self):
+    """:class:`partis.pyproj.pptoml.pyproj_dist_binary`
+    """
+    return self._pptoml.tool.pyproj.dist.binary
+
+
+  #-----------------------------------------------------------------------------
+  @property
   def add_legacy_setup(self):
+    """bool
+    """
     return self.dist.source.add_legacy_setup
+
+  #-----------------------------------------------------------------------------
+  @property
+  def build_requires(self):
+    """set[:class:`PkgInfoReq`]
+    """
+    return self._build_requires
+
+  #-----------------------------------------------------------------------------
+  @build_requires.setter
+  def build_requires(self, reqs):
+    self._build_requires = set([ PkgInfoReq(r) for r in reqs ])
 
   #-----------------------------------------------------------------------------
   def prep_entrypoint( self, name, obj, logger ):
@@ -202,8 +230,8 @@ class PyProjBase:
 
     prep_name = name
 
-    entry_point = prep['entry']
-    entry_point_kwargs = prep.get('kwargs', dict() )
+    entry_point = prep.entry
+    entry_point_kwargs = prep.kwargs
 
     if not entry_point:
       return None
@@ -269,9 +297,7 @@ class PyProjBase:
     self.project.dynamic = list()
 
     # make sure build requirements are still a set of PkgInfoReq
-    self.build_requires = set([
-      PkgInfoReq(r)
-      for r in self.build_requires ])
+    self.build_requires = self.build_requires
 
   #-----------------------------------------------------------------------------
   def meson_compile( self ):
@@ -479,7 +505,7 @@ class PyProjBase:
     if len(include) == 0:
       return
 
-    for src, dst, ignore in self.dist_iter(name, include, ignore):
+    for src, dst, ignore, individual in self.dist_iter(name, include, ignore):
 
       src = osp.normpath( src )
       dst = '/'.join( [base_path, norm_path(dst)] )
@@ -493,7 +519,7 @@ class PyProjBase:
           ignore = ignore )
 
       else:
-        if ignore and ignore('.', [src]):
+        if not individual and ignore and ignore('.', [src]):
           continue
 
         dist.copyfile(
@@ -523,8 +549,8 @@ class PyProjBase:
         for _src in glob.iglob(_glob, recursive = True):
           _dst = osp.join( dst, osp.relpath(_src, start = src) )
 
-          yield ( _src, _dst, _ignore_patterns )
+          yield ( _src, _dst, _ignore_patterns, False )
 
       else:
 
-        yield ( src, dst, _ignore_patterns )
+        yield ( src, dst, _ignore_patterns, True )

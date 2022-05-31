@@ -851,15 +851,21 @@ class valid_dict(Mapping):
     except AttributeError as e:
       pass
 
-    if name != '_p_dict' and name != '_p_key_attr' and name in self._p_key_attr:
-      self._p_dict[ self._p_key_attr[name] ] = val
-      self._validate()
+    if name != '_p_dict' and name != '_p_key_attr':
+      if name in self._p_key_attr:
+        self._p_dict[ self._p_key_attr[name] ] = val
+        self._validate()
+        return
 
-    else:
-      raise AttributeError(
-        f"'{type(self).__name__}' object has no key '{name}'."
-        " New keys must be added using a Mapping method;"
-        f" E.G. x['{name}'] = {val}" )
+      if name in self._p_dict:
+        self._p_dict[ name ] = val
+        self._validate()
+        return
+
+    raise AttributeError(
+      f"'{type(self).__name__}' object has no key '{name}'."
+      " New keys must be added using a Mapping method;"
+      f" E.G. x['{name}'] = {val}" )
 
 
   #-----------------------------------------------------------------------------
@@ -877,8 +883,12 @@ class valid_dict(Mapping):
       pass
 
     # only get mapping if base object does not have attribute
-    if name != '_p_dict' and name != '_p_key_attr' and name in self._p_key_attr:
-      return self._p_dict[ self._p_key_attr[name] ]
+    if name != '_p_dict' and name != '_p_key_attr':
+      if name in self._p_key_attr:
+        return self._p_dict[ self._p_key_attr[name] ]
+
+      if name in self._p_dict:
+        return self._p_dict[ name ]
 
     raise AttributeError(
       f"'{type(self).__name__}' object has no key '{name}'")

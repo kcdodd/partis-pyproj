@@ -35,6 +35,16 @@ from .validate import (
   as_list)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def scalar(val):
+  if isinstance(val, str):
+    return val
+
+  if isinstance(val, Sequence) or isinstance(val, Mapping):
+    raise ValidationError(f"Must be a scalar: {val}")
+
+  return val
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def norm_bool(val):
   t = [True, 'true', 'True', 'yes', 'y', 'enable', 'enabled']
   f = [False, 'false', 'False', 'no', 'n', 'disable', 'disabled']

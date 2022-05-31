@@ -1,4 +1,4 @@
-Validation Methods :mod:`partis.pyproj.validate`
-================================================
+Validation Utilities :mod:`partis.pyproj.validate`
+==================================================
 
 .. automodule:: partis.pyproj.validate
