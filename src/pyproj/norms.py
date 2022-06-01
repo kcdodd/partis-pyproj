@@ -39,7 +39,7 @@ def scalar(val):
   if isinstance(val, str):
     return val
 
-  if isinstance(val, Sequence) or isinstance(val, Mapping):
+  if isinstance(val, Iterable) or isinstance(val, Mapping):
     raise ValidationError(f"Must be a scalar: {val}")
 
   return val

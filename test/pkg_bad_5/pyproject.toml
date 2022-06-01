@@ -22,11 +22,11 @@ requires = [
 build-backend = "partis.pyproj.backend"
 
 #...............................................................................
-[tool.pyproj.config]
-opt_a = 1
-opt_b = ["xyz", "abc"]
-opt_c = false
-opt_d = 0.0
+[tool.pyproj.dist.source]
+copy = [
+  'aux',
+  'src',
+  'pyproject.toml' ]
 
 #...............................................................................
 [tool.pyproj.prep]
@@ -39,31 +39,3 @@ entry = "aux:dist_prep"
 #...............................................................................
 [tool.pyproj.dist.source.prep]
 entry = "aux:dist_source_prep"
-
-#...............................................................................
-[tool.pyproj.dist.source]
-add_legacy_setup = true
-
-copy = [
-  'src',
-  'aux',
-  'pyproject.toml' ]
-
-#...............................................................................
-[tool.pyproj.dist.binary]
-ignore = [ ]
-
-#...............................................................................
-[tool.pyproj.dist.binary.prep]
-entry = "aux:dist_binary_prep"
-
-#...............................................................................
-[[tool.pyproj.dist.binary.purelib.copy]]
-src = 'src/test_pkg/pure_mod'
-dst = 'test_pkg_base/pure_mod'
-
-[[tool.pyproj.dist.binary.purelib.copy]]
-glob = '**/*.py'
-ignore = '**/bad_file.py'
-src = 'src/test_pkg/sub_mod'
-dst = 'test_pkg_base/sub_mod'

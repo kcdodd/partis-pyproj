@@ -1,3 +1,4 @@
+import sys
 import os.path as osp
 import io
 import warnings
@@ -13,25 +14,35 @@ from collections.abc import (
   Iterable )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-FILTER_VALIDATING_FRAMES = True
+# NOTE: Filtering works by changing the traceback linked-list, which means
+# writing to the 'tb_next' attrbute to the next frame not to be skipped.
+# However, 'tb_next' was a read-only attribute until Python 3.7
+FILTER_VALIDATING_FRAMES = sys.version_info >= (3,7)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def filter_traceback(traceback, ignore):
-  tb = traceback
-  last_tb = tb
-  tb = tb.tb_next
+  # NOTE: always keep the first frame in the trace-back (even if it would be filtered)
+  cur_tb = traceback
+  prev_kept_tb = cur_tb
 
-  while tb is not None:
-    frame = tb.tb_frame
-    lineno = tb.tb_lineno
+  # start filtering at the next inner frame
+  cur_tb = cur_tb.tb_next
+
+  while cur_tb is not None:
+    frame = cur_tb.tb_frame
+    lineno = cur_tb.tb_lineno
     code = frame.f_code
 
-    tb = tb.tb_next
+    cur_tb = cur_tb.tb_next
 
-    if tb is not None and ignore(frame, lineno):
-      last_tb.tb_next = tb
+    # check the ignore function to see if this frame should be kept
+    # NOTE: always keep the last frame in the trace-back (the initial 'raise')
+    if cur_tb is not None and ignore(frame, lineno):
+      # if ignored, set the 'tb_next' attribute of the previously kept frame
+      # to the next frame to be checked
+      prev_kept_tb.tb_next = cur_tb
     else:
-      last_tb = tb
+      prev_kept_tb = cur_tb
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def ignore_validating(frame, lineno):
@@ -39,6 +50,10 @@ def ignore_validating(frame, lineno):
     return True
 
   return False
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class ValidationWarning( RuntimeWarning ):
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class ValidationError( ValueError ):
@@ -52,8 +67,7 @@ class ValidationError( ValueError ):
   def __init__( self, msg,
     doc_root = None,
     doc_file = None,
-    doc_path = None,
-    doc_lc = None ):
+    doc_path = None ):
 
     msg = inspect.cleandoc( msg )
 
@@ -61,7 +75,6 @@ class ValidationError( ValueError ):
     self.doc_root = doc_root
     self.doc_file = doc_file
     self.doc_path = doc_path or list()
-    self.doc_lc = doc_lc
 
     super().__init__( msg )
 
@@ -72,6 +85,9 @@ class ValidationError( ValueError ):
 
     if self.doc_path:
       _path = self.doc_path[0]
+
+      if isinstance(_path, int):
+        _path = f"[{_path}]"
 
       for k in self.doc_path[1:]:
         if isinstance(k, int):
@@ -84,18 +100,6 @@ class ValidationError( ValueError ):
     if self.doc_file:
       parts.append(f"in \"{self.doc_file}\"")
 
-    lc = None
-
-    if self.doc_lc:
-      lc = self.doc_lc
-
-    elif self.doc_root:
-      lc = get_line_col(self.doc_root, self.doc_path)
-
-    if lc:
-      line, col = lc
-      parts.append(f"line {line}")
-      parts.append(f"col {col}" )
 
     loc = " ".join(parts)
     msg = self.msg
@@ -172,40 +176,22 @@ class validating:
     return False
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def get_line_col(obj, path):
-
-  # key = None
-  #
-  # if len(path):
-  #   key = path[0]
-  #   path = path[1:]
-  #
-  # if len(path):
-  #   lc = get_line_col(obj[key], path)
-  #
-  #   if lc:
-  #     return lc
-  #
-  # if isinstance( obj, CommentedBase ):
-  #   # NOTE: ruamel appears to store line/col in zero-based indexing
-  #   if (
-  #     key is None
-  #     or not ( isinstance(obj, CommentedMap) or isinstance(obj, CommentedSeq) )
-  #     or obj.lc.data is None
-  #     or (isinstance(obj, CommentedMap) and key not in obj)
-  #     or (isinstance(obj, CommentedSeq) and ( key < 0 or key >= len(obj) ) ) ):
-  #
-  #     return ( obj.lc.line + 1, obj.lc.col + 1 )
-  #
-  #   else:
-  #     return ( obj.lc.data[key][0] + 1, obj.lc.data[key][1] + 1 )
-
-  return None
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Special:
+  #-----------------------------------------------------------------------------
   def __str__(self):
     return type(self).__name__
+
+  #-----------------------------------------------------------------------------
+  def __repr__(self):
+    return str(self)
+
+  #-----------------------------------------------------------------------------
+  def __eq__(self, other):
+    return str(self) == str(other)
+
+  #-----------------------------------------------------------------------------
+  def __hash__(self):
+    return hash(str(self))
 
 class Optional(Special):
   """Optional value
@@ -328,11 +314,12 @@ class Validator:
   #-----------------------------------------------------------------------------
   def __init__(self, *args, default = notset):
 
+    args = list(args)
+
     if default is notset:
       default = required
 
       if len(args):
-        args = list(args)
         v = args.pop(0)
 
         if v in [ None, optional ]:
@@ -391,7 +378,7 @@ class Restricted(Validator):
   #-----------------------------------------------------------------------------
   def __init__(self, *options ):
     if len(options) == 0:
-      raise ValueError(f"Must have at least one option")
+      raise ValidDefinitionError(f"Must have at least one option")
 
     super().__init__(options[0], type(options[0]))
 
@@ -456,7 +443,8 @@ def valid_keys(
   mutex_keys = None,
   deprecate_keys = None,
   forbid_keys = None,
-  default = None ):
+  default = None,
+  proxy_keys = None ):
   """Check that a mapping does not contain un-expected keys
 
   Parameters
@@ -488,39 +476,100 @@ def valid_keys(
     Mapping must not contain any of the listed keys.
   default: None | Mapping[object, object | type | Validator]
     Default value or validator for given keys.
+  proxy_keys : None | list[ list[str] ]
   """
 
   if not isinstance( obj, Mapping ):
     raise ValidationError(
       f"Must be mapping: {type(obj)}" )
 
+  out = obj
+
+  def copy_once(out):
+    if out is obj:
+      # copy only if 'out' is still the same object as obj
+      return dict(obj)
+
+    return out
+
   if forbid_keys:
     for k in forbid_keys:
-      if k in obj:
+      if k in out:
         raise ValidationError(f"Use of key '{k}' is not allowed")
 
   if deprecate_keys:
     for k_old, k_new in deprecate_keys:
-      if k_old in obj:
-        if k_new:
+      if k_old in out:
+        out = copy_once(out)
+
+        if k_new and k_new is not optional:
           if k_new is required:
             raise ValidationError(f"Use of key '{k_old}' is deprecated")
           else:
-            warnings.warn(f"Use of key '{k_old}' is deprecated, replaced by '{k_new}'")
+            warnings.warn(f"Use of key '{k_old}' is deprecated, replaced by '{k_new}'", DeprecationWarning)
 
-          if k_new not in obj:
-            obj[k_new] = obj[k_old]
+          if k_new not in out:
+            out[k_new] = out[k_old]
 
         else:
-          warnings.warn(f"Use of key '{k_old}' is deprecated")
+          warnings.warn(f"Use of key '{k_old}' is deprecated", DeprecationWarning)
 
-        obj.pop(k_old)
+        out.pop(k_old)
+
+  if proxy_keys:
+    for k, k_src in proxy_keys:
+      if k_src in out and out.get(k, None) is None:
+        out = copy_once(out)
+        out[k] = out[k_src]
+
+  if key_valid:
+    for k, v in out.items():
+      with validating(key = k):
+        _k = key_valid(k)
+
+      if _k != k:
+        out = copy_once(out)
+        out.pop(k)
+        out[_k] = v
+
+  if value_valid:
+    for k, v in out.items():
+      with validating(key = k):
+        _v = value_valid(v)
+
+      if _v is not v:
+        out = copy_once(out)
+        out[k] = _v
+
+  if item_valid:
+    for k,v in out.items():
+      with validating(key = k):
+        _k, _v = item_valid( (k,v) )
+
+      if _k != k:
+        out = copy_once(out)
+        out.pop(k)
+        out[_k] = _v
+
+      elif _v is not v:
+        out = copy_once(out)
+        out[k] = _v
+
 
   if allow_keys is not None:
     allow_keys = copy(allow_keys)
     allow_keys.extend( require_keys or [] )
-    allow_keys.extend( [k_new for k_old, k_new in deprecate_keys] if deprecate_keys else [] )
+    allow_keys.extend( [
+        k_new
+        for k_old, k_new in deprecate_keys
+        if k_new not in [None, optional, required ] ]
+      if deprecate_keys else [] )
+
     allow_keys.extend( default.keys() if default else [] )
+
+    if proxy_keys:
+      for keys in proxy_keys:
+        allow_keys.extend(keys)
 
     if min_keys:
       for keys in min_keys:
@@ -536,7 +585,7 @@ def valid_keys(
 
     allow_keys = set(allow_keys)
 
-    for k in obj.keys():
+    for k in out.keys():
       if k not in allow_keys:
         raise ValidationError(
           f"Allowed keys {allow_keys}: '{k}'" )
@@ -546,67 +595,41 @@ def valid_keys(
       if not isinstance(v, Validator):
         v = valid(v)
 
-      with validating(key = k):
-        val = v( obj.get(k, None) )
+      val = out.get(k, None)
 
-      if val is not None:
-        obj[k] = val
+      with validating(key = k):
+        _val = v( val )
+
+      if _val is not val:
+        out = copy_once(out)
+        out[k] = _val
 
   if require_keys:
     for k in require_keys:
-      if k not in obj:
+      if k not in out:
         raise ValidationError(
           f"Required keys {require_keys}: '{k}'" )
 
   if min_keys:
     for keys in min_keys:
-      if not any(k in obj for k in keys):
+      if not any(k in out for k in keys):
         raise ValidationError(
           f"Must have at least one of keys: {keys}" )
 
   if wedge_keys:
     for keys in wedge_keys:
-      if any(k in obj for k in keys) and not all(k in obj for k in keys):
+      if any(k in out for k in keys) and not all(k in out for k in keys):
         raise ValidationError(
           f"Must have either all, or none, of keys: {keys}" )
 
   if mutex_keys:
     for keys in mutex_keys:
-      if sum(k in obj for k in keys) > 1:
+      if sum(k in out for k in keys) > 1:
         raise ValidationError(
           f"May not have more than one of keys: {keys}" )
 
-  # TODO: copy is not correct, since normalized key could add a new key
-  if key_valid:
-    _obj = copy(obj)
 
-    for k, v in obj.items():
-      with validating(key = k):
-        _obj[key_valid(k)] = v
-
-    obj = _obj
-
-  if value_valid:
-    _obj = copy(obj)
-
-    for k, v in obj.items():
-      with validating(key = k):
-        _obj[k] = value_valid(v)
-
-    obj = _obj
-
-  if item_valid:
-    _obj = copy(obj)
-
-    for k,v in obj.items():
-      with validating(key = k):
-        k,v = item_valid((k,v))
-
-      _obj[k] = v
-
-    obj = _obj
-
-  return obj
+  return out
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class validating_block:
@@ -684,6 +707,7 @@ class valid_dict(Mapping):
   """
 
   _proxy_key = None
+  _proxy_keys = None
   _key_valid = None
   _value_valid = None
   _item_valid = None
@@ -717,17 +741,16 @@ class valid_dict(Mapping):
     cls = type(self)
 
     if (
-      cls._proxy_key
-      and len(kwargs) == 0
+      len(kwargs) == 0
       and len(args) == 1
       and not isinstance(args[0], Mapping) ):
 
       v = args[0]
 
       if v in [None, optional]:
-        args = dict()
-      else:
-        args = [{cls._proxy_key : args[0]}]
+        args = [dict()]
+      elif cls._proxy_key:
+        args = [{ cls._proxy_key : v }]
 
     self._p_dict = dict(*args, **kwargs)
 
@@ -743,7 +766,10 @@ class valid_dict(Mapping):
 
     if self._deprecate_keys:
       for keys in self._deprecate_keys:
-        self._p_all_keys.extend(keys)
+        self._p_all_keys.extend( [
+            k_new
+            for k_old, k_new in self._deprecate_keys
+            if k_new not in [None, optional, required] ] )
 
     if self._min_keys:
       for keys in self._min_keys:
@@ -762,7 +788,7 @@ class valid_dict(Mapping):
 
   #-----------------------------------------------------------------------------
   def __copy__(self):
-    obj = super().__copy__()
+    obj = copy(super())
     obj._p_dict = copy(self._p_dict)
     return obj
 
@@ -816,8 +842,9 @@ class valid_dict(Mapping):
 
   #-----------------------------------------------------------------------------
   def pop( self, *args, **kwargs ):
-    self._p_dict.pop(*args, **kwargs)
+    val = self._p_dict.pop(*args, **kwargs)
     self._validate()
+    return val
 
   #-----------------------------------------------------------------------------
   def __getitem__( self, key ):
@@ -912,7 +939,8 @@ class valid_dict(Mapping):
         mutex_keys = self._mutex_keys,
         deprecate_keys = self._deprecate_keys,
         forbid_keys = self._forbid_keys,
-        default = self._default ) ) )
+        default = self._default,
+        proxy_keys = self._proxy_keys ) ) )
 
   #-----------------------------------------------------------------------------
   def __str__(self):
@@ -928,6 +956,7 @@ class valid_list(list):
   """
   _as_list = None
   _value_valid = None
+  _min_len = 0
 
   #---------------------------------------------------------------------------#
   def __init__( self, vals = None ):
@@ -947,11 +976,19 @@ class valid_list(list):
         vals[i] = self._value_valid(v)
 
     super().__init__(vals)
+    self._validate()
 
   #-----------------------------------------------------------------------------
   def clear( self ):
     super().clear()
+    self._validate()
 
+  #-----------------------------------------------------------------------------
+  def pop( self, *args, **kwargs ):
+    val = super().pop(*args, **kwargs)
+    self._validate()
+    return val
+    
   #---------------------------------------------------------------------------#
   def append(self, val ):
     with validating(key = len(self)):
@@ -975,6 +1012,11 @@ class valid_list(list):
       val = self._value_valid(val)
 
     super().__setitem__(key, val)
+
+  #-----------------------------------------------------------------------------
+  def _validate(self):
+    if len(self) < self._min_len:
+      raise ValidationError(f"Must have length >= {self._min_len}: {len(self)}")
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def mapget(

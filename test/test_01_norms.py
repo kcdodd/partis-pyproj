@@ -8,6 +8,13 @@ from pytest import (
 from email.utils import formataddr
 
 from partis.pyproj import (
+  scalar,
+  scalar_list,
+  empty_str,
+  nonempty_str,
+  str_list,
+  nonempty_str_list,
+  norm_bool,
   CompatibilityTags,
   ValidationError,
   PEPValidationError,
@@ -27,6 +34,7 @@ from partis.pyproj import (
   norm_dist_url,
   norm_dist_extra,
   norm_dist_build,
+  dist_build,
   norm_dist_compat,
   join_dist_compat,
   compress_dist_compat,
@@ -48,77 +56,72 @@ from partis.pyproj._nonprintable import (
   gen_nonprintable )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_valid_type():
-  valid_type('xyz', types = [str])
+def test_scalars():
+  #.............................................................................
+  xs = [False, 0, 0.0, '000', True, 1, 1.0, '111', '']
 
-  with raises( ValidationError ):
-    valid_type('xyz', types = [int])
+  for x in xs:
+    assert scalar(x) is x
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_valid_keys():
-  with raises( ValidationError ):
-    valid_keys( 'xyz', allow_keys = ['x', 'y', 'z'] )
+  assert scalar_list(xs) == xs
 
-  with raises( ValidationError ):
-    valid_keys( list(), allow_keys = ['x', 'y', 'z'] )
+  ys = [ [], [1,2,3], {}, {1:1}, set() ]
 
-  valid_keys( dict(), allow_keys = ['x', 'y', 'z'] )
-
-  obj = {
-    'x': 1,
-    'y': 2,
-    'z': 3 }
-
-  valid_keys( obj, allow_keys = ['w', 'x', 'y', 'z'] )
-
-  with raises( ValidationError ):
-    valid_keys( obj, allow_keys = ['x', 'y'] )
-
-  with raises( ValidationError ):
-    valid_keys( obj,
-      allow_keys = ['x', 'y', 'z'],
-      require_keys = ['w'] )
-
-  with raises( ValidationError ):
-    valid_keys( obj,
-      allow_keys = ['x', 'y', 'z'],
-      mutex_keys = [('x', 'y')] )
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_mapget():
-  obj = {
-    'x': 1,
-    'y': {
-      'a' : 2,
-      'b' : [4,5,6] },
-    'z': [7,8,9] }
-
-  default = 1234
-
-  valid_paths = [
-    ('w', default),
-    ('x', 1),
-    ('y.a', 2),
-    ('y.b', [4,5,6]),
-    ('y.c', default),
-    ('z', [7,8,9]) ]
-
-  invalid_paths = [
-    'x.y',
-    'y.a.c',
-    'y.b.0.z',
-    'z.0' ]
-
-  for p, val in valid_paths:
-    assert val == mapget( obj, p, default = default )
-
-  for p in invalid_paths:
-    print(p)
+  for y in ys:
     with raises( ValidationError ):
-      mapget( obj, p, default = default )
+      scalar(y)
 
   with raises( ValidationError ):
-    mapget( 'asd', 'x', default = default )
+    scalar_list(ys)
+
+  #.............................................................................
+  ts = [1, 1.0, True, 'true', 'True', 'yes', 'y', 'enable', 'enabled']
+  fs = [0, 0.0, False, 'false', 'False', 'no', 'n', 'disable', 'disabled']
+
+  assert all( norm_bool(t) for t in ts)
+  assert not any( norm_bool(f) for f in fs )
+
+  with raises( ValidationError ):
+    norm_bool(11)
+
+  with raises( ValidationError ):
+    norm_bool(1.1)
+
+  with raises( ValidationError ):
+    norm_bool('')
+
+  with raises( ValidationError ):
+    norm_bool('1')
+
+  #.............................................................................
+  assert empty_str('') == ''
+
+  with raises( ValidationError ):
+    empty_str('123')
+
+  with raises( ValidationError ):
+    empty_str(123)
+
+
+  assert nonempty_str('123') == '123'
+  assert nonempty_str(123) == '123'
+
+  with raises( ValidationError ):
+    nonempty_str('')
+
+  #.............................................................................
+  zs = ['1', '2', '3']
+  assert str_list(zs) == zs
+
+  qs = [1, 2, 3]
+  assert str_list(qs) == zs
+
+  #.............................................................................
+  assert nonempty_str_list(zs) == zs
+
+  with raises( ValidationError ):
+    nonempty_str_list(['', '', '123'])
+
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_as_list():
@@ -322,6 +325,17 @@ def test_norm_dist_build():
     with raises( PEPValidationError ):
       norm_dist_build(x)
 
+
+  assert dist_build() == ''
+  assert dist_build(1) == '1'
+  assert dist_build(build_tag = 'asd') == '0_asd'
+  assert dist_build(123, 'asd') == '123_asd'
+
+  with raises( ValueError ):
+    dist_build('qwe', 'asd')
+
+  with raises( PEPValidationError ):
+    dist_build(123, 'asd-test')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_norm_dist_compat():

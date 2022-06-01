@@ -1,0 +1,11 @@
+option(
+  'opt_a',
+  type : 'boolean',
+  value : true,
+  description : '...' )
+
+option(
+  'opt_b',
+  type : 'feature',
+  value : 'auto',
+  description : '...' )

@@ -169,13 +169,13 @@ def test_full():
     #...........................................................................
 
     valid_license = [
-      {},
       { 'text' : readme, 'file': readme_file_md },
       { 'text' : readme },
       { 'file': readme_file_md } ]
 
     invalid_license = [
       'junk',
+      {},
       { 'file': 'junk' },
       { 'junk' : 'junk' } ]
 

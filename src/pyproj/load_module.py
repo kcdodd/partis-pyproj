@@ -8,6 +8,10 @@ from .norms import (
   norm_path_to_os )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class EntryPointError(ValueError):
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def module_name_from_path( path, root ):
   """Generates an importable module name from a file system path
 
@@ -28,7 +32,7 @@ def module_name_from_path( path, root ):
   path_parts = Path(relative_path).parts
 
   if len(path_parts) == 0:
-    raise ValueError("Empty module name")
+    raise EntryPointError("Empty module name")
 
   return ".".join(path_parts)
 
@@ -36,12 +40,12 @@ def module_name_from_path( path, root ):
 def load_module( path, root ):
 
   if not osp.isdir(path):
-    raise ValueError(f"Not a directory: {path}")
+    raise EntryPointError(f"Not a directory: {path}")
 
   init_file = osp.join( path, "__init__.py" )
 
   if not osp.isfile(init_file):
-    raise ValueError(f"Not a module: {init_file}")
+    raise EntryPointError(f"Not a module: {init_file}")
 
   module_name = module_name_from_path( path = path, root = root )
 
@@ -69,7 +73,7 @@ def load_entrypoint( entry_point, root ):
     root = root )
 
   if not hasattr( mod, attr_name ):
-    raise ValueError(
+    raise EntryPointError(
       f"'{mod_name}' :'{attr_name}'" )
 
   func = getattr( mod, attr_name )

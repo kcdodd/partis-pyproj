@@ -1,0 +1,27 @@
+# -*- coding: UTF-8 -*-
+[project]
+dynamic = [ "version" ]
+name = "test_pkg_base"
+description = "Test Package"
+
+requires-python = ">= 3.6.2"
+dependencies = [ ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[[project.authors]]
+name = "Nanohmics Inc."
+email = "software.support@nanohmics.com"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Build and distribution configuration
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[build-system]
+requires = [
+  "partis-pyproj == 0.0.1"]
+
+build-backend = "partis.pyproj.backend"
+
+#...............................................................................
+[tool.pyproj.dist.source]
+copy = [
+  'pyproject.toml' ]

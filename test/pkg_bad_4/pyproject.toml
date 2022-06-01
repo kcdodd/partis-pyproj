@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 [project]
-dynamic = [ "version" ]
+# dynamic = [ "version" ]
 name = "test_pkg_base"
 description = "Test Package"
 

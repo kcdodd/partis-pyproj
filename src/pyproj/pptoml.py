@@ -30,6 +30,7 @@ from .norms import (
 
 from .pep import (
   CompatibilityTags,
+  purelib_compat_tags,
   norm_printable,
   valid_dist_name,
   norm_dist_version,
@@ -215,6 +216,7 @@ def compat_tag(v):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class compat_tags(valid_list):
   _as_list = valid(as_list)
+  _min_len = 1
   _value_valid = valid(compat_tag)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -259,7 +261,10 @@ class ignore_list(valid_list):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy(valid_dict):
+  # a string at top-level interpreted as 'src'
   _proxy_key = 'src'
+  # take 'dst' from 'src' if not set
+  _proxy_keys = [('dst', 'src')]
   _allow_keys = list()
   _min_keys = [
     ('src', 'glob') ]
@@ -269,11 +274,6 @@ class pyproj_dist_copy(valid_dict):
     # TODO; how to normalize patterns?
     'glob': str,
     'ignore': ignore_list }
-
-  #---------------------------------------------------------------------------#
-  def __init__( self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.setdefault('dst', self['src'])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy_list(valid_list):
@@ -292,7 +292,7 @@ class pyproj_dist_binary(valid_dict):
   _default = {
     'build_number': valid(optional, int),
     'build_suffix': valid(optional, str),
-    'compat_tags': compat_tags,
+    'compat_tags': valid(purelib_compat_tags(), compat_tags),
     'prep': valid(optional, pyproj_dist_binary_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,

@@ -2,12 +2,20 @@
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 from .validate import (
   ValidationError,
+  ValidationWarning,
   valid_type,
   valid_keys,
   mapget,
   as_list )
 
 from .norms import (
+  scalar,
+  scalar_list,
+  empty_str,
+  nonempty_str,
+  str_list,
+  nonempty_str_list,
+  norm_bool,
   norm_path,
   norm_path_to_os,
   norm_mode,
@@ -57,4 +65,5 @@ from .pkginfo import (
   PkgInfo )
 
 from .pyproj import (
+  EntryPointError,
   PyProjBase )

@@ -20,6 +20,10 @@
 #                                                                              #
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Meta-data and dependencies
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 [project]
 name = "partis-pyproj"
 version = "0.0.1"
@@ -38,6 +42,36 @@ dependencies = [
 meson = [
   "meson >= 0.61.3",
   "ninja >= 1.10.2.3" ]
+
+doc = [
+  'partis-utils[sphinx] == 0.0.1' ]
+
+#...............................................................................
+test = [
+  "pip >= 18.1",
+  "nox >= 2021.10.1",
+  "build >= 0.7.0",
+  # numpy needed to run some of the tests where the source code does not need it
+  "numpy",
+  "tomli >= 1.2.3",
+  "pytest >= 6.2.5",
+  "pytest-cov >= 3.0.0",
+  "pytest_mock >= 3.6.1",
+  "PyVirtualDisplay >= 2.2",
+  "coverage[toml] >= 6.2",
+  # for testing partis-pyproj[meson]
+  "meson >= 0.61.3",
+  "ninja >= 1.10.2.3",
+  "Cython>=0.29.18" ]
+
+#...............................................................................
+cov = [
+  "coverage[toml] >= 6.2" ]
+
+#...............................................................................
+lint = [
+  "pyflakes == 2.4.0" ]
+
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 [[project.authors]]
@@ -86,3 +120,59 @@ add_legacy_setup = true
 
 copy = [
   { src = 'src/pyproj', dst = 'partis/pyproj' } ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Testing configuration
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[tool.noxfile]
+python = [
+  "3.10",
+  "3.9",
+  "3.8",
+  "3.7",
+  "3.6" ]
+
+envdir = "tmp/.nox"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--maxfail=1 --cov --cov-append"
+
+log_level = "NOTSET"
+# un-comment the following to print *all* logging messages
+#log_cli = true
+#log_cli_level = "NOTSET"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[tool.coverage.run]
+branch = true
+data_file = "tmp/.coverage"
+# parallel = true
+disable_warnings = [
+  "module-not-measured" ]
+source = [
+  "partis" ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[tool.coverage.paths]
+# Source code paths which are to be considered equivalent when combining coverage reports.
+# NOTE: the order must be from "most specific" to "least specific" so that
+# installed sub-package directories are combined to the correct source path
+partis-pyproj = [
+  "src/pyproj",
+  "*/site-packages/partis/pyproj" ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[tool.coverage.report]
+exclude_lines = [
+  "if self.debug:",
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:" ]
+
+ignore_errors = true
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[tool.coverage.html]
+directory = "build/htmlcov"

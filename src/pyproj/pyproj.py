@@ -11,6 +11,7 @@ from collections.abc import (
 import subprocess
 import multiprocessing
 import glob
+import warnings
 import tomli
 
 try:
@@ -25,6 +26,7 @@ from .pkginfo import (
 
 from .validate import (
   ValidationError,
+  ValidationWarning,
   valid_dict,
   validating,
   valid,
@@ -42,6 +44,7 @@ from .pep import (
   platlib_compat_tags )
 
 from .load_module import (
+  EntryPointError,
   load_module,
   load_entrypoint )
 
@@ -122,22 +125,12 @@ class PyProjBase:
     # default build requirements
     self.build_requires = self.pptoml.build_system.requires
 
-    if self.meson.compile:
-      try:
-        metadata('meson')
-      except:
-        v = metadata('partis-pyproj')['Version']
-
-        self.build_requires.add( PkgInfoReq(f'partis-pyproj[meson] == {v}') )
-
     #...........................................................................
     # used to create name for binary distribution
     self.is_platlib = bool(self.binary.platlib.copy)
 
     if self.is_platlib:
       self.binary.compat_tags = platlib_compat_tags()
-    else:
-      self.binary.compat_tags = purelib_compat_tags()
 
     #...........................................................................
     self.prep()
@@ -239,10 +232,6 @@ class PyProjBase:
     entry_point = prep.entry
     entry_point_kwargs = prep.kwargs
 
-    if not entry_point:
-      return None
-
-
     try:
       func = load_entrypoint(
         entry_point = entry_point,
@@ -251,19 +240,19 @@ class PyProjBase:
       logger.info(f"loaded entry-point '{entry_point}'")
 
     except Exception as e:
-      raise ValueError(f"failed to load entry-point '{entry_point}'") from e
+      raise EntryPointError(f"failed to load entry-point '{entry_point}'") from e
 
     try:
       cwd = os.getcwd()
 
-      with validating( file = entry_point ):
+      with validating( file = f"{prep_name} -> {entry_point}(**{entry_point_kwargs})" ):
         func(
           self,
           logger = logger,
           **entry_point_kwargs )
 
     except Exception as e:
-      raise ValueError(f"failed to run entry-point '{entry_point}'") from e
+      raise EntryPointError(f"failed to run entry-point '{entry_point}'") from e
 
     finally:
       os.chdir(cwd)
@@ -288,10 +277,11 @@ class PyProjBase:
 
     # NOTE: check that any dynamic meta-data is defined after prep
     for k in dynamic:
-      # require all dynamic keys are updated by prep
-      if k not in self.project:
-        raise ValidationError(
-          f"project.dynamic listed key as dynamic, but not updated in prep: {k}" )
+      # all dynamic keys should updated by prep
+      if k not in self.project or self.project[k] == project[k]:
+        warnings.warn(
+          f"project.dynamic listed key as dynamic, but not altered in prep: {k}",
+          ValidationWarning )
 
     for k, v in self.project.items():
       if k not in dynamic and (k not in project or project[k] != v):
@@ -317,10 +307,7 @@ class PyProjBase:
 
     for k in ['src_dir', 'build_dir', 'prefix']:
 
-      rel_path = norm_path_to_os(self.meson[k])
-
-      if osp.isabs(rel_path):
-        raise ValidationError(f"tool.pyproj.meson.{k} must be relative to pyproject.toml: {rel_path}")
+      rel_path = self.meson[k]
 
       abs_path = osp.realpath( osp.join(
         self.root,
@@ -450,9 +437,6 @@ class PyProjBase:
       name = f"tool.pyproj.dist.binary.prep",
       obj = self.binary,
       logger = self.logger.getChild( f"dist.binary.prep" ) )
-
-    if not self.binary.compat_tags:
-      raise ValidationError(f"At least one set of binary compatability tags is required: {self.binary}")
 
     self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.binary.compat_tags}")
 

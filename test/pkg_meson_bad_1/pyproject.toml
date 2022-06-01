@@ -27,6 +27,7 @@ build-backend = "partis.pyproj.backend"
 
 copy = [
   'src',
+  'bad_link',
   'meson.build',
   'meson_options.txt',
   'pyproject.toml' ]
@@ -38,7 +39,7 @@ compile = true
 compile_args = [
   '-j', '-1' ]
 
-prefix = 'build'
+prefix = 'bad_link'
 build_dir = 'build'
 
 [tool.pyproj.meson.options]

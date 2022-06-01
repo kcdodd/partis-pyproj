@@ -255,7 +255,8 @@ class PkgInfo:
             self._desc = norm_printable(
               fp.read().decode('utf-8', errors = 'replace') )
 
-        elif 'text' in self.readme:
+        else:
+          # NOTE: if readme is non-empty, then it must either have 'file' or 'text'
           self._desc = self.readme.text
 
     #...........................................................................

@@ -7,9 +7,13 @@ import subprocess
 import glob
 
 from pytest import (
+  warns,
   raises )
 
 from partis.pyproj import (
+  ValidationError,
+  ValidationWarning,
+  EntryPointError,
   PyProjBase,
   dist_source_targz,
   dist_binary_wheel )
@@ -184,7 +188,7 @@ def run_pyproj( name ):
 
       with dist_binary_wheel(
         pkg_info = pyproj.pkg_info,
-        compat = pyproj.build.compat_tags,
+        compat = pyproj.binary.compat_tags,
         outdir = outdir,
         logger = pyproj.logger ) as dist:
 
@@ -201,13 +205,41 @@ def run_pyproj( name ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_min():
-
   run_pyproj('pkg_min')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_base():
-
   run_pyproj('pkg_base')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_bad_1():
+  with raises(EntryPointError):
+    # declares non-existent entrypoint
+    run_pyproj('pkg_bad_1')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_bad_2():
+  with raises(EntryPointError):
+    # entrypoint raises exception
+    run_pyproj('pkg_bad_2')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_bad_3():
+  with raises(ValidationError):
+    # declares dynamic but no entry-point
+    run_pyproj('pkg_bad_3')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_bad_4():
+  with raises(ValidationError):
+    # changes meta-data without declaring dynamic
+    run_pyproj('pkg_bad_4')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_bad_5():
+  with warns(ValidationWarning):
+    # declares dynamic but doesn't update
+    run_pyproj('pkg_bad_5')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_meson():

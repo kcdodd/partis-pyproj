@@ -1,0 +1,26 @@
+# -*- coding: UTF-8 -*-
+
+[project]
+name = "partis-sitecustom"
+version = "0.0.1"
+
+dependencies = [
+  "coverage[toml] >= 6.2" ]
+
+[build-system]
+requires = [
+  "partis-pyproj == 0.0.1" ]
+
+build-backend = "partis.pyproj.backend"
+
+
+[tool.pyproj.dist.source]
+
+copy = [
+  'pyproject.toml',
+  'partis-sitecustom.pth' ]
+
+
+[tool.pyproj.dist.binary]
+
+copy = [ 'partis-sitecustom.pth' ]
