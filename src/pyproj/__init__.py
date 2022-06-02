@@ -55,8 +55,11 @@ from .dist_file import (
   dist_targz,
   dist_source_dummy,
   dist_source_targz,
-  dist_binary_wheel )
-
+  dist_binary_wheel,
+  FileOutsideRootError,
+  root_ignore_patterns,
+  dist_iter,
+  dist_copy )
 
 from .pkginfo import (
   PkgInfoReq,

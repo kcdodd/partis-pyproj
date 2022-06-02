@@ -226,7 +226,7 @@ class dist_base( ABC ):
 
     if ignore is not None:
       ignored_names = ignore(
-        os.fspath( src ),
+        src,
         [ x.name for x in entries ] )
 
       if len(ignored_names) > 0:

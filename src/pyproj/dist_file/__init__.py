@@ -10,3 +10,9 @@ from .dist_source import (
 
 from .dist_binary import (
   dist_binary_wheel )
+
+from .dist_copy import (
+  FileOutsideRootError,
+  root_ignore_patterns,
+  dist_iter,
+  dist_copy )

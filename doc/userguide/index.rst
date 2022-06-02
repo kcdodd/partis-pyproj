@@ -69,8 +69,13 @@ Copy Operations
   or
   :func:`shutil.copytree`,
   depending on whether the ``src`` is a file or a directory.
-* The ``dst`` is relative to the relevant distribution archive root directory.
+* The ``dst`` is relative to a distribution archive base directory.
 * If the item is a single string, it is expanded as ``dst = src``.
+* A ``glob`` pattern may be used to match files or directories,
+  supporting the ``**`` recursive operator, which is expanded to zero or more
+  matches relative to ``src``.
+  When ``glob`` is used, the destination path is relative to ``dst``, taken from the
+  source path relative to ``src``.
 * The ``ignore`` list is treated like the arguments to
   :func:`shutil.ignore_patterns`,
   before it is passed to the :func:`shutil.copytree` function.
@@ -78,27 +83,100 @@ Copy Operations
   matches one of the ``ignore`` patterns.
 * The ``ignore`` patterns may be specified for all distributions in
   ``tool.pyproj.dist``, specifically for ``tool.pyproj.dist.binary`` or
-  ``tool.pyproj.dist.source``, or individually for each copytree operation
+  ``tool.pyproj.dist.source``, or individually for each copy operation
   ``{ src = '...', dst = '...', ignore = [...] }``.
-  The ignore patterns are accumulated at each level of specificity.
+  The ignore patterns are inherited at each level of specificity.
+* If an ignore pattern **does not** contain any path separators, it is matched to
+  the **base-name** of every file or directory being considered.
+* If an ignore pattern **contains** a path separator, then it is matched to the
+  **full path** relative to either:
 
-Optionally, a ``glob`` pattern may be used to match files or directories,
-which is expanded to zero or more matches relative to ``src``.
-However, when ``glob`` is used, the purpose of ``src`` and ``dst`` is strictly
-to specify relative paths.
-All accumulated ``ignore`` patterns, however, remain relative to the root project
-directory.
-For example, the following will recursively copy all files ending in ``.py``,
-except for files named ``bad_file.py``.
+  * The root project directory for ``tool.pyproj.dist.ignore``,
+    ``tool.pyproj.dist.binary.ignore``, and ``tool.pyproj.dist.source.ignore``.
+  * ``src`` for any ``copy.ignore`` specified within a ``copy`` operation.
+
+A short example of what what paths would be included or ignored based on the
+above ``pyproject.toml``:
 
 .. code-block:: toml
+
+  [tool.pyproj.dist]
+  ignore = [
+    '__pycache__',
+    'doc/_build' ]
+
+  [tool.pyproj.dist.source]
+
+  ignore = [
+    '*.so' ]
+
+  copy = [
+    'src',
+    'doc',
+    'pyproject.toml' ]
 
   [[tool.pyproj.dist.binary.purelib.copy]]
   src = 'src/my_project'
   glob = '**/*.py'
   dst = 'my_project'
-  ignore = '**/bad_file.py'
+  ignore = [
+    'bad_file.py'
+    './config_file.py']
 
+  [[tool.pyproj.dist.binary.platlib.copy]]
+  src = 'src/my_project'
+  glob = '**/*.so'
+  dst = 'my_project'
+
+
+.. tabularcolumns:: |p{3cm}|p{3cm}|p{9cm}|
+
+.. table:: Resulting inclusion or ignore rule for specific paths
+  :widths: 20 20 60
+  :class: longtable
+
+  +--------------------+---------------------------------------------------+
+  | Result             | File Path                                         |
+  +====================+===================================================+
+  | Source Distribution (``.tar.gz``)                                      |
+  +--------------------+---------------------------------------------------+
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``pyproject.toml``                                |
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``doc/index.rst``                                 |
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``src/my_project/__init__.py``                    |
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``src/doc/_build``                                |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``doc/_build``                                    |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``doc/__pycache__``                               |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``__pycache__``                                   |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``src/__pycache__``                               |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``src/my_project/mylib.so``                       |
+  +--------------------+---------------------------------------------------+
+  +--------------------+---------------------------------------------------+
+  | Binary Distribution (``.whl``)                                         |
+  +--------------------+---------------------------------------------------+
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``src/my_project/__init__.py``                    |
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``src/my_project/sub_dir/__init__.py``            |
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``src/my_project/sub_dir/config_file.py``         |
+  +--------------------+---------------------------------------------------+
+  | **Included**       | ``src/my_project/mylib.so``                       |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``src/my_project/bad_file.py``                    |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``src/my_project/config_file.py``                 |
+  +--------------------+---------------------------------------------------+
+  | *Ignored*          | ``src/my_project/sub_dir/bad_file.py``            |
+  +--------------------+---------------------------------------------------+
 
 Prep Processing Hooks
 ---------------------

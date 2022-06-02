@@ -13,6 +13,7 @@ from pytest import (
 
 from partis.pyproj import (
   ValidationError,
+  FileOutsideRootError,
   ValidationWarning,
   EntryPointError,
   PyProjBase,
@@ -145,7 +146,7 @@ def try_legacy( name, dist_file ):
       os.chdir(cwd)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def run_pyproj( name ):
+def run_pyproj( name, source = True, binary = True ):
 
   with tempfile.TemporaryDirectory() as tmpdir:
 
@@ -154,7 +155,9 @@ def run_pyproj( name ):
 
     shutil.copytree(
       osp.join(osp.dirname(osp.abspath(__file__)), name ),
-      pkg_dir )
+      pkg_dir,
+      # some tests require copying symlinks
+      symlinks = True )
 
     cwd = os.getcwd()
 
@@ -167,40 +170,42 @@ def run_pyproj( name ):
       pyproj.dist_prep()
 
       # build and install source dist
-      pyproj.dist_source_prep()
+      if source:
+        pyproj.dist_source_prep()
 
-      with dist_source_targz(
-        pkg_info = pyproj.pkg_info,
-        outdir = outdir,
-        logger = pyproj.logger ) as dist:
+        with dist_source_targz(
+          pkg_info = pyproj.pkg_info,
+          outdir = outdir,
+          logger = pyproj.logger ) as dist:
 
-        pyproj.dist_source_copy(
-          dist = dist )
+          pyproj.dist_source_copy(
+            dist = dist )
 
-      try_dist(
-        import_name = pyproj.pkg_info.name,
-        install_name = dist.outpath )
+        try_dist(
+          import_name = pyproj.pkg_info.name,
+          install_name = dist.outpath )
 
-      if pyproj.add_legacy_setup:
-        try_legacy(
-          name = pyproj.pkg_info.name,
-          dist_file = dist.outpath )
+        if pyproj.add_legacy_setup:
+          try_legacy(
+            name = pyproj.pkg_info.name,
+            dist_file = dist.outpath )
 
       # build and install binary dist
-      pyproj.dist_binary_prep()
+      if binary:
+        pyproj.dist_binary_prep()
 
-      with dist_binary_wheel(
-        pkg_info = pyproj.pkg_info,
-        compat = pyproj.binary.compat_tags,
-        outdir = outdir,
-        logger = pyproj.logger ) as dist:
+        with dist_binary_wheel(
+          pkg_info = pyproj.pkg_info,
+          compat = pyproj.binary.compat_tags,
+          outdir = outdir,
+          logger = pyproj.logger ) as dist:
 
-        pyproj.dist_binary_copy(
-          dist = dist )
+          pyproj.dist_binary_copy(
+            dist = dist )
 
-      try_dist(
-        import_name = pyproj.pkg_info.name,
-        install_name = dist.outpath )
+        try_dist(
+          import_name = pyproj.pkg_info.name,
+          install_name = dist.outpath )
 
     finally:
       os.chdir(cwd)
@@ -246,11 +251,28 @@ def test_bad_5():
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 @mark.skipif(SKIP_MESON, reason="")
-def test_meson():
-  run_pyproj('pkg_meson')
+def test_meson_1():
+  run_pyproj('pkg_meson_1')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+@mark.skipif(SKIP_MESON, reason="")
+def test_meson_2():
+  run_pyproj('pkg_meson_2')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # TODO: this test is broken
-@mark.skipif(SKIP_MESON or True, reason="")
+@mark.skipif(SKIP_MESON, reason="")
 def test_meson_bad_1():
-  run_pyproj('pkg_meson_bad_1')
+  with raises(FileOutsideRootError):
+    # symlink points outside of root, cannot copy into distro
+    run_pyproj(
+      'pkg_meson_bad_1',
+      source = True,
+      binary = False )
+
+  with raises(FileOutsideRootError):
+    # symlink points outside of root, cannot use as meson 'prefix'
+    run_pyproj(
+      'pkg_meson_bad_1',
+      source = False,
+      binary = True )

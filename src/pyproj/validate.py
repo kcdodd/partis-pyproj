@@ -118,6 +118,12 @@ class ValidDefinitionError( ValidationError ):
   pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class FileOutsideRootError(ValidationError):
+  """File path is outside a desired root directory
+  """
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class validating:
   """Context manager to append information to a ValidationError as it propagates
 

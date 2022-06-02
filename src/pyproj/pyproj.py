@@ -25,8 +25,9 @@ from .pkginfo import (
   PkgInfo )
 
 from .validate import (
-  ValidationError,
   ValidationWarning,
+  ValidationError,
+  FileOutsideRootError,
   valid_dict,
   validating,
   valid,
@@ -53,6 +54,8 @@ from .legacy import legacy_setup_content
 from .pptoml import (
   pptoml )
 
+from .dist_file import (
+  dist_copy )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PyProjBase:
@@ -306,17 +309,20 @@ class PyProjBase:
     meson_paths = dict()
 
     for k in ['src_dir', 'build_dir', 'prefix']:
+      with validating(key = f"tool.pyproj.meson.{k}"):
 
-      rel_path = self.meson[k]
+        rel_path = self.meson[k]
 
-      abs_path = osp.realpath( osp.join(
-        self.root,
-        rel_path ) )
+        abs_path = osp.realpath( osp.join(
+          self.root,
+          rel_path ) )
 
-      if osp.commonprefix([self.root, abs_path]) != self.root:
-        raise ValidationError(f"tool.pyproj.meson.{k} must resolve to a project directory: {abs_path}")
+        if osp.commonpath([self.root, abs_path]) != self.root:
+          raise FileOutsideRootError(
+            f"Must have common path with root:"
+            f"\n  file = \"{abs_path}\"\n  root = \"{self.root}\"")
 
-      meson_paths[k] = abs_path
+        meson_paths[k] = abs_path
 
 
     for dir in [ meson_paths['build_dir'], meson_paths['prefix'] ]:
@@ -326,61 +332,65 @@ class PyProjBase:
     meson_build_dir = tempfile.mkdtemp(
       dir = meson_paths['build_dir'] )
 
-    meson_prefix = meson_paths['prefix']
+    try:
 
-    self.logger.info(f"Running meson build")
-    self.logger.info(f"Meson build dir: {meson_build_dir}")
-    self.logger.info(f"Meson prefix: {meson_prefix}")
+      meson_prefix = meson_paths['prefix']
 
-    def meson_option_arg(k, v):
-      if isinstance(v, bool):
-        v = ({True: 'true', False: 'false'})[v]
+      self.logger.info(f"Running meson build")
+      self.logger.info(f"Meson build dir: {meson_build_dir}")
+      self.logger.info(f"Meson prefix: {meson_prefix}")
 
-      return f'-D{k}={v}'
+      def meson_option_arg(k, v):
+        if isinstance(v, bool):
+          v = ({True: 'true', False: 'false'})[v]
 
-    # TODO: ensure any paths in setup_args are normalized
+        return f'-D{k}={v}'
 
-    setup_args = [
-      'meson',
-      'setup',
-      *self.meson.setup_args,
-      '--prefix',
-      meson_prefix,
-      *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
-      meson_build_dir,
-      meson_paths['src_dir'] ]
+      # TODO: ensure any paths in setup_args are normalized
 
-    compile_args = [
-      'meson',
-      'compile',
-      *self.meson.compile_args,
-      '-C',
-      meson_build_dir ]
+      setup_args = [
+        'meson',
+        'setup',
+        *self.meson.setup_args,
+        '--prefix',
+        meson_prefix,
+        *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
+        meson_build_dir,
+        meson_paths['src_dir'] ]
 
-    install_args = [
-      'meson',
-      'install',
-      *self.meson.install_args,
-      '--no-rebuild',
-      '-C',
-      meson_build_dir ]
+      compile_args = [
+        'meson',
+        'compile',
+        *self.meson.compile_args,
+        '-C',
+        meson_build_dir ]
+
+      install_args = [
+        'meson',
+        'install',
+        *self.meson.install_args,
+        '--no-rebuild',
+        '-C',
+        meson_build_dir ]
 
 
-    self.logger.debug(' '.join(setup_args))
+      self.logger.debug(' '.join(setup_args))
 
-    subprocess.check_call(setup_args)
+      subprocess.check_call(setup_args)
 
-    self.logger.debug(' '.join(compile_args))
+      self.logger.debug(' '.join(compile_args))
 
-    subprocess.check_call(compile_args)
+      subprocess.check_call(compile_args)
 
-    self.logger.debug(' '.join(install_args))
+      self.logger.debug(' '.join(install_args))
 
-    subprocess.check_call(install_args)
+      subprocess.check_call(install_args)
 
-    if self.meson.build_clean:
-      self.logger.info(f"Cleaning Meson build dir: {meson_build_dir}")
-      shutil.rmtree(meson_build_dir)
+    finally:
+
+      if self.meson.build_clean:
+        self.logger.info(f"Cleaning Meson build dir: {meson_build_dir}")
+        shutil.rmtree(meson_build_dir)
 
   #-----------------------------------------------------------------------------
   def dist_prep( self ):
@@ -413,18 +423,20 @@ class PyProjBase:
       Builder used to write out source distribution files
     """
 
-    name = f'tool.pyproj.dist.source'
+    with validating( key = f'tool.pyproj.dist.source' ):
+      dist_copy(
+        base_path = dist.named_dirs['root'],
+        include = self.source.copy,
+        ignore = self.dist.ignore + self.source.ignore,
+        dist = dist,
+        root = self.root,
+        logger = self.logger )
 
-    self.dist_copy(
-      name = name,
-      base_path = dist.named_dirs['root'],
-      include = self.source.copy,
-      ignore = self.dist.ignore + self.source.ignore,
-      dist = dist )
+      if self.add_legacy_setup:
+        with validating( key = f'add_legacy_setup' ):
 
-    if self.add_legacy_setup:
-      self.logger.info(f"generating legacy 'setup.py'")
-      legacy_setup_content( self, dist )
+          self.logger.info(f"generating legacy 'setup.py'")
+          legacy_setup_content( self, dist )
 
   #-----------------------------------------------------------------------------
   def dist_binary_prep( self ):
@@ -450,97 +462,38 @@ class PyProjBase:
       Builder used to write out binary distribution files
     """
 
-    name = f'tool.pyproj.dist.binary'
 
-    ignore = self.dist.ignore + self.dist.binary.ignore
+    with validating( key = f'tool.pyproj.dist.binary' ):
+      ignore = self.dist.ignore + self.dist.binary.ignore
 
-    self.dist_copy(
-      name = name,
-      base_path = dist.named_dirs['root'],
-      include = self.binary.copy,
-      ignore = ignore,
-      dist = dist )
+      dist_copy(
+        base_path = dist.named_dirs['root'],
+        include = self.binary.copy,
+        ignore = ignore,
+        dist = dist,
+        root = self.root,
+        logger = self.logger )
 
-    data_scheme = [
-      'data',
-      'headers',
-      'scripts',
-      'purelib',
-      'platlib' ]
+      data_scheme = [
+        'data',
+        'headers',
+        'scripts',
+        'purelib',
+        'platlib' ]
 
-    for k in data_scheme:
-      if k in self.binary:
-        name = f'tool.pyproj.dist.binary.{k}'
+      for k in data_scheme:
+        if k in self.binary:
 
-        dist_data = self.binary[k]
+          dist_data = self.binary[k]
 
-        _include = dist_data.copy
-        _ignore = ignore + dist_data.ignore
+          _include = dist_data.copy
+          _ignore = ignore + dist_data.ignore
 
-        self.dist_copy(
-          name = name,
-          base_path = dist.named_dirs[k],
-          include = _include,
-          ignore = _ignore,
-          dist = dist )
-
-  #-----------------------------------------------------------------------------
-  def dist_copy( self, *,
-    name,
-    base_path,
-    include,
-    ignore,
-    dist ):
-
-    if len(include) == 0:
-      return
-
-    for src, dst, ignore, individual in self.dist_iter(name, include, ignore):
-
-      src = osp.normpath( src )
-      dst = '/'.join( [base_path, norm_path(dst)] )
-
-      self.logger.info(f"dist copy: {src} -> {dst}")
-
-      if osp.isdir( src ):
-        dist.copytree(
-          src = src,
-          dst = dst,
-          ignore = ignore )
-
-      else:
-        if not individual and ignore and ignore('.', [src]):
-          continue
-
-        dist.copyfile(
-          src = src,
-          dst = dst )
-
-  #-----------------------------------------------------------------------------
-  def dist_iter( self,
-    name,
-    include,
-    ignore ):
-
-    ignore_patterns = shutil.ignore_patterns(*ignore) if ignore else None
-
-    for i, incl in enumerate(include):
-      incl_name = f'{name}.copy[{i}]'
-
-      _ignore = incl.ignore
-      _ignore_patterns = shutil.ignore_patterns(*(ignore + _ignore)) if _ignore else ignore_patterns
-
-      src = incl.src
-      dst = incl.dst
-
-      if incl.glob:
-        _glob = osp.join(src, incl.glob)
-
-        for _src in glob.iglob(_glob, recursive = True):
-          _dst = osp.join( dst, osp.relpath(_src, start = src) )
-
-          yield ( _src, _dst, _ignore_patterns, False )
-
-      else:
-
-        yield ( src, dst, _ignore_patterns, True )
+          with validating( key = k ):
+            dist_copy(
+              base_path = dist.named_dirs[k],
+              include = _include,
+              ignore = _ignore,
+              dist = dist,
+              root = self.root,
+              logger = self.logger )

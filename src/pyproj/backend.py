@@ -54,18 +54,17 @@ def backend_init(
   PyProjBase
   """
 
-  if logger is None:
-    logger = logging.getLogger( __name__ )
+  logger = logger or logging.getLogger( __name__ )
 
   pyproj = PyProjBase(
     root = root,
     config_settings = config_settings,
     logger = logger )
 
-  # logging.basicConfig(
-  #   level = logging.NOTSET,
-  #   format = "{name}:{levelname}: {message}",
-  #   style = "{" )
+  logging.basicConfig(
+    level = logging.NOTSET,
+    format = "{name}:{levelname}: {message}",
+    style = "{" )
 
   return pyproj
 

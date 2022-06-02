@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 [project]
-name = "test_pkg_meson"
+name = "test_pkg_meson_2"
 version = "0.0.1"
 description = "Test Package"
 
@@ -35,6 +35,7 @@ copy = [
 # Configuration of the meson build system
 [tool.pyproj.meson]
 compile = true
+build_clean = false
 compile_args = [
   '-j', '1' ]
 
@@ -54,9 +55,9 @@ ignore = [
 [tool.pyproj.dist.binary.purelib]
 
 copy = [
-  { src = 'src/test_pkg', dst = 'test_pkg_meson' } ]
+  { src = 'src/test_pkg', dst = 'test_pkg_meson_2' } ]
 
 #...............................................................................
 [tool.pyproj.dist.binary.platlib]
 copy = [
-  { src = 'build/lib', dst = 'test_pkg_meson' } ]
+  { src = 'build/lib', dst = 'test_pkg_meson_2' } ]

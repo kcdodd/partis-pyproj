@@ -252,7 +252,7 @@ def norm_zip_external_attr( mode = None ):
   # set directory flag after shift
   # MS-DOS directory flag 0x10 (various sources,
   # e.g. https://stackoverflow.com/questions/434641 )
-  # NOTE sure why this is necessary, except maybe for adding an empty directory
+  # NOTE: not sure why this is necessary, except maybe for adding an empty directory
   # if stat.S_ISDIR(mode):
   #   xattr |= 0x10
 
