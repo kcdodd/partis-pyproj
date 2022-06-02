@@ -57,7 +57,6 @@ test = [
   "pytest >= 6.2.5",
   "pytest-cov >= 3.0.0",
   "pytest_mock >= 3.6.1",
-  "PyVirtualDisplay >= 2.2",
   "coverage[toml] >= 6.2",
   # for testing partis-pyproj[meson]
   "meson >= 0.61.3",

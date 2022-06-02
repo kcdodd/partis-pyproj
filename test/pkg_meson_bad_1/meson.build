@@ -1,5 +1,6 @@
 project( 'test_pkg',
   'cython',
+  'c',
   version : '1.2.3',
   license : '',
   meson_version: '>= 0.60'  )

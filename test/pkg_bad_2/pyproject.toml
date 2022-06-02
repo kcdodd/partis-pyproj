@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 [project]
 dynamic = [ "version" ]
-name = "test_pkg_base"
+name = "test_pkg_bad_2"
 description = "Test Package"
 
 requires-python = ">= 3.6.2"

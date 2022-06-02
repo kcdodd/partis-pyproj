@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 [project]
 # dynamic = [ "version" ]
-name = "test_pkg_base"
+name = "test_pkg_bad_4"
 description = "Test Package"
 
 requires-python = ">= 3.6.2"
@@ -56,14 +56,3 @@ ignore = [ ]
 #...............................................................................
 [tool.pyproj.dist.binary.prep]
 entry = "aux:dist_binary_prep"
-
-#...............................................................................
-[[tool.pyproj.dist.binary.purelib.copy]]
-src = 'src/test_pkg/pure_mod'
-dst = 'test_pkg_base/pure_mod'
-
-[[tool.pyproj.dist.binary.purelib.copy]]
-glob = '**/*.py'
-ignore = '**/bad_file.py'
-src = 'src/test_pkg/sub_mod'
-dst = 'test_pkg_base/sub_mod'

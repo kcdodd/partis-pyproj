@@ -26,7 +26,9 @@ with open( pptoml_file, 'r' ) as fp:
 
 opt_deps = pptoml['project']['optional-dependencies']
 
-test_deps = opt_deps['test'] + [sitcustom_dir]
+test_deps = opt_deps['test']
+test_deps += [sitcustom_dir]
+
 cov_deps = opt_deps['cov']
 lint_deps = opt_deps['lint']
 

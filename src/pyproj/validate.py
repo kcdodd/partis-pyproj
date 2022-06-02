@@ -382,7 +382,14 @@ class Restricted(Validator):
 
     super().__init__(options[0], type(options[0]))
 
-    self._options = set(options)
+    _options = list()
+
+    with validating(key = 'options'):
+      for i,v in enumerate(options):
+        with validating(key = i):
+          _options.append(super().__call__(v))
+
+    self._options = set(_options)
 
   #-----------------------------------------------------------------------------
   def __call__(self, val):
@@ -988,7 +995,7 @@ class valid_list(list):
     val = super().pop(*args, **kwargs)
     self._validate()
     return val
-    
+
   #---------------------------------------------------------------------------#
   def append(self, val ):
     with validating(key = len(self)):

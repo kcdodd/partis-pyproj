@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 [project]
-name = "test_pkg_meson"
+name = "test_pkg_meson_bad_1"
 version = "0.0.1"
 description = "Test Package"
 
@@ -37,7 +37,7 @@ copy = [
 [tool.pyproj.meson]
 compile = true
 compile_args = [
-  '-j', '-1' ]
+  '-j', '1' ]
 
 prefix = 'bad_link'
 build_dir = 'build'
@@ -55,9 +55,9 @@ ignore = [
 [tool.pyproj.dist.binary.purelib]
 
 copy = [
-  { src = 'src/test_pkg', dst = 'test_pkg_meson' } ]
+  { src = 'src/test_pkg', dst = 'test_pkg_meson_bad_1' } ]
 
 #...............................................................................
 [tool.pyproj.dist.binary.platlib]
 copy = [
-  { src = 'build/lib', dst = 'test_pkg_meson' } ]
+  { src = 'build/lib', dst = 'test_pkg_meson_bad_1' } ]
