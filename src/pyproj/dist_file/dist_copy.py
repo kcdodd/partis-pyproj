@@ -103,10 +103,11 @@ def root_ignore_patterns(
     name_paths = norm_join_base( base, path, names )
     ignored_names = match_names(name_paths, base_mask, pattern_matches)
 
-    print('base: ', base)
-    print('patterns: ', list(zip(base_mask,patterns)))
-    print('name_paths: ', name_paths)
-    print('ignored_names: ', ignored_names)
+    # debugging prints (no logging)
+    # print('base: ', base)
+    # print('patterns: ', list(zip(base_mask,patterns)))
+    # print('name_paths: ', name_paths)
+    # print('ignored_names: ', ignored_names)
 
     for name in names:
       if name not in ignored_names:

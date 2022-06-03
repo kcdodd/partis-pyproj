@@ -61,10 +61,12 @@ def backend_init(
     config_settings = config_settings,
     logger = logger )
 
-  logging.basicConfig(
-    level = logging.NOTSET,
-    format = "{name}:{levelname}: {message}",
-    style = "{" )
+  # NOTE: this is mainly used for debugging, since front-ends don't seem to have
+  # an option to set logging level for the backend.
+  # logging.basicConfig(
+  #   level = logging.NOTSET,
+  #   format = "{name}:{levelname}: {message}",
+  #   style = "{" )
 
   return pyproj
 
