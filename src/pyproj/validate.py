@@ -118,7 +118,13 @@ class ValidDefinitionError( ValidationError ):
   pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class FileOutsideRootError(ValidationError):
+class ValidPathError(ValidationError):
+  """File is not valid
+  """
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class FileOutsideRootError(ValidPathError):
   """File path is outside a desired root directory
   """
   pass

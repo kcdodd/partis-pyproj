@@ -40,7 +40,7 @@ compile_args = [
   '-j', '1' ]
 
 prefix = 'build'
-build_dir = 'build'
+build_dir = 'build/meson'
 
 [tool.pyproj.meson.options]
 opt_a = true

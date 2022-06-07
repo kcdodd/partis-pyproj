@@ -54,6 +54,9 @@ from .legacy import legacy_setup_content
 from .pptoml import (
   pptoml )
 
+from .meson import (
+  MesonBuild )
+
 from .dist_file import (
   dist_copy )
 
@@ -299,100 +302,6 @@ class PyProjBase:
     self.build_requires = self.build_requires
 
   #-----------------------------------------------------------------------------
-  def meson_compile( self ):
-
-    #...........................................................................
-    if not self.meson.compile:
-      return
-
-    # check paths
-    meson_paths = dict()
-
-    for k in ['src_dir', 'build_dir', 'prefix']:
-      with validating(key = f"tool.pyproj.meson.{k}"):
-
-        rel_path = self.meson[k]
-
-        abs_path = osp.realpath( osp.join(
-          self.root,
-          rel_path ) )
-
-        if osp.commonpath([self.root, abs_path]) != self.root:
-          raise FileOutsideRootError(
-            f"Must have common path with root:"
-            f"\n  file = \"{abs_path}\"\n  root = \"{self.root}\"")
-
-        meson_paths[k] = abs_path
-
-
-    for dir in [ meson_paths['build_dir'], meson_paths['prefix'] ]:
-      if not osp.exists(dir):
-        os.makedirs(dir)
-
-    meson_build_dir = tempfile.mkdtemp(
-      dir = meson_paths['build_dir'] )
-
-    try:
-
-      meson_prefix = meson_paths['prefix']
-
-      self.logger.info(f"Running meson build")
-      self.logger.info(f"Meson build dir: {meson_build_dir}")
-      self.logger.info(f"Meson prefix: {meson_prefix}")
-
-      def meson_option_arg(k, v):
-        if isinstance(v, bool):
-          v = ({True: 'true', False: 'false'})[v]
-
-        return f'-D{k}={v}'
-
-      # TODO: ensure any paths in setup_args are normalized
-
-      setup_args = [
-        'meson',
-        'setup',
-        *self.meson.setup_args,
-        '--prefix',
-        meson_prefix,
-        *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
-        meson_build_dir,
-        meson_paths['src_dir'] ]
-
-      compile_args = [
-        'meson',
-        'compile',
-        *self.meson.compile_args,
-        '-C',
-        meson_build_dir ]
-
-      install_args = [
-        'meson',
-        'install',
-        *self.meson.install_args,
-        '--no-rebuild',
-        '-C',
-        meson_build_dir ]
-
-
-      self.logger.debug(' '.join(setup_args))
-
-      subprocess.check_call(setup_args)
-
-      self.logger.debug(' '.join(compile_args))
-
-      subprocess.check_call(compile_args)
-
-      self.logger.debug(' '.join(install_args))
-
-      subprocess.check_call(install_args)
-
-    finally:
-
-      if self.meson.build_clean:
-        self.logger.info(f"Cleaning Meson build dir: {meson_build_dir}")
-        shutil.rmtree(meson_build_dir)
-
-  #-----------------------------------------------------------------------------
   def dist_prep( self ):
     """Prepares project files for a distribution
     """
@@ -443,12 +352,15 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
-    self.meson_compile()
+    with MesonBuild(
+      root = self.root,
+      meson = self.meson,
+      logger = self.logger.getChild( f"meson" ) ):
 
-    self.prep_entrypoint(
-      name = f"tool.pyproj.dist.binary.prep",
-      obj = self.binary,
-      logger = self.logger.getChild( f"dist.binary.prep" ) )
+      self.prep_entrypoint(
+        name = f"tool.pyproj.dist.binary.prep",
+        obj = self.binary,
+        logger = self.logger.getChild( f"dist.binary.prep" ) )
 
     self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.binary.compat_tags}")
 

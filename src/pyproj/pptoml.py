@@ -246,7 +246,7 @@ class pyproj_meson(valid_dict):
   _default = {
     'compile': valid(False, norm_bool),
     'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
-    'build_dir': valid('build', nonempty_str, norm_path, norm_path_to_os),
+    'build_dir': valid('build/meson', nonempty_str, norm_path, norm_path_to_os),
     'prefix': valid('build', nonempty_str, norm_path, norm_path_to_os),
     'setup_args': nonempty_str_list,
     'compile_args': nonempty_str_list,
