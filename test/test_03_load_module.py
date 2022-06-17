@@ -25,7 +25,7 @@ def test_name():
 def test_load_module():
   root = osp.dirname(osp.abspath(__file__))
 
-  mod = load_module( osp.join(root, "pkg_base", "aux" ), root )
+  mod = load_module( osp.join(root, "pkg_base", "pkgaux" ), root )
 
   print(dir(mod))
   assert callable(mod.dist_prep)
@@ -41,9 +41,9 @@ def test_load_module():
 def test_load_entrypoint():
   root = osp.dirname(osp.abspath(__file__))
 
-  f = load_entrypoint('pkg_base.aux:dist_prep', root)
+  f = load_entrypoint('pkg_base.pkgaux:dist_prep', root)
 
   assert callable(f)
 
   with raises( ValueError ):
-    load_entrypoint('pkg_base.aux:not_an_attr', root)
+    load_entrypoint('pkg_base.pkgaux:not_an_attr', root)

@@ -24,21 +24,21 @@ build-backend = "partis.pyproj.backend"
 #...............................................................................
 [tool.pyproj.dist.source]
 copy = [
-  'aux',
+  'pkgaux',
   'src',
   'pyproject.toml' ]
 
 #...............................................................................
 [tool.pyproj.prep]
-entry = "aux:prep"
+entry = "pkgaux:prep"
 
 #...............................................................................
 [tool.pyproj.dist.prep]
-entry = "aux:dist_prep"
+entry = "pkgaux:dist_prep"
 
 #...............................................................................
 [tool.pyproj.dist.source.prep]
-entry = "aux:dist_source_prep"
+entry = "pkgaux:dist_source_prep"
 
 #...............................................................................
 [[tool.pyproj.dist.binary.purelib.copy]]

@@ -140,6 +140,12 @@ def norm_path( path ):
   # on Windows.
   wpath = pathlib.PureWindowsPath( path )
   path = wpath.as_posix()
+
+  for segment in path.split('/'):
+    if windows_invalid_filename.fullmatch( segment ):
+      raise ValidationError(
+        f"Path segment '{segment}' invalid on Windows platform: {path}")
+
   ppath = pathlib.PurePosixPath( path )
 
   if wpath.is_absolute() or ppath.is_absolute():
@@ -361,3 +367,22 @@ def email_encode_items(
   bytes = buffer.getvalue()
 
   return bytes
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# File/directory names that are invalid on windows
+windows_invalid_filename = '|'.join([
+  # filename ending with a period
+  r'(.+\.)',
+  # any characters in the range [0-31]
+  r'((?=.*[\x00-\x1f]).+)',
+  # Any of these names, or followed immediately by an extension;
+  # for example, NUL.txt
+  *[ rf'({name}(\.?\w+)?)'
+    for name in [
+      'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6',
+      'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6',
+      'LPT7', 'LPT8', 'LPT9' ] ] ])
+
+windows_invalid_filename = re.compile(
+  rf"^({windows_invalid_filename})$",
+  re.VERBOSE | re.IGNORECASE | re.UNICODE )

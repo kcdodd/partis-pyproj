@@ -270,13 +270,13 @@ be used to fill in the missing values.
   ...
 
   [tool.pyproj.prep]
-  entry = "aux:prep"
+  entry = "pkgaux:prep"
 
 The hook should set values for all keys of the ``project`` table listed
 in ``project.dynamic``.
 
 .. code-block:: python
-  :caption: ``aux/__init__.py``
+  :caption: ``pkgaux/__init__.py``
 
   def prep( builder, logger ):
     builder.project.version = "1.2.3"
@@ -372,11 +372,11 @@ conditional dependencies listed in ``pyproject.toml``.
   another_option = ["foo", "bar"]
 
   [tool.pyproj.prep]
-  entry = "aux:prep"
+  entry = "pkgaux:prep"
   kwargs = { deps = ["additional_build_dep >= 1.2.3"] }
 
 .. code-block:: python
-  :caption: ``aux/__init__.py``
+  :caption: ``pkgaux/__init__.py``
 
   def prep( builder, logger, deps ):
 
