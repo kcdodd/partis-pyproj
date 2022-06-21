@@ -377,7 +377,7 @@ windows_invalid_filename = '|'.join([
   r'((?=.*[\x00-\x1f]).+)',
   # Any of these names, or followed immediately by an extension;
   # for example, NUL.txt
-  *[ rf'({name}(\.?\w+)?)'
+  *[ rf'({name}(\.\w+)?)'
     for name in [
       'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6',
       'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6',
