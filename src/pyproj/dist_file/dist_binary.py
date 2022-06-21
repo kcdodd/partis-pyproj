@@ -92,15 +92,6 @@ class dist_binary_wheel( dist_zip ):
           src = pkg_dir,
           dst = 'my_package' )
 
-      print( bdist.outname )
-      print( os.path.relpath( bdist.outpath, tmpdir ) )
-
-  .. testoutput::
-
-    my_package-1.0-py3-none-any.whl
-    build/my_package-1.0-py3-none-any.whl
-
-
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0427

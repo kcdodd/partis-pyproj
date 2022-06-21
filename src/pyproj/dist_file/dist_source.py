@@ -73,14 +73,6 @@ class dist_source_targz( dist_targz ):
           src = './src',
           dst = os.path.join( sdist.base_path, 'src' ) )
 
-      print( sdist.outname )
-      print( os.path.relpath( sdist.outpath, tmpdir ) )
-
-  .. testoutput::
-
-    my_package-1.0.tar.gz
-    build/my_package-1.0.tar.gz
-
 
   """
   #-----------------------------------------------------------------------------

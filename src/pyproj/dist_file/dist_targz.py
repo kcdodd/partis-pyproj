@@ -50,11 +50,6 @@ class dist_targz( dist_base ):
           src = pkg_dir,
           dst = 'my_package' )
 
-      print( os.path.relpath( dist.outpath, tmpdir ) )
-
-  .. testoutput::
-
-    build/my_dist.tar.gz
 
   """
 
