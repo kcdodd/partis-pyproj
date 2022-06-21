@@ -132,7 +132,7 @@ above ``pyproject.toml``:
 .. tabularcolumns:: |p{3cm}|p{3cm}|p{9cm}|
 
 .. table:: Resulting inclusion or ignore rule for specific paths
-  :widths: 20 20 60
+  :widths: 20 60
   :class: longtable
 
   +--------------------+---------------------------------------------------+
