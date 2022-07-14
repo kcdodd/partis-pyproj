@@ -87,7 +87,7 @@ def norm_printable(
   Example
   -------
 
-  .. testcode::
+  .. code-block:: python
 
     import re
     from partis.pyproj import norm_printable

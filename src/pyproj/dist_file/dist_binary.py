@@ -57,7 +57,7 @@ class dist_binary_wheel( dist_zip ):
   Example
   -------
 
-  .. testcode::
+  .. code-block:: python
 
     import tempfile
 

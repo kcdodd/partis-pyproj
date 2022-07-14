@@ -38,7 +38,7 @@ class dist_source_targz( dist_targz ):
   Example
   -------
 
-  .. testcode::
+  .. code-block:: python
 
     import tempfile
 

@@ -22,7 +22,7 @@ class dist_targz( dist_base ):
   Example
   -------
 
-  .. testcode::
+  .. code-block:: python
 
     import tempfile
 

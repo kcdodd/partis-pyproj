@@ -195,7 +195,7 @@ def norm_mode( mode = None ):
   Example
   -------
 
-  .. testcode::
+  .. code-block:: python
 
     from partis.pyproj import norm_mode
 

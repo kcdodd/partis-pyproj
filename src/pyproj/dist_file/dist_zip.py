@@ -23,7 +23,7 @@ class dist_zip( dist_base ):
   Example
   -------
 
-  .. testcode::
+  .. code-block:: python
 
     import tempfile
 
