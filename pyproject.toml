@@ -28,6 +28,19 @@
 name = "partis-pyproj"
 version = "0.0.1"
 description = "Minimal set of Python project utilities (PEP-517/621)"
+maintainers = [
+  { name = "Nanohmics Inc.", email = "software.support@nanohmics.com" } ]
+license = { file = "LICENSE.txt" }
+readme = { file = "README.rst" }
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Build Tools",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows" ]
 
 requires-python = ">= 3.6.2"
 dependencies = [
@@ -110,6 +123,7 @@ copy = [
   'doc',
   'test',
   'pyproject.toml',
+  'LICENSE.txt',
   'README.rst' ]
 
 # adds support for legacy 'setup.py'

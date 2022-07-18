@@ -1,2 +1,2 @@
-Readme for partis-pyproj
-========================
+The ``partis.pyproj`` package aims to be very simple and
+transparent implementation of a PEP-517 build back-end.

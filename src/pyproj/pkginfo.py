@@ -4,7 +4,7 @@ import io
 import warnings
 import stat
 from copy import copy
-
+import re
 import tempfile
 import shutil
 import configparser
@@ -228,7 +228,7 @@ class PkgInfo:
     # > raise an error.
     # TODO: inspect for content-type in file?
 
-    self._desc = ''
+    self._long_desc = ''
     self._desc_type = 'text/plain'
 
     if self.readme:
@@ -252,12 +252,15 @@ class PkgInfo:
               f"'readme' file not found: {readme_file}")
 
           with open( readme_file, 'rb' ) as fp:
-            self._desc = norm_printable(
+            self._long_desc = norm_printable(
               fp.read().decode('utf-8', errors = 'replace') )
 
         else:
           # NOTE: if readme is non-empty, then it must either have 'file' or 'text'
-          self._desc = self.readme.text
+          self._long_desc = self.readme.text
+
+    if not self._long_desc:
+      self._long_desc = self.description
 
     #...........................................................................
     # https://www.python.org/dev/peps/pep-0621/#license
@@ -416,14 +419,20 @@ class PkgInfo:
     for email in _maintainer_emails:
       headers.append( ( 'Maintainer-email', email ) )
 
-    if self.description:
-      headers.append( ( 'Summary', self.description ) )
+    summary_folded = re.sub(
+      r'\n',
+      '\n        |',
+      self.description.strip() )
 
-    if self._desc:
-      headers.append( ( 'Description-Content-Type', self._desc_type ) )
+    headers.append( ( 'Summary', summary_folded ) )
 
     if self._license:
-      headers.append( ( 'License', self._license ) )
+      license_folded = re.sub(
+        r'\n',
+        '\n        |',
+        self._license.strip() )
+
+      headers.append( ( 'License', license_folded ) )
 
     if self.license_file:
       headers.append( ( 'License-File', self.license_file ) )
@@ -446,6 +455,8 @@ class PkgInfo:
       headers.append(
         ( 'Requires-Dist', str(d) ) )
 
+    headers.append( ( 'Description-Content-Type', self._desc_type ) )
+
     return email_encode_items(
       headers = headers,
-      payload = self._desc if self._desc else None )
+      payload = self._long_desc )
