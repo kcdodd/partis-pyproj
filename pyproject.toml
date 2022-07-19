@@ -112,6 +112,11 @@ ignore = [
   '*.so',
   '*.egg-info',
   '.nox',
+  '.pytest_cache',
+  '.coverage',
+  'tmp',
+  'dist',
+  'build',
   'doc/_build',
   'doc/.nox' ]
 
