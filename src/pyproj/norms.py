@@ -202,11 +202,6 @@ def norm_mode( mode = None ):
     print( norm_mode( 0o000 ) == 0o644 )
     print( norm_mode( 0o100 ) == 0o755 )
 
-  .. testoutput::
-
-    True
-    True
-
   """
 
   if mode is None:

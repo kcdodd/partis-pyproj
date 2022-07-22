@@ -104,14 +104,6 @@ def norm_printable(
     print( norm_printable(None) )
     print( norm_printable('f\ubaaar') )
 
-  .. testoutput::
-
-    False
-    False
-    True
-
-    f몪r
-
   """
 
   if text is None:

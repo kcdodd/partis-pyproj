@@ -526,4 +526,5 @@ This 'legacy' feature is enabled by setting the value of
   :maxdepth: 2
   :hidden:
 
+  glossary
   src/index
