@@ -182,7 +182,7 @@ class validating:
           f"Error while validating",
           doc_root = self.root,
           doc_file = self.file,
-          doc_path = [self.key] if self.key else None) from value
+          doc_path = None if self.key is None else [self.key] ) from value
 
     # do not handle any exceptions here
     return False
