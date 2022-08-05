@@ -46,6 +46,12 @@ class MesonBuild:
     if not self.meson.compile:
       return
 
+    if not shutil.which('meson'):
+      raise ValueError(f"The 'meson' program not found.")
+
+    if not shutil.which('ninja'):
+      raise ValueError(f"The 'ninja' program not found.")
+
     # check paths
     for k in ['src_dir', 'build_dir', 'prefix']:
       with validating(key = f"tool.pyproj.meson.{k}"):
@@ -82,6 +88,8 @@ class MesonBuild:
         if dir == self.root:
           raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
 
+        print(osp.exists(dir), dir)
+
         if not osp.exists(dir):
           os.makedirs(dir)
 
@@ -117,18 +125,25 @@ class MesonBuild:
       build_dir ]
 
 
-    self.logger.debug(' '.join(setup_args))
+    try:
 
-    subprocess.check_call(setup_args)
+      self.logger.debug(' '.join(setup_args))
+      print(osp.exists(dir), ' '.join(setup_args))
+      subprocess.check_call(setup_args)
 
-    self.logger.debug(' '.join(compile_args))
+      self.logger.debug(' '.join(compile_args))
 
-    subprocess.check_call(compile_args)
+      subprocess.check_call(compile_args)
 
-    self.logger.debug(' '.join(install_args))
+      self.logger.debug(' '.join(install_args))
 
-    subprocess.check_call(install_args)
+      subprocess.check_call(install_args)
 
+    finally:
+
+      if self.meson.build_clean and osp.exists(build_dir):
+        self.logger.info(f"Removing Meson build dir")
+        shutil.rmtree(build_dir)
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback):
