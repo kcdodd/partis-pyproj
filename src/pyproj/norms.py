@@ -364,6 +364,58 @@ def email_encode_items(
   return bytes
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class TimeEncode:
+  digits = '0123456789abcdefghijklmnopqrstuvwxyz'
+
+  def __init__(self,
+    resolution = 60,
+    rollover = 60*(int('9zzz',36) + 1),
+    width = 4,
+    base = 36 ):
+    """Encode unix timestamp
+
+    Parameters
+    ----------
+    resolution : int
+      Number of seconds that are resolved
+    rollover : int
+      Number of seconds upper bound before wrapping.
+      The number of distinct values is ``rollover // resolution``
+    width : int
+      Minimal witdth of encoded number
+    base : int
+      Numeric base used to encode number
+    """
+
+    assert base <= len(self.digits)
+
+    self.resolution = resolution
+    self.rollover = rollover
+    self.modulus = rollover // resolution
+    self.width = width
+    self.base = base
+
+  #-----------------------------------------------------------------------------
+  @property
+  def max(self):
+    return self.encode( self.resolution * (self.modulus-1) )
+
+  #-----------------------------------------------------------------------------
+  def encode(self, num):
+    num = ( int(num) // self.resolution ) % self.modulus
+    res = []
+    base = self.base
+    digits = self.digits
+
+    while num:
+      res.append(digits[num % base])
+      num //= base
+
+    ts = ''.join(reversed(res))
+
+    return f'{ts:0>{self.width}}'
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # File/directory names that are invalid on windows
 windows_invalid_filename = '|'.join([
   # filename ending with a period
