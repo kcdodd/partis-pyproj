@@ -147,10 +147,11 @@ class MesonBuild:
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback):
+    build_dir = self.meson_paths['build_dir']
 
-    if self.meson_paths['build_dir'] is not None and self.meson.build_clean:
+    if build_dir is not None and osp.exists(build_dir) and self.meson.build_clean:
       self.logger.info(f"Removing Meson build dir")
-      shutil.rmtree(self.meson_paths['build_dir'])
+      shutil.rmtree(build_dir)
 
     # do not handle any exceptions here
     return False
