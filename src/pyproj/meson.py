@@ -156,7 +156,6 @@ class MesonBuild:
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback):
-
     build_dir = self.meson_paths['build_dir']
 
     if build_dir is not None and osp.exists(build_dir) and self.meson.build_clean:
