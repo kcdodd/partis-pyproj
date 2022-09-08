@@ -88,8 +88,6 @@ class MesonBuild:
         if dir == self.root:
           raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
 
-        print(osp.exists(dir), dir)
-
         if not osp.exists(dir):
           os.makedirs(dir)
 
@@ -148,11 +146,13 @@ class MesonBuild:
 
       subprocess.check_call(install_args)
 
-    finally:
+    except:
 
       if self.meson.build_clean and osp.exists(build_dir):
         self.logger.info(f"Removing Meson build dir")
         shutil.rmtree(build_dir)
+
+      raise
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback):
