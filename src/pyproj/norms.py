@@ -136,7 +136,7 @@ def norm_path( path ):
 
   # NOTE: starting with assuming windows path leads to the same result wether or
   # not it actually was a windows path, replacing slashes etc as necessary.
-  # This should handle whether a path was passed in already posix like even when
+  # This should handle whether a path was passed in already posix-like, even when
   # on Windows.
   wpath = pathlib.PureWindowsPath( path )
   path = wpath.as_posix()
