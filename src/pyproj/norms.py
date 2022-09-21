@@ -408,8 +408,8 @@ class TimeEncode:
     digits = self.digits
 
     while num:
-      res.append(digits[num % base])
-      num //= base
+      num, i = divmod(num, base)
+      res.append(digits[i])
 
     ts = ''.join(reversed(res))
 
