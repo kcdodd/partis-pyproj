@@ -88,8 +88,6 @@ class MesonBuild:
         if dir == self.root:
           raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
 
-        print(osp.exists(dir), dir)
-
         if not osp.exists(dir):
           os.makedirs(dir)
 
@@ -98,16 +96,25 @@ class MesonBuild:
     self.logger.info(f"Meson prefix: {prefix}")
 
     # TODO: ensure any paths in setup_args are normalized
+    if not ( osp.exists(build_dir) and os.listdir(build_dir) ):
+      # only run setup if the build directory does not already exist
+      setup_args = [
+        'meson',
+        'setup',
+        *self.meson.setup_args,
+        '--prefix',
+        prefix,
+        *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
+        build_dir,
+        self.meson_paths['src_dir'] ]
 
-    setup_args = [
-      'meson',
-      'setup',
-      *self.meson.setup_args,
-      '--prefix',
-      prefix,
-      *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
-      build_dir,
-      self.meson_paths['src_dir'] ]
+    elif not self.meson.build_clean:
+      # only re-compile if the build directory should be 'clean'
+      setup_args = list()
+
+    else:
+      raise ValidPathError(
+        f"'build_dir' is not empty, remove manually if this is intended or set 'build_clean = false': {build_dir}")
 
     compile_args = [
       'meson',
@@ -127,9 +134,9 @@ class MesonBuild:
 
     try:
 
-      self.logger.debug(' '.join(setup_args))
-      print(osp.exists(dir), ' '.join(setup_args))
-      subprocess.check_call(setup_args)
+      if setup_args:
+        self.logger.debug(' '.join(setup_args))
+        subprocess.check_call(setup_args)
 
       self.logger.debug(' '.join(compile_args))
 
@@ -139,11 +146,13 @@ class MesonBuild:
 
       subprocess.check_call(install_args)
 
-    finally:
+    except:
 
       if self.meson.build_clean and osp.exists(build_dir):
         self.logger.info(f"Removing Meson build dir")
         shutil.rmtree(build_dir)
+
+      raise
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback):
