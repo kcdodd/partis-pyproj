@@ -80,6 +80,10 @@ def root_ignore_patterns(
     path with root, and which would not otherwise be ignored,
     will raise an ``FileOutsideRootError``.
 
+  Returns
+  -------
+  callable(path, names) -> set[str]
+
   Raises
   ------
   FileOutsideRootError

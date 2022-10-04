@@ -3,12 +3,18 @@ import os.path as osp
 import io
 import stat
 import logging
+import re
 from abc import(
   ABC,
   abstractmethod )
 
 from ..norms import (
   hash_sha256 )
+
+from ..validate import (
+  ValidationError,
+  FileOutsideRootError,
+  validating )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class dist_base( ABC ):
@@ -242,30 +248,31 @@ class dist_base( ABC ):
 
       mode = entry.stat().st_mode
 
-      if entry.is_dir():
+      with validating(key = re.sub( r"[^\w\d]+", "_", entry.name )):
+        if entry.is_dir():
 
-        self.makedirs(
-          dst = dst_path,
-          mode = mode,
-          # TODO: separate option for existing directories? like `dirs_exist_ok`
-          exist_ok = True,
-          record = record )
+          self.makedirs(
+            dst = dst_path,
+            mode = mode,
+            # TODO: separate option for existing directories? like `dirs_exist_ok`
+            exist_ok = True,
+            record = record )
 
-        self.copytree(
-          src = src_path,
-          dst = dst_path,
-          ignore = ignore,
-          exist_ok = exist_ok,
-          record = record )
+          self.copytree(
+            src = src_path,
+            dst = dst_path,
+            ignore = ignore,
+            exist_ok = exist_ok,
+            record = record )
 
-      else:
+        else:
 
-        self.copyfile(
-          src = src_path,
-          dst = dst_path,
-          mode = mode,
-          exist_ok = exist_ok,
-          record = record )
+          self.copyfile(
+            src = src_path,
+            dst = dst_path,
+            mode = mode,
+            exist_ok = exist_ok,
+            record = record )
 
     return dst
 
