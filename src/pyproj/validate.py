@@ -756,6 +756,7 @@ class valid_dict(Mapping):
     return self
 
   #---------------------------------------------------------------------------#
+  # pylint: disable-next=E0602
   def __init__( self, *args, **kwargs ):
     cls = type(self)
 
