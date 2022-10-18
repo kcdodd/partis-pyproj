@@ -248,9 +248,10 @@ class PyProjBase:
     except Exception as e:
       raise EntryPointError(f"failed to load entry-point '{entry_point}'") from e
 
-    try:
-      cwd = os.getcwd()
+    cwd = os.getcwd()
 
+    try:
+      
       with validating( file = f"{prep_name} -> {entry_point}(**{entry_point_kwargs})" ):
         func(
           self,
