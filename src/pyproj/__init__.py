@@ -57,7 +57,8 @@ from .dist_file import (
   dist_source_targz,
   dist_binary_wheel,
   FileOutsideRootError,
-  root_ignore_patterns,
+  FilePattern,
+  FilePatterns,
   dist_iter,
   dist_copy )
 
