@@ -49,11 +49,22 @@ from partis.pyproj import (
   norm_zip_external_attr,
   b64_nopad,
   hash_sha256,
-  email_encode_items )
+  email_encode_items,
+  TimeEncode )
 
 from partis.pyproj._nonprintable import (
   _gen_nonprintable,
   gen_nonprintable )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_time_encode():
+  e = TimeEncode()
+
+  assert e.max == '9zzz'
+  assert e.encode(0) == '0000'
+  assert e.encode(60) == '0001'
+  assert e.encode(int(e.max, 36)*e.resolution) == e.max
+  assert e.encode((int(e.max, 36) + 1)*e.resolution) == '0000'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_scalars():

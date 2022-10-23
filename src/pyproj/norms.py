@@ -169,7 +169,7 @@ def norm_path_to_os( path ):
   # not it actually was a windows path, replacing slashes etc as necessary.
   # This should handle whether a path was passed in already posix like even when
   # on Windows.
-  wpath = pathlib.PureWindowsPath( path )
+  wpath = pathlib.PureWindowsPath(path)
   path = wpath.as_posix()
 
   return str(pathlib.PurePath(path))
@@ -420,8 +420,8 @@ class TimeEncode:
 windows_invalid_filename = '|'.join([
   # filename ending with a period
   r'(.+\.)',
-  # any characters in the range [0-31]
-  r'((?=.*[\x00-\x1f]).+)',
+  # any characters in the range [0-31], or special characters <, >, :, \, ", ?, *
+  r'((?=.*[\x00-\x1f<>:\"?*]).+)',
   # Any of these names, or followed immediately by an extension;
   # for example, NUL.txt
   *[ rf'({name}(\.\w+)?)'

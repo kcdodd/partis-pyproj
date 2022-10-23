@@ -23,7 +23,8 @@ from .norms import (
   norm_data,
   b64_nopad,
   hash_sha256,
-  email_encode_items )
+  email_encode_items,
+  TimeEncode )
 
 from .pep import (
   CompatibilityTags,
@@ -49,6 +50,13 @@ from .pep import (
   norm_entry_point_name,
   norm_entry_point_ref )
 
+from .file import (
+  FilePattern,
+  FilePatterns,
+  partition,
+  combine_ignore_patterns,
+  contains )
+
 from .dist_file import (
   dist_base,
   dist_zip,
@@ -57,8 +65,6 @@ from .dist_file import (
   dist_source_targz,
   dist_binary_wheel,
   FileOutsideRootError,
-  FilePattern,
-  FilePatterns,
   dist_iter,
   dist_copy )
 

@@ -13,7 +13,5 @@ from .dist_binary import (
 
 from .dist_copy import (
   FileOutsideRootError,
-  FilePattern,
-  FilePatterns,
   dist_iter,
   dist_copy )
