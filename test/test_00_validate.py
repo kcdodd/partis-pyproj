@@ -337,6 +337,10 @@ def test_valid_dict():
 
   a = test()
 
+  assert str(a) == '{}'
+  assert repr(a) == '{}'
+  assert len(a) == 0
+
   with warns(DeprecationWarning):
     a.setdefault('x', 4)
 
@@ -344,6 +348,10 @@ def test_valid_dict():
     a['y'] = 6
 
   b = test({'a':1, 'b':2, 'c':3})
+  assert len(b) == 3
+  assert b == {'a':1, 'b':2, 'c':3}
+  assert b.get('b') == 2
+  assert b.get('x', 123) == 123
 
   c = copy(b)
   print(str(b))
@@ -358,6 +366,25 @@ def test_valid_dict():
 
   for v in b.values():
     print(v)
+
+  del b['c']
+  assert b == {'a':1, 'b':2}
+
+  b.a = 2
+  assert b.a == 2
+  assert b['a'] == 2
+
+  with raises(AttributeError):
+    b.xyz = 1
+
+  with raises(ValidationError):
+    del b['b']
+
+  b.b = 123
+  assert b.b == 123
+
+  b.clear()
+  assert len(b) == 0
 
   assert c.pop('c') == 3
   assert 'c' not in c
@@ -375,7 +402,15 @@ def test_valid_dict():
   assert 'x' in c
   assert c['x'] == 1
 
+  class test(valid_dict):
+    _allow_keys = ['x-y']
 
+  a = test({'x-y': 123})
+  print(a._p_key_attr)
+  print(a._p_dict)
+
+  assert a['x-y'] == 123
+  assert a.x_y == 123
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_valid_list():

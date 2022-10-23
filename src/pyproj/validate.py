@@ -781,6 +781,7 @@ class valid_dict(Mapping):
       self._p_all_keys = list()
       self._validating = False
 
+    self._p_all_keys.extend( self._allow_keys or [] )
     self._p_all_keys.extend( self._require_keys or [] )
     self._p_all_keys.extend( self._default.keys() )
 
@@ -899,13 +900,13 @@ class valid_dict(Mapping):
       pass
 
     if name != '_p_dict' and name != '_p_key_attr':
-      if name in self._p_key_attr:
-        self._p_dict[ self._p_key_attr[name] ] = val
+      if name in self._p_dict:
+        self._p_dict[ name ] = val
         self._validate()
         return
 
-      if name in self._p_dict:
-        self._p_dict[ name ] = val
+      if name in self._p_key_attr:
+        self._p_dict[ self._p_key_attr[name] ] = val
         self._validate()
         return
 
@@ -931,11 +932,11 @@ class valid_dict(Mapping):
 
     # only get mapping if base object does not have attribute
     if name != '_p_dict' and name != '_p_key_attr':
-      if name in self._p_key_attr:
-        return self._p_dict[ self._p_key_attr[name] ]
-
       if name in self._p_dict:
         return self._p_dict[ name ]
+
+      if name in self._p_key_attr:
+        return self._p_dict[ self._p_key_attr[name] ]
 
     raise AttributeError(
       f"'{type(self).__name__}' object has no key '{name}'")
