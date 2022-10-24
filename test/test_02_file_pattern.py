@@ -152,6 +152,10 @@ def test_file_pattern_any():
   # * does not match /
   assert not p.match('/.py')
 
+  # TODO: bpo-40480, is it worth it?
+  # p = FilePattern('*a*a*a*a*a*a*a*a*a*a')
+  # assert not p.match('a' * 50 + 'b')
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_chr():
   p = FilePattern('a?c')
@@ -197,8 +201,14 @@ def test_file_pattern_chrset():
   assert not p.match('c')
 
   # not escaped in character sets
+  # bpo-409651
   p = FilePattern(r'[\]')
   assert p.match('\\')
+  assert not p.match('a')
+
+  p = FilePattern(r'[!\]')
+  assert not p.match('\\')
+  assert p.match('a')
 
   with raises(PatternError):
     # must be non-empty
@@ -218,20 +228,21 @@ def test_file_patterns():
   p = FilePatterns()
   assert p.patterns == []
   assert p.start == None
-  assert p.filter('.', ['a'], ['b']) == set()
+  assert p.filter('.', dnames = ['a'], fnames = ['b']) == set()
 
   p = FilePatterns(['a/', '!b'])
   assert len(p.patterns) == 2
   assert p.patterns[0].match('a')
   assert p.patterns[1].match('b')
   assert p.start == None
-  assert p.filter('.', ['a'], ['b'], feasible = {'b'}) == {'a'}
+  assert p.filter('.', dnames = ['a'], fnames = ['b'], feasible = {'b'}) == {'a'}
 
   p = FilePatterns(['x/y'], start = 'z')
   assert len(p.patterns) == 1
   assert p.patterns[0].match('x/y')
   assert p.start == 'z'
-  assert p.filter('z/x', [], ['y']) == {'y'}
+  assert p.filter('z/x', dnames = [], fnames = ['y']) == {'y'}
+  assert p.filter('z\\x', dnames = [], fnames = ['y']) == {'y'}
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_ignore_patterns():

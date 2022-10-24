@@ -9,6 +9,13 @@ from collections import namedtuple
 class FilePattern:
   """Pattern matching similar to '.gitignore'
 
+  .. attention::
+
+    This is simply a container for storing information parsed from the pattern.
+    It does not actually do any normalization of paths or convert windows/posix
+    paths before matching, or differentiate between files and directories.
+    See :meth:`FilePatterns.filter`.
+
   Parameters
   ----------
   pattern: str
@@ -157,17 +164,23 @@ class FilePatterns:
     self.start = start
 
   #-----------------------------------------------------------------------------
-  def filter(self, dir, dnames, fnames, feasible = None):
+  def filter(self, dir, fnames, dnames = None, feasible = None):
     """Filter a list of names in a directory
 
     Parameters
     ----------
     dir : str | PathLike
       Directory containing ``dnames`` and ``fnames``.
-    dnames : list[str]
-      List of directory names in ``dir``.
     fnames : list[str]
       List of file (non-directory) names in ``dir``.
+
+    dnames : None | list[str]
+      List of directory names in ``dir``.
+
+      .. note::
+
+        If None, any fnames ending with '/' will be used as (directory) dnames.
+
     feasible : None | set[str]
       The current feasible set of names (from either dnames or fnames) that have
       been matched.
@@ -180,6 +193,21 @@ class FilePatterns:
       negates an existing match.
     """
 
+    dir = posix_path(dir)
+
+    if dnames is None:
+      dnames, fnames = partition(lambda x: x.endswith('/'), fnames)
+
+    fnames = [d.rstrip('/') for d in fnames]
+    dnames = [d.rstrip('/') for d in dnames]
+
+    return self._filter(dir, fnames, dnames, feasible)
+
+  #-----------------------------------------------------------------------------
+  def _filter(self, dir, fnames, dnames, feasible = None):
+    """Internal method, assumes dir has already been converted to posix, and
+    fnames/dnames must be separatly given.
+    """
     dname_paths = posix_join_rel(self.start, dir, dnames)
     fname_paths = posix_join_rel(self.start, dir, fnames)
     name_paths = dname_paths + fname_paths
@@ -256,7 +284,7 @@ def partition_dir(dir, names):
   """Separates a list of names into those that are directorys and all others.
   """
   return partition(
-    lambda name: osp.isdir(osp.join(dir, name)),
+    lambda name: not osp.isdir(osp.join(dir, name)),
     names )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -279,7 +307,7 @@ def combine_ignore_patterns(*patterns):
 
     feasible = set()
 
-    dnames, fnames = partition_dir(dir, names)
+    fnames, dnames = partition_dir(dir, names)
 
     print(f"  dnames: {dnames}")
     print(f"  fnames: {fnames}")
@@ -287,7 +315,7 @@ def combine_ignore_patterns(*patterns):
     dir = posix_path(dir)
 
     for pattern in patterns:
-      feasible = pattern.filter(dir, dnames, fnames, feasible)
+      feasible = pattern.filter(dir, fnames, dnames, feasible)
 
     return feasible
 
@@ -469,6 +497,7 @@ def tr_glob(pat):
       add(r'(/[^/]+)+')
 
     elif m['any']:
+      # TODO: bpo-40480, is it worth it?
       add(r'[^/]*')
 
     elif m['chr']:
