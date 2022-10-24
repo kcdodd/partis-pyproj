@@ -1,11 +1,9 @@
 import os
 import os.path as osp
-import glob
-import logging
-import re
-from fnmatch import (
-  translate )
+import pathlib
 import posixpath as pxp
+import re
+from collections import namedtuple
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class FilePattern:
@@ -24,10 +22,6 @@ class FilePattern:
   Notes
   -----
   * https://git-scm.com/docs/gitignore#_pattern_format
-  * A blank line matches no files, so it can serve as a separator for readability.
-  * A line starting with # serves as a comment. Put a backslash ("\") in front of
-    the first hash for patterns that begin with a hash.
-  * Trailing spaces are ignored unless they are quoted with backslash ("\").
   * An optional prefix "!" which negates the pattern; any matching file excluded
     by a previous pattern will become included again. It is not possible to
     re-include a file if a parent directory of that file is excluded.
@@ -47,9 +41,21 @@ class FilePattern:
     a/doc/frotz directory; however frotz/ matches frotz and a/frotz that is a
     directory (all paths are relative from the .gitignore file).
   * An asterisk "*" matches anything except a slash. The character "?" matches
-    any one character except "/". The range notation, e.g. [a-zA-Z], can be used
+    any one character except "/".
+  * The range notation, e.g. [a-zA-Z], can be used
     to match one of the characters in a range. See fnmatch(3) and the FNM_PATHNAME
     flag for a more detailed description.
+    This logic rests on the idea that a character class
+    cannot be an empty set. e.g. [] would not match anything, so is not allowed.
+    This means that []] is valid since the the first pair "[]" cannot close
+    a valid set.
+    Likewise, [!] cannot complement an empty set, since this would be equivalent
+    to *, meaning it should instead match "!".
+    [!] -> match "!"
+    [!!] -> match any character that is not "!"
+    []] -> match "]"
+    [!]] -> match any character that is not "]"
+    []!] -> match "]" or "!"
   * Two consecutive asterisks ("**") in patterns matched against full pathname
     may have special meaning:
   * A leading "**" followed by a slash means match in all directories. For example,
@@ -62,9 +68,7 @@ class FilePattern:
   * A slash followed by two consecutive asterisks then a slash matches zero or
     more directories. For example, "a/**/b" matches "a/b", "a/x/b", "a/x/y/b"
     and so on.
-  * Other consecutive asterisks are considered regular asterisks and will match
-    according to the previous rules.
-
+  * The meta-characters "*", "?", and "[" may be escaped by backslash.
 
   """
   #-----------------------------------------------------------------------------
@@ -99,12 +103,19 @@ class FilePattern:
       # particular .gitignore file itself.
       relative = True
 
+      if pattern.startswith('/'):
+        pattern = pattern[1:]
+
     self._pattern = _pattern
-    self.pattern = re.compile( translate(pattern) )
+    self._pattern_tr, self._pattern_segs = tr_glob(pattern)
+    self.pattern = re.compile( self._pattern_tr )
     self.match = self.pattern.match
     self.negate = negate
     self.dironly = dironly
     self.relative = relative
+
+    print(f"{self._pattern} -> {self._pattern_tr}")
+    print('  ' + '\n  '.join([str(seg) for seg in self._pattern_segs]))
 
   #-----------------------------------------------------------------------------
   def __str__(self):
@@ -141,7 +152,7 @@ class FilePatterns:
       for p in patterns ]
 
     if start is not None:
-      start = osp.normpath(os.fspath(start))
+      start = posix_path(start)
 
     self.start = start
 
@@ -168,8 +179,9 @@ class FilePatterns:
       feasible set contains names that are *not* in the output if a pattern
       negates an existing match.
     """
-    dname_paths = norm_join_rel(self.start, dir, dnames)
-    fname_paths = norm_join_rel(self.start, dir, fnames)
+
+    dname_paths = posix_join_rel(self.start, dir, dnames)
+    fname_paths = posix_join_rel(self.start, dir, fnames)
     name_paths = dname_paths + fname_paths
 
     if feasible is None:
@@ -195,7 +207,11 @@ class FilePatterns:
     return feasible
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def norm_join_rel(start, dir, names):
+def posix_path(path):
+  return pathlib.PureWindowsPath(osp.normpath(os.fspath(path))).as_posix()
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def posix_join_rel(start, dir, names):
   """Creates paths relative to a 'start' path for a list of names in a 'dir'
   """
 
@@ -268,9 +284,211 @@ def combine_ignore_patterns(*patterns):
     print(f"  dnames: {dnames}")
     print(f"  fnames: {fnames}")
 
+    dir = posix_path(dir)
+
     for pattern in patterns:
       feasible = pattern.filter(dir, dnames, fnames, feasible)
 
     return feasible
 
   return _ignore_patterns
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# path separator, except for a trailing recursive "/**"
+re_sep = r'(?P<sep>/(?!\*\*\Z))'
+# fixed (no wildcard) segment
+re_fixed = r'(?P<fixed>(?:\\[*?[]|[^*?[/])+)'
+# single star "*" wildcard (not double star "**") e.g. "*.txt"
+re_any = r'(?P<any>(?<![\*\\])\*(?!\*))'
+# single character wildcard e.g. "abc_?"
+re_chr = r'(?P<chr>(?<!\\)\?)'
+# character set e.g. "[a-z]"
+re_chrset = r'(?P<chrset>(?<!\\)\[[!^]?\]?[^\]]*\])'
+# double star sub-directory e.g. "a/**/b" or "**/b"
+re_subdir = r'(?P<subdir>(?<!\\)\*\*/)'
+# trailing double star e.g. "a/**"
+re_alldir = r'(?P<alldir>(?<!\\)/\*\*\Z)'
+
+re_glob = '|'.join([
+  re_sep,
+  re_fixed,
+  re_any,
+  re_chr,
+  re_chrset,
+  re_subdir,
+  re_alldir ])
+
+rec_glob = re.compile(re_glob)
+rec_unescape = re.compile(r'\\([*?[])')
+
+class GlobSegment(namedtuple('GlobSegment', ['ori', 'case', 'start', 'end'])):
+  __slots__ = ()
+
+  #-----------------------------------------------------------------------------
+  def __str__(self):
+    return f"[{self.start}:{self.end}].{self.case}:{self.ori}"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class PatternError(ValueError):
+  #-----------------------------------------------------------------------------
+  def __init__(self, msg, pat, segs):
+    segs = '\n  '.join([ str(seg) for seg in segs])
+
+    msg = f"{msg}: {pat}\n  {segs}"
+
+    super().__init__(msg)
+    self.msg = msg
+    self.pat = pat
+    self.segs = segs
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def esc_chrset(c):
+  if c == '/':
+    raise ValueError("Path separator '/' in character range is undefined.")
+
+  if c in r'\]-':
+    return '\\' + c
+
+  return c
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def tr_range(pat):
+
+  # range
+  a, _, d = pat
+
+  _a = ord(a)
+  _d = ord(d)
+  _sep = ord('/')
+
+  if _d < _a:
+    raise ValueError(f"Character range is out of order: {a}-{d} -> {_a}-{_d}")
+
+  if _a <= _sep and _sep <= _d:
+    # ranges do not match forward slash '/'
+    # E.G. "[--0]" matches the three characters '-', '.', '0'
+    b = chr(_sep-1)
+    c = chr(_sep+1)
+
+    return ''.join([
+      f"{esc_chrset(a)}-{esc_chrset(b)}" if a != b else esc_chrset(a),
+      f"{esc_chrset(c)}-{esc_chrset(d)}" if d != c else esc_chrset(d) ])
+
+  return f"{esc_chrset(a)}-{esc_chrset(d)}"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def tr_chrset(pat):
+  n = len(pat)
+
+  if n <= 2 or pat[0] != '[' or pat[-1] != ']':
+    raise ValueError(f"Character set must be non-empty: {pat}")
+
+  wild = pat[1:-1]
+  parts = ['[']
+  add = parts.append
+
+  # NOTE: a lot of this logic rests on the idea that a character class
+  # cannot be an empty set. e.g. [] would not match anything, so is not allowed.
+  # This means that []] is valid since the the first pair "[]" cannot close
+  # a valid set.
+  # Likewise, [!] cannot complement an empty set, since this would be equivalent
+  # to *, meaning it should instead match "!".
+  # [!] -> match "!"
+  # [!!] -> match any character that is not "!"
+  # []] -> match "]"
+  # [!]] -> match any character that is not "]"
+  # []!] -> match "]" or "!"
+
+  # NOTE: POSIX has declared the effect of a wildcard pattern "[^...]" to be undefined.
+  # Since the standard does not define this behaviour, it seems reasonable to
+  # treat "^" the same as "!" due to its common meaning.
+
+  if wild[0] in '!^' and len(wild) > 1:
+    # Complement of the set of characters
+    # An expression "[!...]" matches a single character, namely any
+    # character that is not matched by the expression obtained by
+    # removing the first '!' from it.
+    add('^')
+    wild = wild[1:]
+
+  while wild:
+    if len(wild) > 2 and wild[1] == '-':
+      # two characters separated by '-' denote a range of characters in the set
+      # defined by the ordinal
+      add(tr_range(wild[:3]))
+      wild = wild[3:]
+
+    else:
+      # a single character in the set
+      add(esc_chrset(wild[:1]))
+      wild = wild[1:]
+
+  parts.append(']')
+
+  return ''.join(parts)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def tr_glob(pat):
+  """
+  Notes
+  -----
+  * https://man7.org/linux/man-pages/man7/glob.7.html
+
+  """
+  segs = list()
+  parts = list()
+  add = parts.append
+
+  i = 0
+
+  for m in rec_glob.finditer(pat):
+
+    d = [ k for k,v in m.groupdict().items() if v is not None ]
+    assert len(d) == 1
+
+    if i != m.start():
+      undefined = pat[i:m.start()]
+      segs.append(GlobSegment(undefined, 'undefined', i, m.start()))
+      raise PatternError("Invalid pattern", pat, segs)
+
+    segs.append(GlobSegment(m.group(0), d[0], m.start(), m.end()))
+
+    if m['fixed']:
+      # NOTE: unescape glob pattern escaped characters before applying re.escape
+      # otherwise they become double-escaped
+      fixed = rec_unescape.sub(r'\1', m['fixed'])
+      add(re.escape(fixed))
+
+    elif m['sep']:
+      add('/')
+
+    elif m['subdir']:
+      add(r'([^/]+/)*')
+
+    elif m['alldir']:
+      add(r'(/[^/]+)+')
+
+    elif m['any']:
+      add(r'[^/]*')
+
+    elif m['chr']:
+      add(r'[^/]')
+
+    elif m['chrset']:
+      try:
+        add(tr_chrset(m['chrset']))
+      except ValueError as e:
+        raise PatternError("Invalid pattern", pat, segs) from e
+
+    else:
+      assert False, f"Segment case undefined: {m}"
+
+    i = m.end()
+
+  if i != len(pat):
+    undefined = pat[i:m.start()]
+    segs.append(GlobSegment(undefined, 'undefined', i, len(pat)))
+    raise PatternError("Invalid pattern", pat, segs)
+
+  res = ''.join(parts)
+  return fr'\A{res}\Z', segs

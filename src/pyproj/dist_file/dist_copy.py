@@ -11,7 +11,7 @@ from ..validate import (
 from ..norms import (
   norm_path )
 
-from ..file import (
+from ..file_pattern import (
   FilePattern,
   FilePatterns,
   combine_ignore_patterns,
