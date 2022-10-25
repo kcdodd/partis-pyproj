@@ -354,17 +354,58 @@ re_glob = '|'.join([
 rec_glob = re.compile(re_glob)
 rec_unescape = re.compile(r'\\([*?[])')
 
-class GlobCase(namedtuple('GlobCase', ['ori', 'case', 'start', 'end'])):
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GRef(namedtuple('GRef', ['ori', 'case', 'start', 'end'])):
   __slots__ = ()
 
-  #-----------------------------------------------------------------------------
-  def __str__(self):
-    return f"[{self.start}:{self.end}].{self.case}:{self.ori}"
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class GName(str):
+class GCase:
+  #-----------------------------------------------------------------------------
+  def __init__(self, ref = None):
+    if ref is None:
+      ref = GRef(None, 'undefined', None, None)
+
+    self.ref = ref
+
+  #-----------------------------------------------------------------------------
   def regex(self):
-    return self
+    raise NotImplementedError("")
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GStr(GCase):
+  #-----------------------------------------------------------------------------
+  def __init__(self, regex, ref = None):
+    super().__init__(ref = ref)
+
+    self._regex = regex
+
+  #-----------------------------------------------------------------------------
+  def regex(self):
+    return self._regex
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GList(GCase):
+  #-----------------------------------------------------------------------------
+  def __init__(self, parts = None, ref = None):
+    super().__init__(ref = ref)
+
+    if parts is None:
+      parts = list()
+
+    self.parts = parts
+
+  #-----------------------------------------------------------------------------
+  def regex(self):
+    return ''.join([v.regex() for v in self.parts])
+
+  #-----------------------------------------------------------------------------
+  def append(self, val):
+    self.parts.append(val)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GName(GStr):
+  pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GFixed(GName):
@@ -390,31 +431,32 @@ def reduce_any(i, n, working):
   return pat
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class GSegment(list):
-  def regex(self):
-    return ''.join([v.regex() for v in self])
+class GSegment(GList):
+  pass
 
-    # n = sum(v is GANY for v in self)
-    # i = 0
-    # combined = list()
-    # working = list()
-    #
-    # for v in self:
-    #   if v is GANY:
-    #     combined.append(reduce_any(i, n, working))
-    #     working = list()
-    #     i += 1
-    #   else:
-    #     working.append(v)
-    #
-    # combined.append(reduce_any(i, n, working))
-    #
-    # return ''.join(combined)
+  # #-----------------------------------------------------------------------------
+  # def regex(self):
+
+  #   n = sum(v is GANY for v in self)
+  #   i = 0
+  #   combined = list()
+  #   working = list()
+    
+  #   for v in self:
+  #     if v is GANY:
+  #       combined.append(reduce_any(i, n, working))
+  #       working = list()
+  #       i += 1
+  #     else:
+  #       working.append(v)
+    
+  #   combined.append(reduce_any(i, n, working))
+    
+  #   return ''.join(combined)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class GSeparator(str):
-  def regex(self):
-    return self
+class GSeparator(GStr):
+  pass
 
 GSLASH = GSeparator('/')
 GSUBDIR = GSeparator(r'([^/]+/)*')
@@ -536,7 +578,7 @@ def tr_glob(pat):
   # collapse repeated separators '//...' to single '/'
   pat = re.sub(r'/+', '/', pat)
 
-  cases = list()
+  refs = list()
   segs = GPath()
 
   def add(case):
@@ -559,10 +601,10 @@ def tr_glob(pat):
 
     if i != m.start():
       undefined = pat[i:m.start()]
-      cases.append(GlobCase(undefined, 'undefined', i, m.start()))
-      raise PatternError("Invalid pattern", pat, cases)
+      refs.append(GRef(undefined, 'undefined', i, m.start()))
+      raise PatternError("Invalid pattern", pat, refs)
 
-    cases.append(GlobCase(m.group(0), d[0], m.start(), m.end()))
+    refs.append(GRef(m.group(0), d[0], m.start(), m.end()))
 
     if m['fixed']:
       # NOTE: unescape glob pattern 'escaped' characters before applying re.escape
@@ -590,7 +632,7 @@ def tr_glob(pat):
       try:
         add(GChrSet(tr_chrset(m['chrset'])))
       except ValueError as e:
-        raise PatternError("Invalid pattern", pat, cases) from e
+        raise PatternError("Invalid pattern", pat, refs) from e
 
     else:
       assert False, f"Segment case undefined: {m}"
@@ -599,9 +641,9 @@ def tr_glob(pat):
 
   if i != len(pat):
     undefined = pat[i:m.start()]
-    cases.append(GlobCase(undefined, 'undefined', i, len(pat)))
-    raise PatternError("Invalid pattern", pat, cases)
+    refs.append(GRef(undefined, 'undefined', i, len(pat)))
+    raise PatternError("Invalid pattern", pat, refs)
 
   print(segs)
   res = segs.regex()
-  return fr'\A{res}\Z', cases
+  return fr'\A{res}\Z', refs
