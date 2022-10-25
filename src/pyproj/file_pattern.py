@@ -354,12 +354,76 @@ re_glob = '|'.join([
 rec_glob = re.compile(re_glob)
 rec_unescape = re.compile(r'\\([*?[])')
 
-class GlobSegment(namedtuple('GlobSegment', ['ori', 'case', 'start', 'end'])):
+class GlobCase(namedtuple('GlobCase', ['ori', 'case', 'start', 'end'])):
   __slots__ = ()
 
   #-----------------------------------------------------------------------------
   def __str__(self):
     return f"[{self.start}:{self.end}].{self.case}:{self.ori}"
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GName(str):
+  def regex(self):
+    return self
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GFixed(GName):
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GChrSet(GName):
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+GCHR = GName(r'[^/]')
+GANY = GName(r'[^/]*')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def reduce_any(i, n, working):
+  pat = ''.join([v.regex() for v in working])
+
+  if i == n-1:
+    pat = rf'{GANY}{pat}'
+  elif i > 0:
+    pat = rf'(?=(?P<g{i-1}>{GANY}?{pat}))(?P=g{i-1})'
+
+  return pat
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GSegment(list):
+  def regex(self):
+    return ''.join([v.regex() for v in self])
+
+    # n = sum(v is GANY for v in self)
+    # i = 0
+    # combined = list()
+    # working = list()
+    #
+    # for v in self:
+    #   if v is GANY:
+    #     combined.append(reduce_any(i, n, working))
+    #     working = list()
+    #     i += 1
+    #   else:
+    #     working.append(v)
+    #
+    # combined.append(reduce_any(i, n, working))
+    #
+    # return ''.join(combined)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GSeparator(str):
+  def regex(self):
+    return self
+
+GSLASH = GSeparator('/')
+GSUBDIR = GSeparator(r'([^/]+/)*')
+GALLDIR = GSeparator(r'(/[^/]+)+')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class GPath(list):
+  def regex(self):
+    return ''.join([v.regex() for v in self])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PatternError(ValueError):
@@ -472,9 +536,19 @@ def tr_glob(pat):
   # collapse repeated separators '//...' to single '/'
   pat = re.sub(r'/+', '/', pat)
 
-  segs = list()
-  parts = list()
-  add = parts.append
+  cases = list()
+  segs = GPath()
+
+  def add(case):
+    if isinstance(case, GSeparator):
+      segs.append(case)
+      return
+
+    if not ( len(segs) and isinstance(segs[-1], GSegment) ):
+      segs.append(GSegment())
+
+    segs[-1].append(case)
+
 
   i = 0
 
@@ -485,38 +559,38 @@ def tr_glob(pat):
 
     if i != m.start():
       undefined = pat[i:m.start()]
-      segs.append(GlobSegment(undefined, 'undefined', i, m.start()))
-      raise PatternError("Invalid pattern", pat, segs)
+      cases.append(GlobCase(undefined, 'undefined', i, m.start()))
+      raise PatternError("Invalid pattern", pat, cases)
 
-    segs.append(GlobSegment(m.group(0), d[0], m.start(), m.end()))
+    cases.append(GlobCase(m.group(0), d[0], m.start(), m.end()))
 
     if m['fixed']:
       # NOTE: unescape glob pattern 'escaped' characters before applying re.escape
       # otherwise they become double-escaped
       fixed = rec_unescape.sub(r'\1', m['fixed'])
-      add(re.escape(fixed))
+      add(GFixed(re.escape(fixed)))
 
     elif m['sep']:
-      add('/')
+      add(GSLASH)
 
     elif m['subdir'] or m['isubdir']:
-      add(r'([^/]+/)*')
+      add(GSUBDIR)
 
     elif m['alldir']:
-      add(r'(/[^/]+)+')
+      add(GALLDIR)
 
     elif m['any']:
       # TODO: bpo-40480, is it worth it?
-      add(r'[^/]*')
+      add(GANY)
 
     elif m['chr']:
-      add(r'[^/]')
+      add(GCHR)
 
     elif m['chrset']:
       try:
-        add(tr_chrset(m['chrset']))
+        add(GChrSet(tr_chrset(m['chrset'])))
       except ValueError as e:
-        raise PatternError("Invalid pattern", pat, segs) from e
+        raise PatternError("Invalid pattern", pat, cases) from e
 
     else:
       assert False, f"Segment case undefined: {m}"
@@ -525,8 +599,9 @@ def tr_glob(pat):
 
   if i != len(pat):
     undefined = pat[i:m.start()]
-    segs.append(GlobSegment(undefined, 'undefined', i, len(pat)))
-    raise PatternError("Invalid pattern", pat, segs)
+    cases.append(GlobCase(undefined, 'undefined', i, len(pat)))
+    raise PatternError("Invalid pattern", pat, cases)
 
-  res = ''.join(parts)
-  return fr'\A{res}\Z', segs
+  print(segs)
+  res = segs.regex()
+  return fr'\A{res}\Z', cases
