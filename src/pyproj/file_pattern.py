@@ -322,7 +322,7 @@ def combine_ignore_patterns(*patterns):
   return _ignore_patterns
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# path separator, except for a trailing recursive "/**"
+# path separator (NOTE: except for a trailing recursive "/**")
 re_sep = r'(?P<sep>/(?!\*\*\Z))'
 # fixed (no wildcard) segment
 re_fixed = r'(?P<fixed>(?:\\[*?[]|[^*?[/])+)'
@@ -333,9 +333,13 @@ re_chr = r'(?P<chr>(?<!\\)\?)'
 # character set e.g. "[a-z]"
 re_chrset = r'(?P<chrset>(?<!\\)\[[!^]?\]?[^\]]*\])'
 # double star sub-directory e.g. "a/**/b" or "**/b"
-re_subdir = r'(?P<subdir>(?<!\\)\*\*/)'
+# NOTE: the ending '/' is consumed so the replaced pattern also matches zero times
+# but leading '/' is not so that zero-length matches leave a '/' for successive
+# sub-directory/file patterns.
+re_subdir = r'(?P<subdir>(?<=/)\*\*/)'
+re_isubdir = r'(?P<isubdir>\A\*\*/)'
 # trailing double star e.g. "a/**"
-re_alldir = r'(?P<alldir>(?<!\\)/\*\*\Z)'
+re_alldir = r'(?P<alldir>/\*\*\Z)'
 
 re_glob = '|'.join([
   re_sep,
@@ -344,6 +348,7 @@ re_glob = '|'.join([
   re_chr,
   re_chrset,
   re_subdir,
+  re_isubdir,
   re_alldir ])
 
 rec_glob = re.compile(re_glob)
@@ -463,6 +468,10 @@ def tr_glob(pat):
   * https://man7.org/linux/man-pages/man7/glob.7.html
 
   """
+
+  # collapse repeated separators '//...' to single '/'
+  pat = re.sub(r'/+', '/', pat)
+
   segs = list()
   parts = list()
   add = parts.append
@@ -482,7 +491,7 @@ def tr_glob(pat):
     segs.append(GlobSegment(m.group(0), d[0], m.start(), m.end()))
 
     if m['fixed']:
-      # NOTE: unescape glob pattern escaped characters before applying re.escape
+      # NOTE: unescape glob pattern 'escaped' characters before applying re.escape
       # otherwise they become double-escaped
       fixed = rec_unescape.sub(r'\1', m['fixed'])
       add(re.escape(fixed))
@@ -490,7 +499,7 @@ def tr_glob(pat):
     elif m['sep']:
       add('/')
 
-    elif m['subdir']:
+    elif m['subdir'] or m['isubdir']:
       add(r'([^/]+/)*')
 
     elif m['alldir']:

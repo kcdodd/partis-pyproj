@@ -143,6 +143,18 @@ def test_file_pattern_recurse():
   with raises(PatternError):
     p = FilePattern('**b')
 
+  with raises(PatternError):
+    p = FilePattern('a**/b')
+
+  with raises(PatternError):
+    p = FilePattern('**a/b')
+
+  with raises(PatternError):
+    p = FilePattern('a/b**')
+
+  with raises(PatternError):
+    p = FilePattern('a/**b')
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_any():
   p = FilePattern('*.py')
