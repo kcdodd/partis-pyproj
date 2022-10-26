@@ -142,8 +142,8 @@ class FilePattern:
 
   #-----------------------------------------------------------------------------
   def match(self, path):
-    anchor, _path = tr_path(osp.normpath(path))
-    print(path, '->', anchor, itr_path(_path))
+    _path = tr_path(path)
+    print(path, '->', _path)
     return self._match(_path)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -167,11 +167,12 @@ class FilePatterns:
     _start = None
 
     if start is not None:
-      start = osp.normpath(os.fspath(start))
-      _start = tr_path(start)[1]
+      _start = tr_path(start)
+      print('start', start, '->', _start)
 
     self.start = start
     self._start = _start
+    self.pathcls = pathcls
 
   #-----------------------------------------------------------------------------
   def filter(self, dir, fnames, dnames = None, feasible = None):
@@ -203,7 +204,8 @@ class FilePatterns:
       negates an existing match.
     """
 
-    _dir = tr_path(osp.normpath(os.fspath(dir)))[1]
+    _dir = tr_path(dir)
+    print('dir', dir, '->', _dir)
 
     if dnames is None:
       dnames, fnames = partition(lambda x: x.endswith(osp.sep), fnames)
@@ -225,7 +227,9 @@ class FilePatterns:
     if feasible is None:
       feasible = set()
 
-    print(f"  {self.start}")
+    print(f"  {self.start}, {dir}")
+    print(f"    fnames: {fname_paths}")
+    print(f"    dnames: {dname_paths}")
 
     # Can only match directories, filter out other names
     for pattern in self.patterns:
@@ -238,11 +242,30 @@ class FilePatterns:
       else:
         feasible = op({ name for name, path in _name_paths if match(name) })
 
-      print(f"    {repr(pattern)} -> {feasible}")
+      print(f"    - {repr(pattern)} -> {feasible}")
 
     print(f"    {feasible}")
 
     return feasible
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class psp:
+  def __new__(cls, path):
+    if hasattr(path, 'parts') and hasattr(path, 'anchor'):
+      return path
+
+    return super().__new__()
+
+  def __init__(path):
+    self.path = path
+    self.parts = [path]
+    self.anchor = ''
+
+  def __str__(self):
+    return self.path
+
+  def __fspath__(self):
+    return self.path
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_rel_join(start, dir, names):
@@ -250,6 +273,7 @@ def tr_rel_join(start, dir, names):
   """
 
   rpath = tr_subdir( start, dir )
+  print(f"  rpath: {rpath}")
 
   return [
     (name, tr_join(rpath, name))
@@ -263,20 +287,22 @@ def tr_join(*args):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_subdir(start, path):
+  print(f"  tr_subdir({start}, {path})")
   if not start:
     return path
 
-  start = start.split(SEP)
-  path = path.split(SEP)
+  _start = start.split(SEP)
+  _path = path.split(SEP)
 
-  if len(start) > len(path):
+  if len(_start) > len(_path):
     raise ValueError(f"Not a subdirectory of {itr_path(start)}: {itr_path(path)}")
 
-  for i, (p, s) in enumerate(zip(path, start)):
+  for i, (p, s) in enumerate(zip(_path, _start)):
+    print(f"    {i}: {p} != {s} ({p != s})")
     if p != s:
-      return SEP.join(path[i:])
+      return SEP.join(_path[i:])
 
-  return ''
+  return SEP.join(_path[i+1:])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def contains(a, b):
@@ -330,7 +356,7 @@ def combine_ignore_patterns(*patterns):
   """
 
   def _ignore_patterns(dir, names):
-    dir = osp.normpath(os.fspath(dir))
+    dir = pathlib.PurePath(dir)
 
     print(f"dir: {dir}")
 
@@ -341,7 +367,7 @@ def combine_ignore_patterns(*patterns):
     print(f"  dnames: {dnames}")
     print(f"  fnames: {fnames}")
 
-    _dir = tr_path(dir)[1]
+    _dir = tr_path(dir)
 
     for pattern in patterns:
       feasible = pattern._filter(_dir, fnames, dnames, feasible)
@@ -351,14 +377,14 @@ def combine_ignore_patterns(*patterns):
   return _ignore_patterns
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-SEP = chr(0x1c)
+# SEP = chr(0x1c)
+SEP = '◆'
 CURDIR = chr(0x1d)
 PARDIR = chr(0x1e)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_path(path):
-
-  path = pathlib.Path(path)
+  path = psp(path)
   parts = path.parts
   anchor = path.anchor
 
@@ -366,9 +392,9 @@ def tr_path(path):
     return anchor, ''
 
   if parts[0] == anchor:
-    return anchor, SEP.join(parts[1:])
+    return SEP.join(parts[1:])
 
-  return anchor, SEP.join(parts)
+  return SEP.join(parts)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def itr_path(path):

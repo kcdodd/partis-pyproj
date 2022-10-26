@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import tempfile
 import shutil
+import pathlib
 
 from pytest import (
   raises )
@@ -13,6 +14,9 @@ from partis.pyproj import (
   partition,
   combine_ignore_patterns,
   contains )
+
+pxp = pathlib.PurePosixPath
+ntp = pathlib.PureWindowsPath
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_partition():
@@ -171,57 +175,58 @@ def test_file_pattern_any():
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_chr():
+  # These test _match to check the raw string match without normalizing as a path
   p = FilePattern('a?c')
-  assert p.match('abc')
-  assert p.match('axc')
-  assert not p.match('ac')
+  assert p._match('abc')
+  assert p._match('axc')
+  assert not p._match('ac')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_chrset():
+  # These test _match to check the raw string match without normalizing as a path
+  assert FilePattern('[!]')._match('!')
+  assert not FilePattern('[!!]')._match('!')
+  assert not FilePattern('[^!]')._match('!')
+  assert FilePattern('[]]')._match(']')
+  assert not FilePattern('[!]]')._match(']')
+  assert not FilePattern('[^]]')._match(']')
+  assert FilePattern('[]!]')._match(']')
+  assert FilePattern('[]!]')._match('!')
 
-  assert FilePattern('[!]').match('!')
-  assert not FilePattern('[!!]').match('!')
-  assert not FilePattern('[^!]').match('!')
-  assert FilePattern('[]]').match(']')
-  assert not FilePattern('[!]]').match(']')
-  assert not FilePattern('[^]]').match(']')
-  assert FilePattern('[]!]').match(']')
-  assert FilePattern('[]!]').match('!')
+  assert FilePattern('[-]')._match('-')
+  assert FilePattern('[--]')._match('-')
+  assert FilePattern('[---]')._match('-')
 
-  assert FilePattern('[-]').match('-')
-  assert FilePattern('[--]').match('-')
-  assert FilePattern('[---]').match('-')
-
-  assert FilePattern('[?]').match('?')
-  assert FilePattern('[*]').match('*')
+  assert FilePattern('[?]')._match('?')
+  assert FilePattern('[*]')._match('*')
 
   p = FilePattern('[x-z]')
-  assert p.match('x')
-  assert p.match('y')
-  assert p.match('z')
-  assert not p.match('X')
-  assert not p.match('w')
+  assert p._match('x')
+  assert p._match('y')
+  assert p._match('z')
+  assert not p._match('X')
+  assert not p._match('w')
 
   p = FilePattern('[--0]')
-  assert p.match('-')
-  assert p.match('.')
-  assert not p.match('/')
-  assert p.match('0')
+  assert p._match('-')
+  assert p._match('.')
+  assert not p._match('/')
+  assert p._match('0')
 
   p = FilePattern('[b-b]')
-  assert p.match('b')
-  assert not p.match('a')
-  assert not p.match('c')
+  assert p._match('b')
+  assert not p._match('a')
+  assert not p._match('c')
 
   # not escaped in character sets
   # bpo-409651
   p = FilePattern(r'[\]')
-  assert p.match('\\')
-  assert not p.match('a')
+  assert p._match('\\')
+  assert not p._match('a')
 
   p = FilePattern(r'[!\]')
-  assert not p.match('\\')
-  assert p.match('a')
+  assert not p._match('\\')
+  assert p._match('a')
 
   with raises(PatternError):
     # must be non-empty
