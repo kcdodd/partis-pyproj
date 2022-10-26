@@ -130,8 +130,8 @@ class PathMatcher:
     self.dironly = dironly
     self.relative = relative
 
-    print(f"{self._pattern} -> {self._pattern_tr}")
-    print('  ' + '\n  '.join([str(seg) for seg in self._pattern_segs]))
+    #DEBUG print(f"{self._pattern} -> {self._pattern_tr}")
+    #DEBUG print('  ' + '\n  '.join([str(seg) for seg in self._pattern_segs]))
 
   #-----------------------------------------------------------------------------
   def __str__(self):
@@ -167,7 +167,7 @@ class PathMatcher:
       path = PurePath(path)
       
     _path = tr_path(path)
-    print('match', path, '->', _path)
+    #DEBUG print('match', path, '->', _path)
     return self._match(_path)
 
   #-----------------------------------------------------------------------------
@@ -207,7 +207,7 @@ class PathFilter:
         start = PurePath(start)
         
       _start = tr_path(start)
-      print('start', start, '->', _start)
+      #DEBUG print('start', start, '->', _start)
 
     self.start = start
     self._start = _start
@@ -246,7 +246,7 @@ class PathFilter:
       dir = PurePath(dir)
 
     _dir = tr_path(dir)
-    print('dir', dir, '->', _dir)
+    #DEBUG print('dir', dir, '->', _dir)
 
     if dnames is None:
       dnames, fnames = partition(lambda x: x.endswith(osp.sep), fnames)
@@ -268,9 +268,9 @@ class PathFilter:
     if feasible is None:
       feasible = set()
 
-    print(f"  {self.start}, {dir}")
-    print(f"    fnames: {fname_paths}")
-    print(f"    dnames: {dname_paths}")
+    #DEBUG print(f"  {self.start}, {dir}")
+    #DEBUG print(f"    fnames: {fname_paths}")
+    #DEBUG print(f"    dnames: {dname_paths}")
 
     # Can only match directories, filter out other names
     for pattern in self.patterns:
@@ -283,9 +283,9 @@ class PathFilter:
       else:
         feasible = op({ name for name, path in _name_paths if match(name) })
 
-      print(f"    - {repr(pattern)} -> {feasible}")
+      #DEBUG print(f"    - {repr(pattern)} -> {feasible}")
 
-    print(f"    {feasible}")
+    #DEBUG print(f"    {feasible}")
 
     return feasible
 
@@ -344,14 +344,14 @@ def combine_ignore_patterns(*patterns):
   def _ignore_patterns(dir, names):
     dir = PurePath(dir)
 
-    print(f"dir: {dir}")
+    #DEBUG print(f"dir: {dir}")
 
     feasible = set()
 
     fnames, dnames = partition_dir(dir, names)
 
-    print(f"  dnames: {dnames}")
-    print(f"  fnames: {fnames}")
+    #DEBUG print(f"  dnames: {dnames}")
+    #DEBUG print(f"  fnames: {fnames}")
 
     _dir = tr_path(dir)
 

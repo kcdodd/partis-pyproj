@@ -88,7 +88,7 @@ def tr_rel_join(start, dir, names):
   """
 
   rpath = tr_subdir( start, dir )
-  print(f"  rpath: {rpath}")
+  #DEBUG print(f"  rpath: {rpath}")
 
   return [
     (name, tr_join(rpath, name))
@@ -108,7 +108,7 @@ def tr_subdir(start, path):
   """Relative path, restricted to sub-directories, already translated by :func:`tr_path`.
   """
 
-  print(f"  tr_subdir({start}, {path})")
+  #DEBUG print(f"  tr_subdir({start}, {path})")
   if not start:
     return path
 
@@ -119,7 +119,7 @@ def tr_subdir(start, path):
     raise ValueError(f"Not a subdirectory of {inv_path(start)}: {inv_path(path)}")
 
   for i, (p, s) in enumerate(zip(_path, _start)):
-    print(f"    {i}: {p} != {s} ({p != s})")
+    #DEBUG print(f"    {i}: {p} != {s} ({p != s})")
     if p != s:
       return SEP.join(_path[i:])
 
@@ -481,6 +481,6 @@ def tr_glob(pat):
     refs.append(GRef(undefined, 'undefined', i, len(pat)))
     raise PatternError("Invalid pattern", pat, refs)
 
-  print(segs)
+  #DEBUG print(segs)
   res = segs.regex()
   return fr'\A{res}\Z', refs
