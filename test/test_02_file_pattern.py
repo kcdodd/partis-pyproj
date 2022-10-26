@@ -162,7 +162,8 @@ def test_file_pattern_any():
   assert p.match('a.py')
   assert p.match('abc.py')
   # * does not match /
-  assert not p.match('/.py')
+  assert not p.match('a/.py')
+  assert not p.match('a/b/.py')
 
   # TODO: bpo-40480, is it worth it?
   # p = FilePattern('*a*a*a*a*a*a*a*a*a*a')

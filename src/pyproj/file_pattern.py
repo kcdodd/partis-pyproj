@@ -116,7 +116,7 @@ class FilePattern:
     self._pattern = _pattern
     self._pattern_tr, self._pattern_segs = tr_glob(pattern)
     self.pattern = re.compile( self._pattern_tr )
-    self.match = self.pattern.match
+    self._match = self.pattern.match
     self.negate = negate
     self.dironly = dironly
     self.relative = relative
@@ -140,6 +140,12 @@ class FilePattern:
 
     return f"{type(self).__name__}({args})"
 
+  #-----------------------------------------------------------------------------
+  def match(self, path):
+    anchor, _path = tr_path(osp.normpath(path))
+    print(path, '->', anchor, itr_path(_path))
+    return self._match(_path)
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class FilePatterns:
   """A combination of file patters applied relative to a given 'start' directory
@@ -158,10 +164,14 @@ class FilePatterns:
       p if isinstance(p, FilePattern) else FilePattern(p)
       for p in patterns ]
 
+    _start = None
+
     if start is not None:
-      start = posix_path(start)
+      start = osp.normpath(os.fspath(start))
+      _start = tr_path(start)[1]
 
     self.start = start
+    self._start = _start
 
   #-----------------------------------------------------------------------------
   def filter(self, dir, fnames, dnames = None, feasible = None):
@@ -193,23 +203,23 @@ class FilePatterns:
       negates an existing match.
     """
 
-    dir = posix_path(dir)
+    _dir = tr_path(osp.normpath(os.fspath(dir)))[1]
 
     if dnames is None:
-      dnames, fnames = partition(lambda x: x.endswith('/'), fnames)
+      dnames, fnames = partition(lambda x: x.endswith(osp.sep), fnames)
 
-    fnames = [d.rstrip('/') for d in fnames]
-    dnames = [d.rstrip('/') for d in dnames]
+    fnames = [d.rstrip(osp.sep) for d in fnames]
+    dnames = [d.rstrip(osp.sep) for d in dnames]
 
-    return self._filter(dir, fnames, dnames, feasible)
+    return self._filter(_dir, fnames, dnames, feasible)
 
   #-----------------------------------------------------------------------------
   def _filter(self, dir, fnames, dnames, feasible = None):
     """Internal method, assumes dir has already been converted to posix, and
     fnames/dnames must be separatly given.
     """
-    dname_paths = posix_join_rel(self.start, dir, dnames)
-    fname_paths = posix_join_rel(self.start, dir, fnames)
+    dname_paths = tr_rel_join(self._start, dir, dnames)
+    fname_paths = tr_rel_join(self._start, dir, fnames)
     name_paths = dname_paths + fname_paths
 
     if feasible is None:
@@ -221,7 +231,7 @@ class FilePatterns:
     for pattern in self.patterns:
       op = feasible.difference if pattern.negate else feasible.union
       _name_paths = dname_paths if pattern.dironly else name_paths
-      match = pattern.match
+      match = pattern._match
 
       if pattern.relative:
         feasible = op({ name for name, path in _name_paths if match(path) })
@@ -235,19 +245,38 @@ class FilePatterns:
     return feasible
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def posix_path(path):
-  return pathlib.PureWindowsPath(osp.normpath(os.fspath(path))).as_posix()
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def posix_join_rel(start, dir, names):
+def tr_rel_join(start, dir, names):
   """Creates paths relative to a 'start' path for a list of names in a 'dir'
   """
 
-  rpath = pxp.relpath( dir, start = start )
+  rpath = tr_subdir( start, dir )
 
   return [
-    (name, pxp.normpath( pxp.join(rpath, name) ))
+    (name, tr_join(rpath, name))
     for name in names ]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def tr_join(*args):
+  args = [x for x in args if x]
+
+  return SEP.join(args)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def tr_subdir(start, path):
+  if not start:
+    return path
+
+  start = start.split(SEP)
+  path = path.split(SEP)
+
+  if len(start) > len(path):
+    raise ValueError(f"Not a subdirectory of {itr_path(start)}: {itr_path(path)}")
+
+  for i, (p, s) in enumerate(zip(path, start)):
+    if p != s:
+      return SEP.join(path[i:])
+
+  return ''
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def contains(a, b):
@@ -312,14 +341,38 @@ def combine_ignore_patterns(*patterns):
     print(f"  dnames: {dnames}")
     print(f"  fnames: {fnames}")
 
-    dir = posix_path(dir)
+    _dir = tr_path(dir)[1]
 
     for pattern in patterns:
-      feasible = pattern.filter(dir, fnames, dnames, feasible)
+      feasible = pattern._filter(_dir, fnames, dnames, feasible)
 
     return feasible
 
   return _ignore_patterns
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SEP = chr(0x1c)
+CURDIR = chr(0x1d)
+PARDIR = chr(0x1e)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def tr_path(path):
+
+  path = pathlib.Path(path)
+  parts = path.parts
+  anchor = path.anchor
+
+  if not len(parts):
+    return anchor, ''
+
+  if parts[0] == anchor:
+    return anchor, SEP.join(parts[1:])
+
+  return anchor, SEP.join(parts)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def itr_path(path):
+  return osp.sep.join(path.split(SEP))
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # path separator (NOTE: except for a trailing recursive "/**")
@@ -416,8 +469,8 @@ class GChrSet(GName):
   pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-GCHR = GName(r'[^/]')
-GANY = GName(r'[^/]*')
+GCHR = GName(rf'[^{SEP}]')
+GANY = GName(rf'[^{SEP}]*')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def reduce_any(i, n, working):
@@ -441,7 +494,7 @@ class GSegment(GList):
   #   i = 0
   #   combined = list()
   #   working = list()
-    
+
   #   for v in self:
   #     if v is GANY:
   #       combined.append(reduce_any(i, n, working))
@@ -449,18 +502,18 @@ class GSegment(GList):
   #       i += 1
   #     else:
   #       working.append(v)
-    
+
   #   combined.append(reduce_any(i, n, working))
-    
+
   #   return ''.join(combined)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GSeparator(GStr):
   pass
 
-GSLASH = GSeparator('/')
-GSUBDIR = GSeparator(r'([^/]+/)*')
-GALLDIR = GSeparator(r'(/[^/]+)+')
+GSEP = GSeparator(SEP)
+GSUBDIR = GSeparator(rf'([^{SEP}]+{SEP})*')
+GALLDIR = GSeparator(rf'({SEP}[^{SEP}]+)+')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GPath(list):
@@ -613,7 +666,7 @@ def tr_glob(pat):
       add(GFixed(re.escape(fixed)))
 
     elif m['sep']:
-      add(GSLASH)
+      add(GSEP)
 
     elif m['subdir'] or m['isubdir']:
       add(GSUBDIR)
