@@ -8,8 +8,8 @@ from pytest import (
   raises )
 
 from partis.pyproj import (
-  FilePattern,
-  FilePatterns,
+  PathMatcher,
+  PathFilter,
   PatternError,
   partition,
   combine_ignore_patterns,
@@ -26,158 +26,158 @@ def test_partition():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_escape():
   # escaped special glob characters
-  assert FilePattern(r'\[]').match_posix('[]')
-  assert FilePattern(r'\*').match_posix('*')
-  assert FilePattern(r'\?').match_posix('?')
-  assert FilePattern(r'\*').match_posix('*')
+  assert PathMatcher(r'\[]').posix('[]')
+  assert PathMatcher(r'\*').posix('*')
+  assert PathMatcher(r'\?').posix('?')
+  assert PathMatcher(r'\*').posix('*')
 
   # not escaped
-  assert FilePattern(r'\.').match_posix(r'\.')
-  assert FilePattern(r'\abc').match_posix(r'\abc')
-  assert FilePattern(r'.*').match_posix(r'.*')
-  assert FilePattern(r'.*').match_posix(r'.*')
-  assert FilePattern(r'.{3}').match_posix(r'.{3}')
+  assert PathMatcher(r'\.').posix(r'\.')
+  assert PathMatcher(r'\abc').posix(r'\abc')
+  assert PathMatcher(r'.*').posix(r'.*')
+  assert PathMatcher(r'.*').posix(r'.*')
+  assert PathMatcher(r'.{3}').posix(r'.{3}')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern():
 
-  p = FilePattern('a')
+  p = PathMatcher('a')
   assert str(p) == 'a'
   assert not p.negate
   assert not p.dironly
   assert not p.relative
-  assert p.match_posix('a')
+  assert p.posix('a')
 
-  p = FilePattern('a/')
+  p = PathMatcher('a/')
   assert not p.negate
   assert p.dironly
   assert not p.relative
-  assert p.match_posix('a')
+  assert p.posix('a')
 
-  p = FilePattern('/a')
+  p = PathMatcher('/a')
   assert not p.negate
   assert not p.dironly
   assert p.relative
-  assert p.match_posix('a')
+  assert p.posix('a')
 
-  p = FilePattern('!a')
+  p = PathMatcher('!a')
   assert p.negate
   assert not p.dironly
   assert not p.relative
-  assert p.match_posix('a')
+  assert p.posix('a')
 
-  p = FilePattern(r'\!a')
+  p = PathMatcher(r'\!a')
   assert not p.negate
   assert not p.dironly
   assert not p.relative
-  assert p.match_posix('!a')
+  assert p.posix('!a')
 
-  p = FilePattern('a/b')
+  p = PathMatcher('a/b')
   assert not p.negate
   assert not p.dironly
   assert p.relative
-  assert p.match_posix('a/b')
+  assert p.posix('a/b')
 
-  p = FilePattern('a/b/')
+  p = PathMatcher('a/b/')
   assert not p.negate
   assert p.dironly
   assert p.relative
-  assert p.match_posix('a/b')
+  assert p.posix('a/b')
 
-  p = FilePattern('!a/b')
+  p = PathMatcher('!a/b')
   assert p.negate
   assert not p.dironly
   assert p.relative
-  assert p.match_posix('a/b')
+  assert p.posix('a/b')
 
-  p = FilePattern('!a/')
+  p = PathMatcher('!a/')
   assert p.negate
   assert p.dironly
   assert not p.relative
-  assert p.match_posix('a')
+  assert p.posix('a')
 
-  p = FilePattern('!a/b/')
+  p = PathMatcher('!a/b/')
   assert p.negate
   assert p.dironly
   assert p.relative
-  assert p.match_posix('a/b')
+  assert p.posix('a/b')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_recurse():
 
-  p = FilePattern('**/foo')
+  p = PathMatcher('**/foo')
   assert not p.negate
   assert not p.dironly
   assert p.relative
-  assert p.match_posix('a/b/foo')
-  assert p.match_posix('a/foo')
-  assert p.match_posix('./foo')
-  assert p.match_posix('foo')
+  assert p.posix('a/b/foo')
+  assert p.posix('a/foo')
+  assert p.posix('./foo')
+  assert p.posix('foo')
 
-  p = FilePattern('**/foo/bar')
+  p = PathMatcher('**/foo/bar')
   assert not p.negate
   assert not p.dironly
   assert p.relative
-  assert p.match_posix('a/b/foo/bar')
-  assert p.match_posix('a/foo/bar')
-  assert p.match_posix('foo/bar')
+  assert p.posix('a/b/foo/bar')
+  assert p.posix('a/foo/bar')
+  assert p.posix('foo/bar')
 
-  p = FilePattern('a/**/b')
+  p = PathMatcher('a/**/b')
   assert not p.negate
   assert not p.dironly
   assert p.relative
-  assert p.match_posix('a/b')
-  assert p.match_posix('a/x/b')
-  assert p.match_posix('a/x/y/b')
+  assert p.posix('a/b')
+  assert p.posix('a/x/b')
+  assert p.posix('a/x/y/b')
 
-  p = FilePattern('abc/**')
+  p = PathMatcher('abc/**')
   assert not p.negate
   assert not p.dironly
   assert p.relative
-  assert p.match_posix('abc/a')
-  assert p.match_posix('abc/a/b')
+  assert p.posix('abc/a')
+  assert p.posix('abc/a/b')
 
   with raises(PatternError):
     # ** only defined when bounded by /
     # e.g. **/, /**/, or /**
-    p = FilePattern('a**b')
+    p = PathMatcher('a**b')
 
   with raises(PatternError):
-    p = FilePattern('a**')
+    p = PathMatcher('a**')
 
   with raises(PatternError):
-    p = FilePattern('**b')
+    p = PathMatcher('**b')
 
   with raises(PatternError):
-    p = FilePattern('a**/b')
+    p = PathMatcher('a**/b')
 
   with raises(PatternError):
-    p = FilePattern('**a/b')
+    p = PathMatcher('**a/b')
 
   with raises(PatternError):
-    p = FilePattern('a/b**')
+    p = PathMatcher('a/b**')
 
   with raises(PatternError):
-    p = FilePattern('a/**b')
+    p = PathMatcher('a/**b')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_any():
-  p = FilePattern('*.py')
-  assert p.match_posix('.py')
-  assert p.match_posix('a.py')
-  assert p.match_posix('abc.py')
+  p = PathMatcher('*.py')
+  assert p.posix('.py')
+  assert p.posix('a.py')
+  assert p.posix('abc.py')
   # * does not match /
-  assert not p.match_posix('a/.py')
-  assert not p.match_posix('a/b/.py')
+  assert not p.posix('a/.py')
+  assert not p.posix('a/b/.py')
 
   # TODO: bpo-40480, is it worth it?
-  # p = FilePattern('*a*a*a*a*a*a*a*a*a*a')
-  # assert not p.match_posix('a' * 50 + 'b')
+  # p = PathMatcher('*a*a*a*a*a*a*a*a*a*a')
+  # assert not p.posix('a' * 50 + 'b')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_chr():
   # These test _match to check the raw string match without normalizing as a path
-  p = FilePattern('a?c')
+  p = PathMatcher('a?c')
   assert p._match('abc')
   assert p._match('axc')
   assert not p._match('ac')
@@ -185,80 +185,80 @@ def test_file_pattern_chr():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_pattern_chrset():
   # These test _match to check the raw string match without normalizing as a path
-  assert FilePattern('[!]')._match('!')
-  assert not FilePattern('[!!]')._match('!')
-  assert not FilePattern('[^!]')._match('!')
-  assert FilePattern('[]]')._match(']')
-  assert not FilePattern('[!]]')._match(']')
-  assert not FilePattern('[^]]')._match(']')
-  assert FilePattern('[]!]')._match(']')
-  assert FilePattern('[]!]')._match('!')
+  assert PathMatcher('[!]')._match('!')
+  assert not PathMatcher('[!!]')._match('!')
+  assert not PathMatcher('[^!]')._match('!')
+  assert PathMatcher('[]]')._match(']')
+  assert not PathMatcher('[!]]')._match(']')
+  assert not PathMatcher('[^]]')._match(']')
+  assert PathMatcher('[]!]')._match(']')
+  assert PathMatcher('[]!]')._match('!')
 
-  assert FilePattern('[-]')._match('-')
-  assert FilePattern('[--]')._match('-')
-  assert FilePattern('[---]')._match('-')
+  assert PathMatcher('[-]')._match('-')
+  assert PathMatcher('[--]')._match('-')
+  assert PathMatcher('[---]')._match('-')
 
-  assert FilePattern('[?]')._match('?')
-  assert FilePattern('[*]')._match('*')
+  assert PathMatcher('[?]')._match('?')
+  assert PathMatcher('[*]')._match('*')
 
-  p = FilePattern('[x-z]')
+  p = PathMatcher('[x-z]')
   assert p._match('x')
   assert p._match('y')
   assert p._match('z')
   assert not p._match('X')
   assert not p._match('w')
 
-  p = FilePattern('[--0]')
+  p = PathMatcher('[--0]')
   assert p._match('-')
   assert p._match('.')
-  assert not p.match_posix('/')
+  assert not p.posix('/')
   assert p._match('0')
 
-  p = FilePattern('[b-b]')
+  p = PathMatcher('[b-b]')
   assert p._match('b')
   assert not p._match('a')
   assert not p._match('c')
 
   # not escaped in character sets
   # bpo-409651
-  p = FilePattern(r'[\]')
+  p = PathMatcher(r'[\]')
   assert p._match('\\')
   assert not p._match('a')
 
-  p = FilePattern(r'[!\]')
+  p = PathMatcher(r'[!\]')
   assert not p._match('\\')
   assert p._match('a')
 
   with raises(PatternError):
     # must be non-empty
-    FilePattern('[]')
+    PathMatcher('[]')
 
   with raises(PatternError):
     # path separator undefined in char set
-    FilePattern('[/]')
+    PathMatcher('[/]')
 
   with raises(PatternError):
     # range is not ordered
-    FilePattern('[z-a]')
+    PathMatcher('[z-a]')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_patterns():
 
-  p = FilePatterns()
+  p = PathFilter()
   assert p.patterns == []
   assert p.start is None
   assert p.filter('.', dnames = ['a'], fnames = ['b']) == set()
 
-  p = FilePatterns(['a/', '!b'])
+  p = PathFilter(['a/', '!b'])
   assert len(p.patterns) == 2
-  assert p.patterns[0].match_posix('a')
-  assert p.patterns[1].match_posix('b')
+  assert p.patterns[0].posix('a')
+  assert p.patterns[1].posix('b')
   assert p.start is None
   assert p.filter('.', dnames = ['a'], fnames = ['b'], feasible = {'b'}) == {'a'}
 
-  p = FilePatterns(['x/y'], start = pxp('z'))
+  p = PathFilter(['x/y'], start = pxp('z'))
   assert len(p.patterns) == 1
-  assert p.patterns[0].match_posix('x/y')
+  assert p.patterns[0].posix('x/y')
   assert p.start == pxp('z')
   assert p.filter(pxp('z/x'), dnames = [], fnames = ['y']) == {'y'}
   assert p.filter(ntp('z\\x'), dnames = [], fnames = ['y']) == {'y'}
@@ -266,8 +266,8 @@ def test_file_patterns():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_file_ignore_patterns():
   ignore_patterns = combine_ignore_patterns(
-    FilePatterns(['a/', '!b']),
-    FilePatterns(['x/y'], start = pxp('z')) )
+    PathFilter(['a/', '!b']),
+    PathFilter(['x/y'], start = pxp('z')) )
 
   with tempfile.TemporaryDirectory() as tmpdir:
     a = osp.join(tmpdir,'a')

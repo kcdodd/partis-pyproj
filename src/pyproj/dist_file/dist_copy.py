@@ -13,8 +13,8 @@ from ..norms import (
   norm_path )
 
 from ..path import (
-  FilePattern,
-  FilePatterns,
+  PathMatcher,
+  PathFilter,
   combine_ignore_patterns,
   contains )
 
@@ -24,7 +24,7 @@ def dist_iter(*,
   ignore,
   root ):
 
-  patterns = FilePatterns(
+  patterns = PathFilter(
     patterns = ignore )
 
   for i, incl in enumerate(include):
@@ -34,7 +34,7 @@ def dist_iter(*,
 
     _ignore_patterns = combine_ignore_patterns(
       patterns,
-      FilePatterns(
+      PathFilter(
         patterns = _ignore,
         start = pathlib.PurePath(src) ) )
 

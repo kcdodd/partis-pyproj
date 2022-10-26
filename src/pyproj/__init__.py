@@ -52,8 +52,8 @@ from .pep import (
 
 from .path import (
   PatternError,
-  FilePattern,
-  FilePatterns,
+  PathMatcher,
+  PathFilter,
   partition,
   combine_ignore_patterns,
   contains )

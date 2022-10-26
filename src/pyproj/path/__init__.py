@@ -2,8 +2,8 @@ from .pattern import (
   PatternError )
 
 from .match import (
-  FilePattern,
-  FilePatterns,
+  PathMatcher,
+  PathFilter,
   contains,
   partition,
   partition_dir,

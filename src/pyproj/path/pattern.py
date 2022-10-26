@@ -1,9 +1,46 @@
 import os
 import os.path as osp
-import pathlib
-import posixpath as pxp
 import re
 from collections import namedtuple
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SEP = chr(0x1c)
+SEP = '◆'
+CURDIR = chr(0x1d)
+PARDIR = chr(0x1e)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# path separator (NOTE: except for a trailing recursive "/**")
+re_sep = r'(?P<sep>/(?!\*\*\Z))'
+# fixed (no wildcard) segment
+re_fixed = r'(?P<fixed>(?:\\[*?[]|[^*?[/])+)'
+# single star "*" wildcard (not double star "**") e.g. "*.txt"
+re_any = r'(?P<any>(?<![\*\\])\*(?!\*))'
+# single character wildcard e.g. "abc_?"
+re_chr = r'(?P<chr>(?<!\\)\?)'
+# character set e.g. "[a-z]"
+re_chrset = r'(?P<chrset>(?<!\\)\[[!^]?\]?[^\]]*\])'
+# double star sub-directory e.g. "a/**/b" or "**/b"
+# NOTE: the ending '/' is consumed so the replaced pattern also matches zero times
+# but leading '/' is not so that zero-length matches leave a '/' for successive
+# sub-directory/file patterns.
+re_subdir = r'(?P<subdir>(?<=/)\*\*/)'
+re_isubdir = r'(?P<isubdir>\A\*\*/)'
+# trailing double star e.g. "a/**"
+re_alldir = r'(?P<alldir>/\*\*\Z)'
+
+re_glob = '|'.join([
+  re_sep,
+  re_fixed,
+  re_any,
+  re_chr,
+  re_chrset,
+  re_subdir,
+  re_isubdir,
+  re_alldir ])
+
+rec_glob = re.compile(re_glob)
+rec_unescape = re.compile(r'\\([*?[])')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_rel_join(start, dir, names):
@@ -44,19 +81,10 @@ def tr_subdir(start, path):
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# SEP = chr(0x1c)
-SEP = '◆'
-CURDIR = chr(0x1d)
-PARDIR = chr(0x1e)
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_path(path):
 
-  try:
-    parts = path.parts
-    anchor = path.anchor
-  except AttributeError as e:
-    raise ValueError(f"Path object must have attributes 'parts' and 'anchor': {path}") from None
+  parts = path.parts
+  anchor = path.anchor
 
   if not len(parts):
     return ''
@@ -70,38 +98,6 @@ def tr_path(path):
 def itr_path(path):
   return osp.sep.join(path.split(SEP))
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# path separator (NOTE: except for a trailing recursive "/**")
-re_sep = r'(?P<sep>/(?!\*\*\Z))'
-# fixed (no wildcard) segment
-re_fixed = r'(?P<fixed>(?:\\[*?[]|[^*?[/])+)'
-# single star "*" wildcard (not double star "**") e.g. "*.txt"
-re_any = r'(?P<any>(?<![\*\\])\*(?!\*))'
-# single character wildcard e.g. "abc_?"
-re_chr = r'(?P<chr>(?<!\\)\?)'
-# character set e.g. "[a-z]"
-re_chrset = r'(?P<chrset>(?<!\\)\[[!^]?\]?[^\]]*\])'
-# double star sub-directory e.g. "a/**/b" or "**/b"
-# NOTE: the ending '/' is consumed so the replaced pattern also matches zero times
-# but leading '/' is not so that zero-length matches leave a '/' for successive
-# sub-directory/file patterns.
-re_subdir = r'(?P<subdir>(?<=/)\*\*/)'
-re_isubdir = r'(?P<isubdir>\A\*\*/)'
-# trailing double star e.g. "a/**"
-re_alldir = r'(?P<alldir>/\*\*\Z)'
-
-re_glob = '|'.join([
-  re_sep,
-  re_fixed,
-  re_any,
-  re_chr,
-  re_chrset,
-  re_subdir,
-  re_isubdir,
-  re_alldir ])
-
-rec_glob = re.compile(re_glob)
-rec_unescape = re.compile(r'\\([*?[])')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GRef(namedtuple('GRef', ['ori', 'case', 'start', 'end'])):

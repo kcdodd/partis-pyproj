@@ -1,9 +1,11 @@
 import os
 import os.path as osp
 import pathlib
-import posixpath as pxp
+from pathlib import (
+  PurePath,
+  PureWindowsPath,
+  PurePosixPath )
 import re
-from collections import namedtuple
 
 from .pattern import (
   PatternError,
@@ -12,7 +14,7 @@ from .pattern import (
   tr_rel_join )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class FilePattern:
+class PathMatcher:
   """Pattern matching similar to '.gitignore'
 
   .. attention::
@@ -20,11 +22,12 @@ class FilePattern:
     This is simply a container for storing information parsed from the pattern.
     It does not actually do any normalization of paths or convert windows/posix
     paths before matching, or differentiate between files and directories.
-    See :meth:`FilePatterns.filter`.
+    See :meth:`PathFilter.filter`.
 
   Parameters
   ----------
   pattern: str
+    See notes below on pattern formatting.
   negate: bool
     A match to this pattern negates an existing match of the same name.
   dironly: bool
@@ -91,7 +94,7 @@ class FilePattern:
     dironly = False,
     relative = False ):
 
-    pattern = pattern.strip()
+    pattern = str(pattern).strip()
     _pattern = pattern
 
     if pattern.startswith('!'):
@@ -147,31 +150,46 @@ class FilePattern:
     return f"{type(self).__name__}({args})"
 
   #-----------------------------------------------------------------------------
-  def match(self, path):
+  def __call__(self, path):
+    """
+    Parameters
+    ----------
+    path: PathLike | PurePath
+
+    Returns
+    -------
+    matched : bool
+      True if the ``path`` matches this pattern
+
+    """
+
+    if not isinstance(path, PurePath):
+      path = PurePath(path)
+      
     _path = tr_path(path)
     print('match', path, '->', _path)
     return self._match(_path)
 
   #-----------------------------------------------------------------------------
-  def match_os(self, path):
-    return self.match(pathlib.PurePath(path))
+  def nt(self, path):
+    """Convenience method to force match as a Windows path
+    """
+    return self(PureWindowsPath(path))
 
   #-----------------------------------------------------------------------------
-  def match_nt(self, path):
-    return self.match(pathlib.PureWindowsPath(path))
-
-  #-----------------------------------------------------------------------------
-  def match_posix(self, path):
-    return self.match(pathlib.PurePosixPath(path))
+  def posix(self, path):
+    """Convenience method to force match as a POSIX path
+    """
+    return self(PurePosixPath(path))
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class FilePatterns:
+class PathFilter:
   """A combination of file patters applied relative to a given 'start' directory
 
   Parameters
   ----------
-  patterns : list[str | FilePattern]
-  start : None | str | PathLike
+  patterns : list[str | PathMatcher]
+  start : None | PathLike | PurePath
   """
   #-----------------------------------------------------------------------------
   def __init__(self, patterns = None, start = None):
@@ -179,12 +197,15 @@ class FilePatterns:
       patterns = []
 
     self.patterns = [
-      p if isinstance(p, FilePattern) else FilePattern(p)
+      p if isinstance(p, PathMatcher) else PathMatcher(p)
       for p in patterns ]
 
     _start = None
 
     if start is not None:
+      if not isinstance(start, PurePath):
+        start = PurePath(start)
+        
       _start = tr_path(start)
       print('start', start, '->', _start)
 
@@ -197,7 +218,7 @@ class FilePatterns:
 
     Parameters
     ----------
-    dir : str | PathLike
+    dir : PathLike | PurePath
       Directory containing ``dnames`` and ``fnames``.
     fnames : list[str]
       List of file (non-directory) names in ``dir``.
@@ -221,7 +242,9 @@ class FilePatterns:
       negates an existing match.
     """
 
-    dir = pathlib.PurePath(dir)
+    if not isinstance(dir, PurePath):
+      dir = PurePath(dir)
+
     _dir = tr_path(dir)
     print('dir', dir, '->', _dir)
 
@@ -311,7 +334,7 @@ def combine_ignore_patterns(*patterns):
 
   Parameters
   ----------
-  *patterns : FilePattern
+  *patterns : PathMatcher
 
   Returns
   -------
@@ -319,7 +342,7 @@ def combine_ignore_patterns(*patterns):
   """
 
   def _ignore_patterns(dir, names):
-    dir = pathlib.PurePath(dir)
+    dir = PurePath(dir)
 
     print(f"dir: {dir}")
 
