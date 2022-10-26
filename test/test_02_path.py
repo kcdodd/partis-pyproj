@@ -24,22 +24,106 @@ def test_partition():
   assert partition(lambda x: x > 1, [0, 1, 2]) == ([2], [0, 1])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_file_pattern_escape():
+def test_match_escape():
+  # These test _match to check the raw string match without normalizing as a path
+
   # escaped special glob characters
-  assert PathMatcher(r'\[]').posix('[]')
-  assert PathMatcher(r'\*').posix('*')
-  assert PathMatcher(r'\?').posix('?')
-  assert PathMatcher(r'\*').posix('*')
+  assert PathMatcher(r'\[]')._match('[]')
+  assert PathMatcher(r'\*')._match('*')
+  assert PathMatcher(r'\?')._match('?')
+  assert PathMatcher(r'\*')._match('*')
 
   # not escaped
-  assert PathMatcher(r'\.').posix(r'\.')
-  assert PathMatcher(r'\abc').posix(r'\abc')
-  assert PathMatcher(r'.*').posix(r'.*')
-  assert PathMatcher(r'.*').posix(r'.*')
-  assert PathMatcher(r'.{3}').posix(r'.{3}')
+  assert PathMatcher(r'\.')._match(r'\.')
+  assert PathMatcher(r'\abc')._match(r'\abc')
+  assert PathMatcher(r'.*')._match(r'.*')
+  assert PathMatcher(r'.*')._match(r'.*')
+  assert PathMatcher(r'.{3}')._match(r'.{3}')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_file_pattern():
+def test_match_chr():
+  # These test _match to check the raw string match without normalizing as a path
+  p = PathMatcher('a?c')
+  assert p._match('abc')
+  assert p._match('axc')
+  assert not p._match('ac')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_match_chrset():
+  # These test _match to check the raw string match without normalizing as a path
+  assert PathMatcher('[!]')._match('!')
+  assert not PathMatcher('[!!]')._match('!')
+  assert not PathMatcher('[^!]')._match('!')
+  assert PathMatcher('[]]')._match(']')
+  assert not PathMatcher('[!]]')._match(']')
+  assert not PathMatcher('[^]]')._match(']')
+  assert PathMatcher('[]!]')._match(']')
+  assert PathMatcher('[]!]')._match('!')
+
+  assert PathMatcher('[-]')._match('-')
+  assert PathMatcher('[--]')._match('-')
+  assert PathMatcher('[---]')._match('-')
+
+  assert PathMatcher('[?]')._match('?')
+  assert PathMatcher('[*]')._match('*')
+
+  p = PathMatcher('[x-z]')
+  assert p._match('x')
+  assert p._match('y')
+  assert p._match('z')
+  assert not p._match('X')
+  assert not p._match('w')
+
+  p = PathMatcher('[--0]')
+  assert p._match('-')
+  assert p._match('.')
+  assert not p.posix('/')
+  assert p._match('0')
+
+  p = PathMatcher('[b-b]')
+  assert p._match('b')
+  assert not p._match('a')
+  assert not p._match('c')
+
+  # not escaped in character sets
+  # bpo-409651
+  p = PathMatcher(r'[\]')
+  assert p._match('\\')
+  assert not p._match('a')
+
+  p = PathMatcher(r'[!\]')
+  assert not p._match('\\')
+  assert p._match('a')
+
+  with raises(PatternError):
+    # must be non-empty
+    PathMatcher('[]')
+
+  with raises(PatternError):
+    # path separator undefined in char set
+    PathMatcher('[/]')
+
+  with raises(PatternError):
+    # range is not ordered
+    PathMatcher('[z-a]')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_match_any():
+  p = PathMatcher('*.py')
+  assert p.posix('.py')
+  assert p.posix('a.py')
+  assert p.posix('abc.py')
+  # * does not match /
+  assert not p.posix('a/.py')
+  assert not p.posix('a/b/.py')
+
+  # bpo-40480
+  p = PathMatcher('*a*a*a*a*a*a*a*a*a*a')
+  assert not p.posix('a' * 50 + 'b')
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def test_match():
 
   p = PathMatcher('a')
   assert str(p) == 'a'
@@ -103,7 +187,7 @@ def test_file_pattern():
   assert p.posix('a/b')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_file_pattern_recurse():
+def test_match_recurse():
 
   p = PathMatcher('**/foo')
   assert not p.negate
@@ -160,89 +244,9 @@ def test_file_pattern_recurse():
   with raises(PatternError):
     p = PathMatcher('a/**b')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_file_pattern_any():
-  p = PathMatcher('*.py')
-  assert p.posix('.py')
-  assert p.posix('a.py')
-  assert p.posix('abc.py')
-  # * does not match /
-  assert not p.posix('a/.py')
-  assert not p.posix('a/b/.py')
-
-  # TODO: bpo-40480, is it worth it?
-  # p = PathMatcher('*a*a*a*a*a*a*a*a*a*a')
-  # assert not p.posix('a' * 50 + 'b')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_file_pattern_chr():
-  # These test _match to check the raw string match without normalizing as a path
-  p = PathMatcher('a?c')
-  assert p._match('abc')
-  assert p._match('axc')
-  assert not p._match('ac')
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_file_pattern_chrset():
-  # These test _match to check the raw string match without normalizing as a path
-  assert PathMatcher('[!]')._match('!')
-  assert not PathMatcher('[!!]')._match('!')
-  assert not PathMatcher('[^!]')._match('!')
-  assert PathMatcher('[]]')._match(']')
-  assert not PathMatcher('[!]]')._match(']')
-  assert not PathMatcher('[^]]')._match(']')
-  assert PathMatcher('[]!]')._match(']')
-  assert PathMatcher('[]!]')._match('!')
-
-  assert PathMatcher('[-]')._match('-')
-  assert PathMatcher('[--]')._match('-')
-  assert PathMatcher('[---]')._match('-')
-
-  assert PathMatcher('[?]')._match('?')
-  assert PathMatcher('[*]')._match('*')
-
-  p = PathMatcher('[x-z]')
-  assert p._match('x')
-  assert p._match('y')
-  assert p._match('z')
-  assert not p._match('X')
-  assert not p._match('w')
-
-  p = PathMatcher('[--0]')
-  assert p._match('-')
-  assert p._match('.')
-  assert not p.posix('/')
-  assert p._match('0')
-
-  p = PathMatcher('[b-b]')
-  assert p._match('b')
-  assert not p._match('a')
-  assert not p._match('c')
-
-  # not escaped in character sets
-  # bpo-409651
-  p = PathMatcher(r'[\]')
-  assert p._match('\\')
-  assert not p._match('a')
-
-  p = PathMatcher(r'[!\]')
-  assert not p._match('\\')
-  assert p._match('a')
-
-  with raises(PatternError):
-    # must be non-empty
-    PathMatcher('[]')
-
-  with raises(PatternError):
-    # path separator undefined in char set
-    PathMatcher('[/]')
-
-  with raises(PatternError):
-    # range is not ordered
-    PathMatcher('[z-a]')
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_file_patterns():
+def test_filter():
 
   p = PathFilter()
   assert p.patterns == []

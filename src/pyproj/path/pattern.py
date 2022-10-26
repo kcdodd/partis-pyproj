@@ -4,10 +4,49 @@ import re
 from collections import namedtuple
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# SEP = chr(0x1c)
-SEP = '◆'
+# NOTE: The regular expressions are constructed to match path separators defined
+# by these (non-printable) control characters, unlikely to be in any filename,
+# making them independent from 'os.path.sep'.
+# The paths to be matched, though, must be translated to this form as well 
+# based on the OS-specific representation.
+
+# File Separator (E.G. '/')
+SEP = chr(0x1c)
+# Group Separator (E.G. '.')
 CURDIR = chr(0x1d)
-PARDIR = chr(0x1e)
+# Record Separator (E.G. '..')
+PARDIR = chr(0x1e) 
+
+# NOTE: For debugging, uncomment for printable characters, but may also lead to 
+# false positive/negative matches depending on the inputs.
+# SEP = '/'
+# CURDIR = '.'
+# PARDIR = '..'
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def tr_path(path):
+  """Translates path to be compatible with the translated regex.match
+
+  Paramters
+  ---------
+  path: PurePath
+  """
+  parts = path.parts
+  anchor = path.anchor
+
+  if not len(parts):
+    return ''
+
+  if parts[0] == anchor:
+    return SEP.join(parts[1:])
+
+  return SEP.join(parts)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def inv_path(path):
+  """
+  """
+  return osp.sep.join(path.split(SEP))
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # path separator (NOTE: except for a trailing recursive "/**")
@@ -45,6 +84,7 @@ rec_unescape = re.compile(r'\\([*?[])')
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_rel_join(start, dir, names):
   """Creates paths relative to a 'start' path for a list of names in a 'dir'
+  'start' and 'dir' must already be translated by :func:`tr_path`.
   """
 
   rpath = tr_subdir( start, dir )
@@ -56,12 +96,18 @@ def tr_rel_join(start, dir, names):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_join(*args):
+  """Joins paths already translated by :func:`tr_path`.
+  """
+
   args = [x for x in args if x]
 
   return SEP.join(args)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_subdir(start, path):
+  """Relative path, restricted to sub-directories, already translated by :func:`tr_path`.
+  """
+
   print(f"  tr_subdir({start}, {path})")
   if not start:
     return path
@@ -70,7 +116,7 @@ def tr_subdir(start, path):
   _path = path.split(SEP)
 
   if len(_start) > len(_path):
-    raise ValueError(f"Not a subdirectory of {itr_path(start)}: {itr_path(path)}")
+    raise ValueError(f"Not a subdirectory of {inv_path(start)}: {inv_path(path)}")
 
   for i, (p, s) in enumerate(zip(_path, _start)):
     print(f"    {i}: {p} != {s} ({p != s})")
@@ -78,25 +124,6 @@ def tr_subdir(start, path):
       return SEP.join(_path[i:])
 
   return SEP.join(_path[i+1:])
-
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def tr_path(path):
-
-  parts = path.parts
-  anchor = path.anchor
-
-  if not len(parts):
-    return ''
-
-  if parts[0] == anchor:
-    return SEP.join(parts[1:])
-
-  return SEP.join(parts)
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def itr_path(path):
-  return osp.sep.join(path.split(SEP))
 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -116,6 +143,10 @@ class GCase:
   #-----------------------------------------------------------------------------
   def regex(self):
     raise NotImplementedError("")
+
+  #-----------------------------------------------------------------------------
+  def __str__(self):
+    return self.regex()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GStr(GCase):
@@ -148,6 +179,10 @@ class GList(GCase):
   def append(self, val):
     self.parts.append(val)
 
+  #-----------------------------------------------------------------------------
+  def __str__(self):
+    return self._regex
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GName(GStr):
   pass
@@ -166,38 +201,96 @@ GANY = GName(rf'[^{SEP}]*')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def reduce_any(i, n, working):
+  r"""
+  Adapted according to:
+  bpo-40480: "fnmatch" exponential execution time
+  https://github.com/python/cpython/pull/19908
+  https://github.com/python/cpython/pull/20049
+
+  Each '*' (any) is grouped with the succeeding non-'*' into a 'lazy' 
+  non-capturing group. Since this match does not depend on the rest of the 
+  expressions, it does not need to backtrack to accound for failures later on.
+  But a positive lookahead references the match and then asserts it as the
+  new pattern.
+  Each successive '*' group will absorb anything missed by the previous one
+  until the last '*' is reached.
+  The last '*' must be allowed to backtrack, since no more '*' exist to make
+  up for misses (doesn't really matter if it is 'greedy' or 'lazy').
+
+  .. code-block:: python
+    
+    >>> p = re.compile(r'\A(?=(?P<g1>.*?A))(?P=g1)\Z')
+    >>> bool(p.match('xxxA'))
+    True
+    >>> bool(p.match('xxxAxxxA'))
+    False 
+
+  This fails because a lazy match to the first 'xxxA' misses the second 'xxxA'.
+  For 3 '*', there should be 2 lazy+lookahead, and the last will be unconditional
+
+  .. code-block::
+
+    pattern: ...*...*...*...
+    i (any):    0   1   2   
+    working:     000 111 
+
+  """
+
   pat = ''.join([v.regex() for v in working])
 
-  if i == n-1:
-    pat = rf'{GANY}{pat}'
-  elif i > 0:
-    pat = rf'(?=(?P<g{i-1}>{GANY}?{pat}))(?P=g{i-1})'
+  if i > 0:
+    # This call is actually adding the i-1 group
+    # NOTE: i==0 (and n==0) simply returns the preceeding working pattern, since
+    # there is not a -1 group
+
+    if i == n:
+      # NOTE: i==n means this is the final call, but the n-1 group should
+      # *not* have a lazy+lookahead group.
+      # this also means that for n==1, this will be the only translated '*'.
+      pat = rf'{GANY}{pat}'
+    else:
+      # TODO: the solution in 'fnmatch.translate' accounts for needing unique
+      # group names to allow 'pasting' regexes together, but not a priority 
+      # right now.
+      pat = rf'(?=(?P<g{i-1}>{GANY}?{pat}))(?P=g{i-1})'
 
   return pat
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GSegment(GList):
-  pass
 
-  # #-----------------------------------------------------------------------------
-  # def regex(self):
+  #-----------------------------------------------------------------------------
+  def regex(self):
+    if not self.parts:
+      return ''
 
-  #   n = sum(v is GANY for v in self)
-  #   i = 0
-  #   combined = list()
-  #   working = list()
+    # collapse repeated '*' and count
+    n = int(self.parts[0] is GANY)
+    parts = [self.parts[0]]
 
-  #   for v in self:
-  #     if v is GANY:
-  #       combined.append(reduce_any(i, n, working))
-  #       working = list()
-  #       i += 1
-  #     else:
-  #       working.append(v)
+    for v in self.parts:
+      isany = v is GANY
 
-  #   combined.append(reduce_any(i, n, working))
+      if not (isany and parts[-1] is GANY):
+        parts.append(v)
+        n += int(isany)
 
-  #   return ''.join(combined)
+    # construct groups
+    i = 0
+    combined = list()
+    working = list()
+
+    for v in self.parts:
+      if v is GANY:
+        combined.append(reduce_any(i, n, working))
+        working = list()
+        i += 1
+      else:
+        working.append(v)
+
+    combined.append(reduce_any(i, n, working))
+
+    return ''.join(combined)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GSeparator(GStr):
@@ -367,7 +460,6 @@ def tr_glob(pat):
       add(GALLDIR)
 
     elif m['any']:
-      # TODO: bpo-40480, is it worth it?
       add(GANY)
 
     elif m['chr']:
