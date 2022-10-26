@@ -1,6 +1,7 @@
 import os
 import os.path as osp
 import glob
+import pathlib
 import logging
 
 from ..validate import (
@@ -11,7 +12,7 @@ from ..validate import (
 from ..norms import (
   norm_path )
 
-from ..file_pattern import (
+from ..path import (
   FilePattern,
   FilePatterns,
   combine_ignore_patterns,
@@ -35,7 +36,7 @@ def dist_iter(*,
       patterns,
       FilePatterns(
         patterns = _ignore,
-        start = src ) )
+        start = pathlib.PurePath(src) ) )
 
     if incl.glob:
 

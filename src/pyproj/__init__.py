@@ -50,7 +50,7 @@ from .pep import (
   norm_entry_point_name,
   norm_entry_point_ref )
 
-from .file_pattern import (
+from .path import (
   PatternError,
   FilePattern,
   FilePatterns,
