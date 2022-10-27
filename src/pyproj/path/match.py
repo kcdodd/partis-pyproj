@@ -122,6 +122,9 @@ class PathMatcher:
       if pattern.startswith('/'):
         pattern = pattern[1:]
 
+      elif pattern.startswith('./'):
+        pattern = pattern[2:]
+
     self._pattern = _pattern
     self._pattern_tr, self._pattern_segs = tr_glob(pattern)
     self._rec = re.compile( self._pattern_tr )
@@ -165,7 +168,7 @@ class PathMatcher:
 
     if not isinstance(path, PurePath):
       path = PurePath(path)
-      
+
     _path = tr_path(path)
     #DEBUG print('match', path, '->', _path)
     return self._match(_path)
@@ -205,7 +208,7 @@ class PathFilter:
     if start is not None:
       if not isinstance(start, PurePath):
         start = PurePath(start)
-        
+
       _start = tr_path(start)
       #DEBUG print('start', start, '->', _start)
 

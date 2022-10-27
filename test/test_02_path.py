@@ -121,6 +121,11 @@ def test_match_any():
   p = PathMatcher('*a*a*a*a*a*a*a*a*a*a')
   assert not p.posix('a' * 50 + 'b')
 
+  # pasting multiple segments
+  p = PathMatcher('*a*a/*b*b/*c*c')
+  assert p.posix('_a_a_a/_b_b_b/_c_c_c')
+  assert p.posix('aa/bb/cc')
+  assert not p.posix('ab/bc/cd')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_match():
@@ -139,6 +144,12 @@ def test_match():
   assert p.posix('a')
 
   p = PathMatcher('/a')
+  assert not p.negate
+  assert not p.dironly
+  assert p.relative
+  assert p.posix('a')
+
+  p = PathMatcher('./a')
   assert not p.negate
   assert not p.dironly
   assert p.relative
@@ -285,3 +296,7 @@ def test_file_ignore_patterns():
       os.utime( y, None )
 
     assert ignore_patterns('z/x', ['y'])
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+if __name__ == '__main__':
+  test_match_any()

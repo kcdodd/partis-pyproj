@@ -7,7 +7,7 @@ from collections import namedtuple
 # NOTE: The regular expressions are constructed to match path separators defined
 # by these (non-printable) control characters, unlikely to be in any filename,
 # making them independent from 'os.path.sep'.
-# The paths to be matched, though, must be translated to this form as well 
+# The paths to be matched, though, must be translated to this form as well
 # based on the OS-specific representation.
 
 # File Separator (E.G. '/')
@@ -15,9 +15,9 @@ SEP = chr(0x1c)
 # Group Separator (E.G. '.')
 CURDIR = chr(0x1d)
 # Record Separator (E.G. '..')
-PARDIR = chr(0x1e) 
+PARDIR = chr(0x1e)
 
-# NOTE: For debugging, uncomment for printable characters, but may also lead to 
+# NOTE: For debugging, uncomment for printable characters, but may also lead to
 # false positive/negative matches depending on the inputs.
 # SEP = '/'
 # CURDIR = '.'
@@ -30,6 +30,11 @@ def tr_path(path):
   Paramters
   ---------
   path: PurePath
+
+  Returns
+  -------
+  tr_path : str
+    Translated path, with each path segment separated by :data:`SEP`.
   """
   parts = path.parts
   anchor = path.anchor
@@ -85,6 +90,21 @@ rec_unescape = re.compile(r'\\([*?[])')
 def tr_rel_join(start, dir, names):
   """Creates paths relative to a 'start' path for a list of names in a 'dir'
   'start' and 'dir' must already be translated by :func:`tr_path`.
+
+  Parameters
+  ----------
+  start : str
+    Starting directory, already translated by :func:`tr_path`.
+  dir : str
+    Directory to compute relative path to, *must* be a sub-directory of `start`,
+    already translated by :func:`tr_path`.
+  names : list[str]
+    List of names in `dir`
+
+  Returns
+  -------
+  list[tuple[str, str]]
+    List of names joined with path relative to `start`
   """
 
   rpath = tr_subdir( start, dir )
@@ -105,7 +125,20 @@ def tr_join(*args):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def tr_subdir(start, path):
-  """Relative path, restricted to sub-directories, already translated by :func:`tr_path`.
+  """Relative path, restricted to sub-directories.
+
+  Parameters
+  ----------
+  start : str
+    Starting directory, already translated by :func:`tr_path`.
+  path : str
+    Directory to compute relative path to, *must* be a sub-directory of `start`,
+    already translated by :func:`tr_path`.
+
+  Returns
+  -------
+  rpath : str
+    Relative path from `start` to `path`.
   """
 
   #DEBUG print(f"  tr_subdir({start}, {path})")
@@ -200,39 +233,64 @@ GCHR = GName(rf'[^{SEP}]')
 GANY = GName(rf'[^{SEP}]*')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def reduce_any(i, n, working):
+def reduce_any(pid, sid, n, i, working):
   r"""
+  Parameters
+  ----------
+  pid : int
+    Pattern id, may be the same for all segments, but unique among all patterns
+    that might be combined.
+  sid : int
+    Segment id, unique only within an overall pattern.
+  n : int
+    Number of '*' in the segment `sid`
+  i : int
+    Current '*' within the segment `sid`
+  working : list[GCase]
+    Expressions preceeding the '*' at `i`
+
+  Returns
+  -------
+  regex : str
+
+  Notes
+  -----
   Adapted according to:
   bpo-40480: "fnmatch" exponential execution time
   https://github.com/python/cpython/pull/19908
   https://github.com/python/cpython/pull/20049
 
-  Each '*' (any) is grouped with the succeeding non-'*' into a 'lazy' 
-  non-capturing group. Since this match does not depend on the rest of the 
-  expressions, it does not need to backtrack to accound for failures later on.
-  But a positive lookahead references the match and then asserts it as the
+  Each '*' (any) is grouped with the succeeding non-'*' into a 'lazy'
+  non-capturing group.
+  Since this match does not depend on the rest of the expressions, it does not
+  need to backtrack to account for failures later on.
+  A positive lookahead references the match and then asserts it as the
   new pattern.
   Each successive '*' group will absorb anything missed by the previous one
   until the last '*' is reached.
   The last '*' must be allowed to backtrack, since no more '*' exist to make
-  up for misses (doesn't really matter if it is 'greedy' or 'lazy').
+  up for misses (doesn't really matter if the last is 'greedy' or 'lazy').
 
   .. code-block:: python
-    
+
     >>> p = re.compile(r'\A(?=(?P<g1>.*?A))(?P=g1)\Z')
     >>> bool(p.match('xxxA'))
     True
     >>> bool(p.match('xxxAxxxA'))
-    False 
+    False
 
   This fails because a lazy match to the first 'xxxA' misses the second 'xxxA'.
   For 3 '*', there should be 2 lazy+lookahead, and the last will be unconditional
 
   .. code-block::
 
+          n: 3
     pattern: ...*...*...*...
-    i (any):    0   1   2   
-    working:     000 111 
+          i:    0   1   2   3
+    working: 000 111 222 333
+     groups:    [  ][  ]
+
+  Groups are named according to ``f'p{pid}s{sid}g{i-1}'``.
 
   """
 
@@ -244,20 +302,23 @@ def reduce_any(i, n, working):
     # there is not a -1 group
 
     if i == n:
-      # NOTE: i==n means this is the final call, but the n-1 group should
+      # NOTE: i==n means this is the final call, but the n-1 '*' should
       # *not* have a lazy+lookahead group.
       # this also means that for n==1, this will be the only translated '*'.
       pat = rf'{GANY}{pat}'
     else:
-      # TODO: the solution in 'fnmatch.translate' accounts for needing unique
-      # group names to allow 'pasting' regexes together, but not a priority 
-      # right now.
-      pat = rf'(?=(?P<g{i-1}>{GANY}?{pat}))(?P=g{i-1})'
+      name = f'p{pid}s{sid}g{i-1}'
+      pat = rf'(?=(?P<{name}>{GANY}?{pat}))(?P={name})'
 
   return pat
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GSegment(GList):
+  #-----------------------------------------------------------------------------
+  def __init__(self, pid, sid, parts = None, ref = None):
+    super().__init__(parts = parts, ref = ref)
+    self.pid = pid
+    self.sid = sid
 
   #-----------------------------------------------------------------------------
   def regex(self):
@@ -282,13 +343,13 @@ class GSegment(GList):
 
     for v in self.parts:
       if v is GANY:
-        combined.append(reduce_any(i, n, working))
+        combined.append(reduce_any(self.pid, self.sid, n, i, working))
         working = list()
         i += 1
       else:
         working.append(v)
 
-    combined.append(reduce_any(i, n, working))
+    combined.append(reduce_any(self.pid, self.sid, n, i, working))
 
     return ''.join(combined)
 
@@ -405,7 +466,7 @@ def tr_chrset(pat):
   return ''.join(parts)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def tr_glob(pat):
+def tr_glob(pat, pid = 0):
   """
   Notes
   -----
@@ -425,7 +486,7 @@ def tr_glob(pat):
       return
 
     if not ( len(segs) and isinstance(segs[-1], GSegment) ):
-      segs.append(GSegment())
+      segs.append(GSegment(pid = pid, sid = len(segs)))
 
     segs[-1].append(case)
 
