@@ -10,6 +10,8 @@ from .validate import (
   ValidPathError,
   FileOutsideRootError )
 
+from .load_module import EntryPoint
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Build:
   """Run meson setup, compile, install commands
@@ -32,17 +34,20 @@ class Build:
     self.root = root
     self.builds = builds
     self.logger = logger
-    self.build_paths = len(builds)*[dict(
-      src_dir = None,
-      build_dir = None,
-      prefix = None )]
+    self.build_paths = [
+      dict(
+        src_dir = build.src_dir,
+        build_dir = build.build_dir,
+        prefix = build.prefix )
+      
+      for build in builds]
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
 
     try:
       for i, (build, paths) in enumerate(zip(self.builds, self.build_paths)):
-        if not build.marker.evaluate():
+        if build.marker and not build.marker.evaluate():
           self.logger.info(f"Skipping build[{i}] for environment: {build.marker}")
           continue
 
@@ -102,9 +107,9 @@ class Build:
           src_dir = src_dir,
           build_dir = build_dir,
           prefix = prefix,
-          setup_args = setup_args,
-          compile_args = compile_args,
-          install_args = install_args,
+          setup_args = build.setup_args,
+          compile_args = build.compile_args,
+          install_args = build.install_args,
           build_clean = build.build_clean )
 
     except:

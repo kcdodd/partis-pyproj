@@ -180,10 +180,10 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def meson(self):
+  def build(self):
     """:class:`partis.pyproj.pptoml.pyproj_build`
     """
-    return self._pptoml.tool.pyproj.meson
+    return self._pptoml.tool.pyproj.build
 
   #-----------------------------------------------------------------------------
   @property
@@ -334,8 +334,8 @@ class PyProjBase:
     with Build(
       pyproj = self,
       root = self.root,
-      builds = self.builds,
-      logger = self.logger.getChild( f"meson" ) ):
+      builds = self.build,
+      logger = self.logger.getChild( f"build" ) ):
 
       self.prep_entrypoint(
         name = f"tool.pyproj.dist.binary.prep",

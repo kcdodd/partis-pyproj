@@ -414,7 +414,7 @@ class Restricted(Validator):
     return val
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def valid(*validators):
+def valid(*validators, default = notset):
   """Casts list of objects to Validator, if needed
   """
   if len(validators) == 1:
@@ -423,7 +423,7 @@ def valid(*validators):
     if isinstance(v, Validator):
       return v
 
-  return Validator(*validators)
+  return Validator(*validators, default = default)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def union(*validators):
@@ -1071,7 +1071,7 @@ def mapget(
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def as_list( obj ):
-  if isinstance( obj, str ) or not isinstance(obj, Iterable):
+  if isinstance( obj, str ) or isinstance(obj, Mapping) or not isinstance(obj, Iterable):
     return [ obj ]
 
   return list(obj)

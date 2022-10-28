@@ -243,13 +243,15 @@ class pyproj_dist_binary_prep(pyproj_prep):
   pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class pyproj_build(valid_dict):
+class pyproj_build_target(valid_dict):
   _allow_keys = list()
   _require_keys = [
     'entry' ]
+  _deprecate_keys = [('compile', 'enabled')]
   _default = {
-    'marker': valid(str, norm_printable, Marker),
-    'entry': norm_entry_point_ref,
+    'marker': valid(str, norm_printable, union(empty_str, valid(Marker, default = optional))),
+    'enabled': valid(bool),
+    'entry': valid('partis.pyproj.meson:build', norm_entry_point_ref),
     'options': dict,
     'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
     'build_dir': valid('build/meson', nonempty_str, norm_path, norm_path_to_os),
@@ -260,8 +262,9 @@ class pyproj_build(valid_dict):
     'build_clean': valid(True, norm_bool) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class pyproj_builds(valid_list):
-  _value_valid = valid(pyproj_build)
+class pyproj_build(valid_list):
+  _as_list = valid(as_list)
+  _value_valid = valid(pyproj_build_target)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class ignore_list(valid_list):
@@ -341,7 +344,8 @@ class pyproj(valid_dict):
     'config': pyproj_config,
     'prep': valid(optional, pyproj_prep),
     'dist': pyproj_dist,
-    'build': pyproj_builds }
+    'build': pyproj_build }
+  _deprecate_keys = [('meson', 'build')]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class tool(valid_dict):

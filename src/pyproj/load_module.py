@@ -78,9 +78,18 @@ def load_entrypoint( entry_point, root ):
   mod_name = mod_name.strip()
   attr_name = attr_name.strip()
 
-  mod = load_module(
-    path = osp.join( root, norm_path_to_os( mod_name.replace('.', '/') ) ),
-    root = root )
+  try:
+    mod = importlib.import_module(mod_name)
+
+  except ImportError as e1:
+
+    try:
+      mod = load_module(
+        path = osp.join( root, norm_path_to_os( mod_name.replace('.', '/') ) ),
+        root = root )
+
+    except Exception as e2:
+      raise e2 from e1
 
   if not hasattr( mod, attr_name ):
     raise EntryPointError(
@@ -108,7 +117,7 @@ class EntryPoint:
 
     try:
       self.func = load_entrypoint(
-        entry = entry,
+        entry_point = entry,
         root = root )
 
       logger.info(f"loaded entry-point '{entry}'")
