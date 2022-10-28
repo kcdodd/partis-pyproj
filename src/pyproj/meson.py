@@ -20,147 +20,71 @@ def meson_option_arg(k, v):
   return f'-D{k}={v}'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class MesonBuild:
+def build(
+  pyproj,
+  logger,
+  options,
+  src_dir,
+  build_dir,
+  prefix,
+  setup_args,
+  compile_args,
+  install_args,
+  build_clean ):
   """Run meson setup, compile, install commands
-
-  Parameters
-  ----------
-  root : str
-    Path to root project directory
-  meson : :class:`pyproj_meson <partis.pyproj.pptoml.pyproj_meson>`
-  logger : logging.Logger
   """
-  #-----------------------------------------------------------------------------
-  def __init__(self, root, meson, logger):
-    self.root = root
-    self.meson = meson
-    self.logger = logger
-    self.meson_paths = dict(
-      src_dir = None,
-      build_dir = None,
-      prefix = None )
 
-  #-----------------------------------------------------------------------------
-  def __enter__(self):
+  if not shutil.which('meson'):
+    raise ValueError(f"The 'meson' program not found.")
 
-    if not self.meson.compile:
-      return
+  if not shutil.which('ninja'):
+    raise ValueError(f"The 'ninja' program not found.")
 
-    if not shutil.which('meson'):
-      raise ValueError(f"The 'meson' program not found.")
-
-    if not shutil.which('ninja'):
-      raise ValueError(f"The 'ninja' program not found.")
-
-    # check paths
-    for k in ['src_dir', 'build_dir', 'prefix']:
-      with validating(key = f"tool.pyproj.meson.{k}"):
-
-        rel_path = self.meson[k]
-
-        abs_path = osp.realpath( osp.join(
-          self.root,
-          rel_path ) )
-
-        if osp.commonpath([self.root, abs_path]) != self.root:
-          raise FileOutsideRootError(
-            f"Must be within project root directory:"
-            f"\n  file = \"{abs_path}\"\n  root = \"{self.root}\"")
-
-        self.meson_paths[k] = abs_path
-
-    src_dir = self.meson_paths['src_dir']
-    build_dir = self.meson_paths['build_dir']
-    prefix = self.meson_paths['prefix']
-
-    with validating(key = f"tool.pyproj.meson.src_dir"):
-      if not osp.exists(src_dir):
-        raise ValidPathError(f"Source directory not found: {src_dir}")
-
-    with validating(key = f"tool.pyproj.meson"):
-      if osp.commonpath([build_dir, prefix]) == build_dir:
-        raise ValidPathError(f"'prefix' cannot be inside 'build_dir': {build_dir}")
-
-    for k in ['build_dir', 'prefix']:
-      with validating(key = f"tool.pyproj.meson.{k}"):
-        dir = self.meson_paths[k]
-
-        if dir == self.root:
-          raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
-
-        if not osp.exists(dir):
-          os.makedirs(dir)
-
-    self.logger.info(f"Running meson build")
-    self.logger.info(f"Meson build dir: {build_dir}")
-    self.logger.info(f"Meson prefix: {prefix}")
-
-    # TODO: ensure any paths in setup_args are normalized
-    if not ( osp.exists(build_dir) and os.listdir(build_dir) ):
-      # only run setup if the build directory does not already exist
-      setup_args = [
-        'meson',
-        'setup',
-        *self.meson.setup_args,
-        '--prefix',
-        prefix,
-        *[ meson_option_arg(k,v) for k,v in self.meson.options.items() ],
-        build_dir,
-        self.meson_paths['src_dir'] ]
-
-    elif not self.meson.build_clean:
-      # only re-compile if the build directory should be 'clean'
-      setup_args = list()
-
-    else:
-      raise ValidPathError(
-        f"'build_dir' is not empty, remove manually if this is intended or set 'build_clean = false': {build_dir}")
-
-    compile_args = [
+  # TODO: ensure any paths in setup_args are normalized
+  if not ( osp.exists(build_dir) and os.listdir(build_dir) ):
+    # only run setup if the build directory does not already exist
+    setup_args = [
       'meson',
-      'compile',
-      *self.meson.compile_args,
-      '-C',
-      build_dir ]
+      'setup',
+      *setup_args,
+      '--prefix',
+      prefix,
+      *[ meson_option_arg(k,v) for k,v in options.items() ],
+      build_dir,
+      src_dir ]
 
-    install_args = [
-      'meson',
-      'install',
-      *self.meson.install_args,
-      '--no-rebuild',
-      '-C',
-      build_dir ]
+  elif not build_clean:
+    # only re-compile if the build directory should be 'clean'
+    setup_args = list()
+
+  else:
+    raise ValidPathError(
+      f"'build_dir' is not empty, remove manually if this is intended or set 'build_clean = false': {build_dir}")
+
+  compile_args = [
+    'meson',
+    'compile',
+    *compile_args,
+    '-C',
+    build_dir ]
+
+  install_args = [
+    'meson',
+    'install',
+    *install_args,
+    '--no-rebuild',
+    '-C',
+    build_dir ]
 
 
-    try:
+  if setup_args:
+    logger.debug(' '.join(setup_args))
+    subprocess.check_call(setup_args)
 
-      if setup_args:
-        self.logger.debug(' '.join(setup_args))
-        subprocess.check_call(setup_args)
+  logger.debug(' '.join(compile_args))
 
-      self.logger.debug(' '.join(compile_args))
+  subprocess.check_call(compile_args)
 
-      subprocess.check_call(compile_args)
+  logger.debug(' '.join(install_args))
 
-      self.logger.debug(' '.join(install_args))
-
-      subprocess.check_call(install_args)
-
-    except:
-
-      if self.meson.build_clean and osp.exists(build_dir):
-        self.logger.info(f"Removing Meson build dir")
-        shutil.rmtree(build_dir)
-
-      raise
-
-  #-----------------------------------------------------------------------------
-  def __exit__(self, type, value, traceback):
-    build_dir = self.meson_paths['build_dir']
-
-    if build_dir is not None and osp.exists(build_dir) and self.meson.build_clean:
-      self.logger.info(f"Removing Meson build dir")
-      shutil.rmtree(build_dir)
-
-    # do not handle any exceptions here
-    return False
+  subprocess.check_call(install_args)

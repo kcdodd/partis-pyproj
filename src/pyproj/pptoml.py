@@ -1,6 +1,8 @@
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
+from packaging.markers import Marker
+
 from collections.abc import (
   Mapping,
   Sequence,
@@ -241,18 +243,25 @@ class pyproj_dist_binary_prep(pyproj_prep):
   pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class pyproj_meson(valid_dict):
+class pyproj_build(valid_dict):
   _allow_keys = list()
+  _require_keys = [
+    'entry' ]
   _default = {
-    'compile': valid(False, norm_bool),
+    'marker': valid(str, norm_printable, Marker),
+    'entry': norm_entry_point_ref,
+    'options': dict,
     'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
     'build_dir': valid('build/meson', nonempty_str, norm_path, norm_path_to_os),
     'prefix': valid('build', nonempty_str, norm_path, norm_path_to_os),
     'setup_args': nonempty_str_list,
     'compile_args': nonempty_str_list,
     'install_args': nonempty_str_list,
-    'options': dict,
     'build_clean': valid(True, norm_bool) }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_builds(valid_list):
+  _value_valid = valid(pyproj_build)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class ignore_list(valid_list):
@@ -332,7 +341,7 @@ class pyproj(valid_dict):
     'config': pyproj_config,
     'prep': valid(optional, pyproj_prep),
     'dist': pyproj_dist,
-    'meson': pyproj_meson }
+    'build': pyproj_builds }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class tool(valid_dict):

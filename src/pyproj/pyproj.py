@@ -46,6 +46,7 @@ from .pep import (
 
 from .load_module import (
   EntryPointError,
+  EntryPoint,
   load_module,
   load_entrypoint )
 
@@ -54,8 +55,8 @@ from .legacy import legacy_setup_content
 from .pptoml import (
   pptoml )
 
-from .meson import (
-  MesonBuild )
+from .build import (
+  Build )
 
 from .dist_file import (
   dist_copy )
@@ -180,7 +181,7 @@ class PyProjBase:
   #-----------------------------------------------------------------------------
   @property
   def meson(self):
-    """:class:`partis.pyproj.pptoml.pyproj_meson`
+    """:class:`partis.pyproj.pptoml.pyproj_build`
     """
     return self._pptoml.tool.pyproj.meson
 
@@ -233,37 +234,14 @@ class PyProjBase:
     if not prep:
       return None
 
-    prep_name = name
+    entry_point = EntryPoint(
+      pyproj = self,
+      root = self.root,
+      name = name,
+      logger = logger,
+      entry = prep.entry )
 
-    entry_point = prep.entry
-    entry_point_kwargs = prep.kwargs
-
-    try:
-      func = load_entrypoint(
-        entry_point = entry_point,
-        root = self.root )
-
-      logger.info(f"loaded entry-point '{entry_point}'")
-
-    except Exception as e:
-      raise EntryPointError(f"failed to load entry-point '{entry_point}'") from e
-
-    cwd = os.getcwd()
-
-    try:
-      
-      with validating( file = f"{prep_name} -> {entry_point}(**{entry_point_kwargs})" ):
-        func(
-          self,
-          logger = logger,
-          **entry_point_kwargs )
-
-    except Exception as e:
-      raise EntryPointError(f"failed to run entry-point '{entry_point}'") from e
-
-    finally:
-      os.chdir(cwd)
-
+    entry_point(**prep.kwargs)
 
   #-----------------------------------------------------------------------------
   def prep( self ):
@@ -353,9 +331,10 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
-    with MesonBuild(
+    with Build(
+      pyproj = self,
       root = self.root,
-      meson = self.meson,
+      builds = self.builds,
       logger = self.logger.getChild( f"meson" ) ):
 
       self.prep_entrypoint(

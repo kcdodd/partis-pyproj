@@ -7,6 +7,16 @@ from pathlib import Path
 from .norms import (
   norm_path_to_os )
 
+from .validate import (
+  ValidationWarning,
+  ValidationError,
+  FileOutsideRootError,
+  valid_dict,
+  validating,
+  valid,
+  restrict,
+  mapget )
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class EntryPointError(ValueError):
   pass
@@ -79,3 +89,48 @@ def load_entrypoint( entry_point, root ):
   func = getattr( mod, attr_name )
 
   return func
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class EntryPoint:
+  #-----------------------------------------------------------------------------
+  def __init__( self,
+    pyproj,
+    root,
+    name,
+    logger,
+    entry ):
+
+    self.pyproj = pyproj
+    self.root = root
+    self.name = name
+    self.logger = logger
+    self.entry = entry
+
+    try:
+      self.func = load_entrypoint(
+        entry = entry,
+        root = root )
+
+      logger.info(f"loaded entry-point '{entry}'")
+
+    except Exception as e:
+      raise EntryPointError(f"failed to load '{entry}'") from e
+
+  #-----------------------------------------------------------------------------
+  def __call__(self, **kwargs):
+
+    cwd = os.getcwd()
+
+    try:
+
+      with validating( file = f"{self.name} -> {self.entry}(**{{{kwargs}}})" ):
+        self.func(
+          self.pyproj,
+          logger = self.logger,
+          **kwargs )
+
+    except Exception as e:
+      raise EntryPointError(f"failed to run '{self.entry}'") from e
+
+    finally:
+      os.chdir(cwd)
