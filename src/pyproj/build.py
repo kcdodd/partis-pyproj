@@ -39,7 +39,7 @@ class Build:
         src_dir = build.src_dir,
         build_dir = build.build_dir,
         prefix = build.prefix )
-      
+
       for build in builds]
 
   #-----------------------------------------------------------------------------
@@ -47,8 +47,8 @@ class Build:
 
     try:
       for i, (build, paths) in enumerate(zip(self.builds, self.build_paths)):
-        if build.marker and not build.marker.evaluate():
-          self.logger.info(f"Skipping build[{i}] for environment: {build.marker}")
+        if build.enabled:
+          self.logger.info(f"Skipping build[{i}], disabled for environment markers")
           continue
 
         # check paths

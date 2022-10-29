@@ -328,6 +328,7 @@ class Validator:
 
     args = list(args)
 
+    # TODO: change comparisons from 'is' to "==", reimplement Special __eq__
     if default is notset:
       default = required
 

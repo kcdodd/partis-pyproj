@@ -139,7 +139,7 @@ def test_as_list():
   assert as_list(None) == [None]
   assert as_list('a') == ['a']
   assert as_list(['a', 'b']) == ['a', 'b']
-  assert as_list({'a': 'b'}) == ['a']
+  assert as_list({'a': 'b'}) == [{'a': 'b'}]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_norm_printable():

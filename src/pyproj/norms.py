@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import keyword
 
 from packaging.tags import sys_tags
+from packaging.markers import Marker
 
 from .validate import (
   ValidationError,
@@ -33,6 +34,15 @@ from .validate import (
   valid_list,
   mapget,
   as_list)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def marker_evaluated(marker):
+  if isinstance(marker, bool):
+    return marker
+
+  marker = Marker(marker)
+
+  return marker.evaluate()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def scalar(val):

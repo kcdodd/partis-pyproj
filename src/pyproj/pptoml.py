@@ -1,7 +1,6 @@
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from packaging.markers import Marker
 
 from collections.abc import (
   Mapping,
@@ -20,6 +19,7 @@ from .validate import (
   as_list )
 
 from .norms import (
+  marker_evaluated,
   scalar,
   scalar_list,
   empty_str,
@@ -249,8 +249,7 @@ class pyproj_build_target(valid_dict):
     'entry' ]
   _deprecate_keys = [('compile', 'enabled')]
   _default = {
-    'marker': valid(str, norm_printable, union(empty_str, valid(Marker, default = optional))),
-    'enabled': valid(bool),
+    'enabled': valid(True, marker_evaluated),
     'entry': valid('partis.pyproj.meson:build', norm_entry_point_ref),
     'options': dict,
     'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
