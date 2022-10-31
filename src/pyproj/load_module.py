@@ -3,6 +3,8 @@ import os.path as osp
 import sys
 import importlib
 from pathlib import Path
+import hashlib
+from base64 import b16encode
 
 from .norms import (
   norm_path_to_os )
@@ -27,19 +29,13 @@ def module_name_from_path( path, root ):
 
   Parameters
   ----------
-  path : str
+  path : Path
     Path to the module directory relative to 'root'
-  root : str
+  root : Path
     Base path from which the module will be imported
   """
-  path = Path( path )
-  root = Path( root )
 
-  # path = path.with_suffix("")
-
-  relative_path = osp.relpath( path, start = root )
-
-  path_parts = Path(relative_path).parts
+  path_parts = path.relative_to(root).parts
 
   if len(path_parts) == 0:
     raise EntryPointError("Empty module name")
@@ -47,21 +43,34 @@ def module_name_from_path( path, root ):
   return ".".join(path_parts)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def load_module( path, root ):
+def module_path( mod_name, root ):
+  path = root / Path(*mod_name.split('.'))
 
-  if not osp.isdir(path):
-    raise EntryPointError(f"Not a directory: {path}")
+  if path.exists() and path.is_dir():
+    path /= '__init__.py'
+  else:
+    path = path.with_suffix('.py')
 
-  init_file = osp.join( path, "__init__.py" )
+  if not path.exists():
+    path = None
 
-  if not osp.isfile(init_file):
-    raise EntryPointError(f"Not a module: {init_file}")
+  return path
 
-  module_name = module_name_from_path( path = path, root = root )
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def load_module( name, path, root ):
+
+  path = str(path)
+
+  # TODO: handle module names when module is not directly in 'root'.
+  hasher = hashlib.sha256()
+  hasher.update( path.encode('utf-8') )
+  digest = hasher.digest()
+
+  _prefix = 'pyprojentry_' + b16encode(digest).decode('ascii')
 
   spec = importlib.util.spec_from_file_location(
-    name = module_name,
-    location = str(init_file) )
+    name = _prefix + name,
+    location = path )
 
   mod = importlib.util.module_from_spec( spec )
   sys.modules[ spec.name ] = mod
@@ -72,28 +81,48 @@ def load_module( path, root ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def load_entrypoint( entry_point, root ):
+  r"""
+  Parameters
+  ----------
+  entry_point : str
+    Entry point spec
+  root : Path
+    Root project directory.
+  """
 
   mod_name, attr_name = entry_point.split(':')
 
   mod_name = mod_name.strip()
   attr_name = attr_name.strip()
 
-  try:
-    mod = importlib.import_module(mod_name)
+  mod_path = module_path(mod_name, root)
 
-  except ImportError as e1:
+  if mod_path is None:
+    try:
+      mod = importlib.import_module(mod_name)
 
+    except ImportError as e:
+      raise EntryPointError(f"failed to load '{entry_point}'") from e
+
+  else:
     try:
       mod = load_module(
-        path = osp.join( root, norm_path_to_os( mod_name.replace('.', '/') ) ),
+        name = mod_name,
+        path = mod_path,
         root = root )
 
-    except Exception as e2:
-      raise e2 from e1
+    except EntryPointError as e:
+      raise
+
+    except Exception as e:
+      raise EntryPointError(f"failed to load '{entry_point}'") from e
+
+  print(entry_point, mod_path)
+  print('  ', mod_name, attr_name, dir(mod))
 
   if not hasattr( mod, attr_name ):
     raise EntryPointError(
-      f"'{mod_name}' :'{attr_name}'" )
+      f"Loaded module '{mod_name}' does not have attribute: '{attr_name}'" )
 
   func = getattr( mod, attr_name )
 
@@ -101,6 +130,22 @@ def load_entrypoint( entry_point, root ):
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class EntryPoint:
+  r"""
+
+  Parameters
+  ----------
+  pyproj : PyProjBase
+  root : Path
+    Root project directory.
+  name : str
+    A name for this entry point
+  logger : logging.Logger
+  entry : str
+    Entry point spec
+
+    * https://packaging.python.org/en/latest/specifications/entry-points/
+  """
+
   #-----------------------------------------------------------------------------
   def __init__( self,
     pyproj,

@@ -203,7 +203,7 @@ files are copied into either the source or binary distribution:
 
   .. note::
 
-    If the Meson Build commands are specified, those will be run
+    If Build commands are specified, those will be run
     **before** ``tool.pyproj.dist.binary.prep``, but
     **after** ``tool.pyproj.dist.prep``.
 

@@ -156,7 +156,7 @@ envdir = "tmp/.nox"
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "--maxfail=1 --cov --cov-append"
+addopts = "--maxfail=1 --cov --cov-append --cov-config=pyproject.toml"
 
 log_level = "NOTSET"
 # un-comment the following to print *all* logging messages

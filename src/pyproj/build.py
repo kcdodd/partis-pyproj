@@ -31,7 +31,7 @@ class Build:
     logger):
 
     self.pyproj = pyproj
-    self.root = root
+    self.root = str(root)
     self.builds = builds
     self.logger = logger
     self.build_paths = [
@@ -47,7 +47,7 @@ class Build:
 
     try:
       for i, (build, paths) in enumerate(zip(self.builds, self.build_paths)):
-        if build.enabled:
+        if not build.enabled:
           self.logger.info(f"Skipping build[{i}], disabled for environment markers")
           continue
 

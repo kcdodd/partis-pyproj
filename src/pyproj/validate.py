@@ -199,40 +199,47 @@ class Special:
 
   #-----------------------------------------------------------------------------
   def __eq__(self, other):
-    return str(self) == str(other)
+    return type(self) is type(other)
+
+  #-----------------------------------------------------------------------------
+  def __ne__(self, other):
+    return type(self) is not type(other)
 
   #-----------------------------------------------------------------------------
   def __hash__(self):
     return hash(str(self))
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Optional(Special):
   """Optional value
   """
   pass
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Required(Special):
   """Required value
   """
   pass
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class NotSet(Special):
   """Special value indicating a value is not set
   """
   pass
 
-optional = Optional()
-required = Required()
-notset = NotSet()
+OPTIONAL = Optional()
+REQUIRED = Required()
+NOTSET = NotSet()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def validate(val, default, validators):
   """Internal method to apply default value and validators
   """
   if val is None:
-    if default is optional:
+    if OPTIONAL == default:
       return None
 
-    elif default is required:
+    elif REQUIRED == default:
       raise ValidationError(f"Value is required")
 
     else:
@@ -265,7 +272,7 @@ def validate(val, default, validators):
 
       for _validator in validator:
         try:
-          val = validate(val, required, _validator)
+          val = validate(val, REQUIRED, _validator)
           break
         except Exception as e:
           errs.append((_validator, e))
@@ -324,19 +331,19 @@ class Validator:
   """Validates a value
   """
   #-----------------------------------------------------------------------------
-  def __init__(self, *args, default = notset):
+  def __init__(self, *args, default = NOTSET):
 
     args = list(args)
 
     # TODO: change comparisons from 'is' to "==", reimplement Special __eq__
-    if default is notset:
-      default = required
+    if NOTSET == default:
+      default = REQUIRED
 
       if len(args):
         v = args.pop(0)
 
-        if v in [ None, optional ]:
-          default = optional
+        if OPTIONAL == v or v is None:
+          default = OPTIONAL
 
         elif any(isinstance(v, t) for t in [bool, int, float, str, Sequence, Mapping]):
           default = v
@@ -357,9 +364,9 @@ class Validator:
           args.insert(0, v)
 
     if default is None:
-      default = optional
+      default = OPTIONAL
 
-    if len(args) == 0 and default not in [required, optional]:
+    if len(args) == 0 and default not in [REQUIRED, OPTIONAL]:
       # convenience method to used default value to derive type
       args.append(type(default))
 
@@ -415,7 +422,7 @@ class Restricted(Validator):
     return val
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def valid(*validators, default = notset):
+def valid(*validators, default = NOTSET):
   """Casts list of objects to Validator, if needed
   """
   if len(validators) == 1:
@@ -430,7 +437,7 @@ def valid(*validators, default = notset):
 def union(*validators):
   """Value must pass at least one of listed validators
   """
-  return Validator([valid(v) for v in validators], default = required)
+  return Validator([valid(v) for v in validators], default = REQUIRED)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def restrict(*options):
@@ -522,8 +529,9 @@ def valid_keys(
       if k_old in out:
         out = copy_once(out)
 
-        if k_new and k_new is not optional:
-          if k_new is required:
+        if k_new and OPTIONAL != k_new:
+          if REQUIRED == k_new:
+            # Use of REQUIRED indicates this is an error
             raise ValidationError(f"Use of key '{k_old}' is deprecated")
           else:
             warnings.warn(f"Use of key '{k_old}' is deprecated, replaced by '{k_new}'", DeprecationWarning)
@@ -582,7 +590,7 @@ def valid_keys(
     allow_keys.extend( [
         k_new
         for k_old, k_new in deprecate_keys
-        if k_new not in [None, optional, required ] ]
+        if k_new not in [None, OPTIONAL, REQUIRED ] ]
       if deprecate_keys else [] )
 
     allow_keys.extend( default.keys() if default else [] )
@@ -768,7 +776,7 @@ class valid_dict(Mapping):
 
       v = args[0]
 
-      if v in [None, optional]:
+      if v in [None, OPTIONAL]:
         args = [dict()]
       elif cls._proxy_key:
         args = [{ cls._proxy_key : v }]
@@ -791,7 +799,7 @@ class valid_dict(Mapping):
         self._p_all_keys.extend( [
             k_new
             for k_old, k_new in self._deprecate_keys
-            if k_new not in [None, optional, required] ] )
+            if k_new not in [None, OPTIONAL, REQUIRED] ] )
 
     if self._min_keys:
       for keys in self._min_keys:

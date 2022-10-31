@@ -8,8 +8,8 @@ from collections.abc import (
   Iterable )
 
 from .validate import (
-  optional,
-  required,
+  OPTIONAL,
+  REQUIRED,
   valid,
   union,
   restrict,
@@ -75,8 +75,8 @@ class readme(valid_dict):
   _mutex_keys = [
     ('file', 'text')]
   _default = {
-    'file': valid(optional, nonempty_str, norm_path, norm_path_to_os),
-    'text': valid(optional, nonempty_str, norm_printable) }
+    'file': valid(OPTIONAL, nonempty_str, norm_path, norm_path_to_os),
+    'text': valid(OPTIONAL, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class license(valid_dict):
@@ -84,8 +84,8 @@ class license(valid_dict):
   _min_keys = [
     ('file', 'text')]
   _default = {
-    'file': valid(optional, nonempty_str, norm_path, norm_path_to_os),
-    'text': valid(optional, nonempty_str, norm_printable) }
+    'file': valid(OPTIONAL, nonempty_str, norm_path, norm_path_to_os),
+    'text': valid(OPTIONAL, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class author(valid_dict):
@@ -178,9 +178,9 @@ class project(valid_dict):
     'version': valid('0.0.0', norm_dist_version),
     'description': valid(str, norm_printable),
     # must be optional because there is no default value
-    'readme': valid(optional, readme),
+    'readme': valid(OPTIONAL, readme),
     # must be optional because there is no default value
-    'license': valid(optional, license),
+    'license': valid(OPTIONAL, license),
     'authors': valid(authors),
     'maintainers': valid(maintainers),
     'keywords': valid(keywords),
@@ -209,7 +209,7 @@ class build_system(valid_dict):
   _default = {
     'requires': build_requires,
     'build-backend': norm_entry_point_ref,
-    'backend-path': valid(optional, path_parts) }
+    'backend-path': valid(OPTIONAL, path_parts) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def compat_tag(v):
@@ -281,7 +281,7 @@ class pyproj_dist_copy(valid_dict):
     ('src', 'glob') ]
   _default = {
     'src': valid('', union(empty_str, valid(norm_path, norm_path_to_os))),
-    'dst': valid(optional, union(empty_str, valid(norm_path, norm_path_to_os))),
+    'dst': valid(OPTIONAL, union(empty_str, valid(norm_path, norm_path_to_os))),
     # TODO; how to normalize patterns?
     'glob': str,
     'ignore': ignore_list }
@@ -301,10 +301,10 @@ class pyproj_dist_scheme(valid_dict):
 class pyproj_dist_binary(valid_dict):
   _allow_keys = list()
   _default = {
-    'build_number': valid(optional, int),
-    'build_suffix': valid(optional, str),
+    'build_number': valid(OPTIONAL, int),
+    'build_suffix': valid(OPTIONAL, str),
     'compat_tags': valid(purelib_compat_tags(), compat_tags),
-    'prep': valid(optional, pyproj_dist_binary_prep),
+    'prep': valid(OPTIONAL, pyproj_dist_binary_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'data': pyproj_dist_scheme,
@@ -317,7 +317,7 @@ class pyproj_dist_binary(valid_dict):
 class pyproj_dist_source(valid_dict):
   _allow_keys = list()
   _default = {
-    'prep': valid(optional, pyproj_dist_source_prep),
+    'prep': valid(OPTIONAL, pyproj_dist_source_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'add_legacy_setup': valid(False, norm_bool) }
@@ -326,7 +326,7 @@ class pyproj_dist_source(valid_dict):
 class pyproj_dist(valid_dict):
   _allow_keys = list()
   _default = {
-    'prep': valid(optional, pyproj_dist_prep),
+    'prep': valid(OPTIONAL, pyproj_dist_prep),
     'ignore': ignore_list,
     'source': pyproj_dist_source,
     'binary': pyproj_dist_binary }
@@ -341,7 +341,7 @@ class pyproj(valid_dict):
   _allow_keys = list()
   _default = {
     'config': pyproj_config,
-    'prep': valid(optional, pyproj_prep),
+    'prep': valid(OPTIONAL, pyproj_prep),
     'dist': pyproj_dist,
     'build': pyproj_build }
   _deprecate_keys = [('meson', 'build')]
@@ -360,6 +360,6 @@ class pptoml(valid_dict):
     'tool',
     'build-system']
   _default = {
-    'project': valid(required, project),
-    'tool': valid(required, tool),
-    'build-system': valid(required, build_system) }
+    'project': valid(REQUIRED, project),
+    'tool': valid(REQUIRED, tool),
+    'build-system': valid(REQUIRED, build_system) }

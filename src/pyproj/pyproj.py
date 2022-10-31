@@ -13,6 +13,7 @@ import multiprocessing
 import glob
 import warnings
 import tomli
+from pathlib import Path
 
 try:
   from importlib.metadata import metadata
@@ -70,7 +71,7 @@ class PyProjBase:
 
   Parameters
   ----------
-  root : str
+  root : PathLike
     Path to the root project directory containing 'pyproject.toml'.
   logger : logging.Logger
     Parent logger to use when processing project.
@@ -84,9 +85,9 @@ class PyProjBase:
 
     self.logger = logger or logging.getLogger( __name__ )
 
-    self.root = osp.realpath(root)
+    self.root = Path(root).resolve()
 
-    self.pptoml_file = osp.join( self.root, 'pyproject.toml' )
+    self.pptoml_file = self.root / 'pyproject.toml'
 
     with open( self.pptoml_file, 'rb' ) as fp:
       src = fp.read()

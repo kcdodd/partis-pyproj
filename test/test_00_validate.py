@@ -11,9 +11,9 @@ from partis.pyproj.validate import (
   validating,
   validate,
   Optional,
-  optional,
+  OPTIONAL,
   Required,
-  required,
+  REQUIRED,
   fmt_validator,
   Validator,
   Restricted,
@@ -29,17 +29,17 @@ from partis.pyproj.validate import (
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_special():
-  assert optional == Optional()
-  print(str(optional))
-  print(repr(optional))
-  print(hash(optional))
+  assert OPTIONAL == Optional()
+  print(str(OPTIONAL))
+  print(repr(OPTIONAL))
+  print(hash(OPTIONAL))
 
-  assert required == Required()
-  print(hash(required))
+  assert REQUIRED == Required()
+  print(hash(REQUIRED))
 
-  assert optional != required
-  assert optional != None
-  assert required != None
+  assert OPTIONAL != REQUIRED
+  assert OPTIONAL != None
+  assert REQUIRED != None
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_validating():
@@ -101,23 +101,23 @@ def test_validate():
   assert validate(None, 1.0, float) == 1.0
 
   with raises( ValidationError ):
-    validate(None, required, [int])
+    validate(None, REQUIRED, [int])
 
   with raises( ValidationError ):
-    validate('asd', required, [int])
+    validate('asd', REQUIRED, [int])
 
   def f(x):
     raise ValidationError("asd")
 
   with raises( ValidationError ):
-    validate('asd', required, [f])
+    validate('asd', REQUIRED, [f])
 
-  assert validate('12.34', required, [[int, float]]) == 12.34
-  assert validate(12.34, required, [[int, float]]) == 12
-  assert validate('asdasd', required, [[]]) == 'asdasd'
+  assert validate('12.34', REQUIRED, [[int, float]]) == 12.34
+  assert validate(12.34, REQUIRED, [[int, float]]) == 12
+  assert validate('asdasd', REQUIRED, [[]]) == 'asdasd'
 
   with raises( ValidationError ):
-    validate('12.34', required, [[int, f]])
+    validate('12.34', REQUIRED, [[int, f]])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_validator():
@@ -125,15 +125,15 @@ def test_validator():
   m = Validator()
   print(str(m))
   print(repr(m))
-  assert m._default == required
+  assert m._default == REQUIRED
   assert m._validators == []
 
   m = Validator(default = None)
-  assert m._default == optional
+  assert m._default == OPTIONAL
   assert m._validators == []
 
   m = Validator(None)
-  assert m._default == optional
+  assert m._default == OPTIONAL
   assert m._validators == []
 
   a = Validator(1)
@@ -233,7 +233,7 @@ def test_valid_keys():
   with raises( ValidationError ):
     valid_keys( obj,
       allow_keys = ['x', 'y', 'z'],
-      deprecate_keys = [('x', required)] )
+      deprecate_keys = [('x', REQUIRED)] )
 
   obj2 = valid_keys( obj,
     allow_keys = ['x', 'y', 'z'],
@@ -331,7 +331,7 @@ def test_valid_keys():
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_valid_dict():
   class test(valid_dict):
-    _deprecate_keys = [('x', None), ('y', required)]
+    _deprecate_keys = [('x', None), ('y', REQUIRED)]
     _wedge_keys = [('a','b')]
     _mutex_keys = [('c', 'd')]
 
