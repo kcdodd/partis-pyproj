@@ -1,6 +1,9 @@
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
+from pathlib import Path 
+from pathlib import PurePath
+from pathlib import PurePosixPath
 
 from collections.abc import (
   Mapping,
@@ -75,7 +78,7 @@ class readme(valid_dict):
   _mutex_keys = [
     ('file', 'text')]
   _default = {
-    'file': valid(OPTIONAL, nonempty_str, norm_path, norm_path_to_os),
+    'file' : valid(OPTIONAL, union(Path, OPTIONAL)),
     'text': valid(OPTIONAL, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -84,7 +87,7 @@ class license(valid_dict):
   _min_keys = [
     ('file', 'text')]
   _default = {
-    'file': valid(OPTIONAL, nonempty_str, norm_path, norm_path_to_os),
+    'file' : valid(OPTIONAL, union(Path, OPTIONAL)),
     'text': valid(OPTIONAL, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

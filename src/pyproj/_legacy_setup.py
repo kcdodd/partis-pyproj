@@ -3,6 +3,9 @@
 import sys
 import os
 import os.path as osp
+from pathlib import Path
+from pathlib import PurePath
+from pathlib import PurePosixPath
 import importlib
 import logging
 import argparse
@@ -17,33 +20,33 @@ def egg_info( args ):
   logger.warning(
     "running legacy 'setup.py egg_info'" )
 
-  dir = osp.join( args.egg_base, EGG_INFO_NAME )
+  dir = PurePath(args.egg_base).joinpath(EGG_INFO_NAME)
 
-  if not osp.exists( dir ):
-    os.mkdir( dir )
+  if not Path(dir).exists():
+    Path( dir ).mkdir(parents=True, exist_ok = True)
 
-  with open( osp.join( dir, 'PKG-INFO' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('PKG-INFO'), 'wb' ) as fp:    PurePath(dir).joinpath('PKG-INFO') 
     fp.write( PKG_INFO )
 
-  with open( osp.join( dir, 'setup_requires.txt' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('setup_requires.txt'), 'wb' ) as fp: PurePath(dir).joinpath('setup_requires.txt')
     fp.write( b'' )
 
-  with open( osp.join( dir, 'requires.txt' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('requires.txt'), 'wb' ) as fp: PurePath(dir).joinpath('not-zip-safe')
     fp.write( REQUIRES )
 
-  with open( osp.join( dir, 'SOURCES.txt' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('SOURCES.txt'), 'wb' ) as fp:
     fp.write( SOURCES )
 
-  with open( osp.join( dir, 'top_level.txt' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('top_level.txt'), 'wb' ) as fp:
     fp.write( TOP_LEVEL )
 
-  with open( osp.join( dir, 'entry_points.txt' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('entry_points.txt'), 'wb' ) as fp:
     fp.write( ENTRY_POINTS )
 
-  with open( osp.join( dir, 'dependency_links.txt' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('dependency_links.txt'), 'wb' ) as fp:
     fp.write( b'' )
 
-  with open( osp.join( dir, 'not-zip-safe' ), 'wb' ) as fp:
+  with open( PurePath(dir).joinpath('not-zip-safe'), 'wb' ) as fp:
     fp.write( b'' )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -87,7 +90,7 @@ def install( args ):
       '-m',
       'pip',
       'install',
-      osp.join(tmpdir, wheel_name) ])
+      Pure(tmpdir).joinpath(wheel_name) ]) 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dummy( args ):

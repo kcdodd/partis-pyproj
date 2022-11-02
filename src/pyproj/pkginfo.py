@@ -1,5 +1,8 @@
 import os
 import os.path as osp
+from pathlib import PurePath
+from pathlib import Path
+from pathlib import PurePosixPath
 import io
 import warnings
 import stat
@@ -148,7 +151,7 @@ class PkgInfoReq:
 class PkgInfo:
   def __init__( self,
     project,
-    root = None ):
+    root ):
     """Internal container for normalizing metadata as defined in PEP 621 and
 
 
@@ -239,15 +242,15 @@ class PkgInfo:
             raise ValidationError(
               f"'root' must be given to resolve a 'readme.file' path")
 
-          readme_file = osp.join( root, self.readme.file )
+          readme_file = Path(root).joinpath(self.readme.file)
 
-          if readme_file.lower().endswith('.rst'):
+          if PurePosixPath(readme_file).suffix == '.rst':
             self._desc_type = 'text/x-rst'
 
-          elif readme_file.lower().endswith('.md'):
+          elif PurePosixPath(readme_file).suffix == '.md':
             self._desc_type = 'text/markdown'
 
-          if not osp.exists(readme_file):
+          if not Path(readme_file).exists():
             raise ValidationError(
               f"'readme' file not found: {readme_file}")
 
@@ -302,9 +305,9 @@ class PkgInfo:
 
           self.license_file = self.license.file
 
-          license_file = osp.join( root, self.license_file )
+          license_file = Path(root).joinpath(self.license_file) 
 
-          if not osp.exists(license_file):
+          if not Path(license_file).exists():
             raise ValidationError(
               f"'license' file not found: {license_file}")
 
@@ -435,7 +438,7 @@ class PkgInfo:
       headers.append( ( 'License', license_folded ) )
 
     if self.license_file:
-      headers.append( ( 'License-File', self.license_file ) )
+      headers.append( ( 'License-File', str(self.license_file) ) )
 
     if len(self.keywords) > 0:
       headers.append( ( 'Keywords', ', '.join(self.keywords) ) )

@@ -1,5 +1,8 @@
 import os
 import os.path as osp
+from pathlib import Path
+from pathlib import PurePath
+from pathlib import PurePosixPath
 import io
 import warnings
 import stat
@@ -105,12 +108,12 @@ class dist_zip( dist_base ):
   #-----------------------------------------------------------------------------
   def copy_distfile( self ):
 
-    if osp.exists( self.outpath ):
+    if Path(self.outpath).exists():
       # overwiting in destination directory
-      os.remove( self.outpath )
+      Path.unlink( self.outpath )
 
-    if not osp.exists( self.outdir ):
-      os.makedirs( self.outdir )
+    if not Path(self.outpath).exists():
+      Path( self.outdir ).mkdir(parents=True, exist_ok = True)
 
     shutil.copyfile( self._tmp_path, self.outpath )
 

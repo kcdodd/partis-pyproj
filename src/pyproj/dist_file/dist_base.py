@@ -1,5 +1,8 @@
 import os
 import os.path as osp
+from pathlib import Path
+from pathlib import PurePath
+from pathlib import PurePosixPath
 import io
 import stat
 import logging
@@ -69,8 +72,7 @@ class dist_base( ABC ):
     logger = None,
     named_dirs = None ):
 
-    if outdir is None:
-      outdir = os.getcwd()
+    outdir = Path(outdir) if outdir else Path.cwd()
 
     if logger is None:
       logger = logging.getLogger( type(self).__name__ )
@@ -79,13 +81,14 @@ class dist_base( ABC ):
       named_dirs = dict()
 
     self.outname = str(outname)
-    self.outdir = str(outdir)
-    self.outpath = osp.join( self.outdir, self.outname )
-    self.tmpdir = str(tmpdir) if tmpdir else None
+    self.outdir = outdir
+    self.outpath = self.outdir.joinpath(self.outname)
+    self.tmpdir = Path(tmpdir) if tmpdir else None
     self.logger = logger
     self.named_dirs = {
-      'root' : '.',
+      'root' : PurePosixPath(),
       **named_dirs }
+
 
     self.records = list()
     self.record_bytes = None
@@ -180,7 +183,7 @@ class dist_base( ABC ):
       Add file to the RECORD
     """
 
-    if not osp.exists( src ):
+    if not Path.exists( src ):
       raise ValueError(f"Source file not found: {src}")
 
     if not exist_ok and self.exists( dst ):
@@ -189,7 +192,7 @@ class dist_base( ABC ):
     self.logger.debug( f'copyfile {src}' )
 
     if mode is None:
-      mode = os.stat( src ).st_mode
+      mode = Path.stat( src ).st_mode
 
     with open( src, "rb" ) as fp:
       self.write(
@@ -223,7 +226,7 @@ class dist_base( ABC ):
       Add all files to the RECORD
     """
 
-    if not osp.exists( src ):
+    if not Path.exists( src ):
       raise ValueError(f"Source directory not found: {src}")
 
     self.logger.debug( f'copytree {src}' )
@@ -243,8 +246,8 @@ class dist_base( ABC ):
           if entry.name not in ignored_names ]
 
     for entry in entries:
-      src_path = os.path.join( src, entry.name )
-      dst_path = os.path.join( dst, entry.name )
+      src_path = Path(src).joinpath(entry.name)
+      dst_path = Path(dst).joinpath(entry.name)
 
       mode = entry.stat().st_mode
 

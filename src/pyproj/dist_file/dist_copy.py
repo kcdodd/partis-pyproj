@@ -2,6 +2,10 @@ import os
 import os.path as osp
 import glob
 import pathlib
+from pathlib import Path
+from pathlib import PurePath
+from pathlib import PurePosixPath
+
 import logging
 
 from ..validate import (
@@ -40,17 +44,17 @@ def dist_iter(*,
 
     if incl.glob:
 
-      cwd = os.getcwd()
+      cwd = Path.cwd()
       try:
-        os.chdir(src)
+        os.chdir(src) #Doesn't seems to be an pathlib way of changing working direcotry
         matches = glob.glob(incl.glob, recursive = True)
       finally:
         os.chdir(cwd)
 
       for match in matches:
-        _src = osp.join(src, match)
+        _src = Pure(src).joinpath(match)
         # re-base the dst path, path relative to src == path relative to dst
-        _dst = osp.join(dst, match)
+        _dst = Pure(dst).joinpath(match)
 
         yield ( i, _src, _dst, _ignore_patterns, False )
 
@@ -81,14 +85,14 @@ def dist_copy(*,
 
       with validating(key = i):
 
-        src = osp.normpath( src )
+        src = Path(src).resolve() #normpath is not something in pathlib, supposed to be a black box
         dst = '/'.join( [base_path, norm_path(dst)] )
 
-        if not individual and ignore_patterns( osp.dirname(src), [osp.basename(src)]):
+        if not individual and ignore_patterns( PurePosixPath(src).parent, PurePosixPath(src).name):
           logger.debug( f'ignoring: {src}' )
           continue
 
-        src_abs = osp.realpath(src)
+        src_abs = Path(src).resolve()
 
         if root and not contains(root, src_abs):
           raise FileOutsideRootError(
@@ -96,7 +100,7 @@ def dist_copy(*,
 
         logger.debug(f"dist copy: {src} -> {dst}")
 
-        if osp.isdir( src ):
+        if Path.is_dir(src):
           dist.copytree(
             src = src,
             dst = dst,

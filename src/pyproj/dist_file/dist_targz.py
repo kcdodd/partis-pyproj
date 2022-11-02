@@ -1,5 +1,6 @@
 import os
 import os.path as osp
+from pathlib import Path
 import io
 import warnings
 import stat
@@ -61,6 +62,8 @@ class dist_targz( dist_base ):
     named_dirs = None,
     logger = None ):
 
+    tmpdir = Path(tmpdir) if tmpdir else None
+
     super().__init__(
       outname = outname,
       outdir = outdir,
@@ -72,7 +75,6 @@ class dist_targz( dist_base ):
     self._fp = None
     self._tmp_path = None
     self._tarfile = None
-
   #-----------------------------------------------------------------------------
   def create_distfile( self ):
 
@@ -106,12 +108,8 @@ class dist_targz( dist_base ):
   #-----------------------------------------------------------------------------
   def copy_distfile( self ):
 
-    if osp.exists( self.outpath ):
-      # overwiting in destination directory
-      os.remove( self.outpath )
-
-    if not osp.exists( self.outdir ):
-      os.makedirs( self.outdir )
+    if not self.outdir.exists():
+      self.outdir.mkdir(parents=True, exist_ok = True)
 
     shutil.copyfile( self._tmp_path, self.outpath )
 
@@ -119,9 +117,7 @@ class dist_targz( dist_base ):
   def remove_distfile( self ):
 
     # remove temporary file
-    os.remove( self._tmp_path )
-
-    self._tmp_path = None
+    self._tmp_path.unlink(missing_ok = true)
 
 
   #-----------------------------------------------------------------------------

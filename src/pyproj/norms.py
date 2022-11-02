@@ -365,6 +365,8 @@ def email_encode_items(
     mangle_from_ = False,
     maxheaderlen = 0 )
 
+  print(gen)
+
   gen.flatten( msg )
 
   # TODO: why does ``wheel`` replace newlines with only carriage returns?
