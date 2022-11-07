@@ -184,6 +184,7 @@ class dist_base( ABC ):
       Add file to the RECORD
     """
     src = Path(src)
+    dst = PurePosixPath(dst)
 
     if not src.exists():
       raise ValueError(f"Source file not found: {src}")
@@ -227,7 +228,9 @@ class dist_base( ABC ):
     record : bool
       Add all files to the RECORD
     """
-    dst = Path(dst)
+    src = Path(src)
+    dst = PurePosixPath(dst)
+
 
     if not src.exists():
       raise ValueError(f"Source directory not found: {src}")
