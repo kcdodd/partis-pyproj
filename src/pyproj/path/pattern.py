@@ -157,7 +157,10 @@ def tr_subdir(start, path):
       return SEP.join(_path[i:])
 
   return SEP.join(_path[i+1:])
-
+  
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def subdir(start, path):
+  return type(path)(*tr_subdir(tr_path(start), tr_path(path)).split(SEP))
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GRef(namedtuple('GRef', ['ori', 'case', 'start', 'end'])):

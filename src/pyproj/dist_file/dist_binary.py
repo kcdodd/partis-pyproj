@@ -7,6 +7,11 @@ import stat
 import tempfile
 import shutil
 
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
+
 from ..norms import (
   norm_path,
   norm_data,
@@ -23,6 +28,8 @@ from ..pep import (
 from ..pkginfo import PkgInfo
 
 from .dist_zip import dist_zip
+
+from ..path import subdir
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def pkg_name(dir):
@@ -141,15 +148,15 @@ class dist_binary_wheel( dist_zip ):
       for p in wheel_name_parts
       if p != '' ]
 
-    self.base_path = '-'.join( wheel_name_parts[:2] )
+    self.base_path = PurePosixPath('-'.join( wheel_name_parts[:2] ))
     self.base_tag = '-'.join( wheel_name_parts[-3:] )
 
-    self.dist_info_path = self.base_path + '.dist-info'
-    self.metadata_path = self.dist_info_path + '/METADATA'
-    self.entry_points_path = self.dist_info_path + '/entry_points.txt'
-    self.wheel_path = self.dist_info_path + '/WHEEL'
-    self.record_path = self.dist_info_path + '/RECORD'
-    self.data_path = self.base_path + '.data'
+    self.dist_info_path = PurePosixPath(str(self.base_path) + '.dist-info')
+    self.data_path = PurePosixPath(str(self.base_path) + '.data')
+    self.metadata_path = self.dist_info_path.joinpath('METADATA')
+    self.entry_points_path = self.dist_info_path.joinpath('entry_points.txt')
+    self.wheel_path = self.dist_info_path.joinpath('WHEEL')
+    self.record_path = self.dist_info_path.joinpath('RECORD')
 
     self.data_paths = [
       'data',
@@ -165,7 +172,7 @@ class dist_binary_wheel( dist_zip ):
       logger = logger,
       named_dirs = {
         'dist_info' : self.dist_info_path,
-        **{ k : self.data_path + '/' + k for k in self.data_paths } } )
+        **{ k : self.data_path.joinpath(k) for k in self.data_paths } } )
 
   #-----------------------------------------------------------------------------
   def finalize( self ):
@@ -181,11 +188,11 @@ class dist_binary_wheel( dist_zip ):
 
     if self.pkg_info.license_file:
       self.write(
-        dst = self.dist_info_path + '/' + self.pkg_info.license_file,
+        dst = self.dist_info_path.joinpath(self.pkg_info.license_file), 
         data = self.pkg_info.license_file_content )
 
     self.write(
-      dst = self.dist_info_path + '/' + 'top_level.txt',
+      dst = self.dist_info_path.joinpath('top_level.txt'),
       data = '\n'.join( self.top_level ) )
 
     self.write(
@@ -213,29 +220,33 @@ class dist_binary_wheel( dist_zip ):
 
     top_level = set()
 
-    purelib = self.named_dirs['purelib'] + '/'
-    purelib_len = len(purelib)
+    purelib = self.named_dirs['purelib']
 
-    platlib = self.named_dirs['platlib'] + '/'
-    platlib_len = len(platlib)
+    platlib = self.named_dirs['platlib']
 
     for file, hash, size in self.records:
       # check files added to purelib and platlib.
-      if file.startswith(purelib):
-        top_level.add( pkg_name(file[purelib_len:].split('/', 1)[0]) )
+      file = PurePosixPath(file)
 
-      elif file.startswith(platlib):
+      try:
+        top_level.add(pkg_name(subdir(purelib,file).parts[0]))
+        continue
+      except ValueError:
+        pass
 
+      try:
+        top_level.add(pkg_name(subdir(platlib,file).parts[0]))
         self.purelib = False
+        continue
+      except ValueError:
+        pass
 
-        top_level.add( pkg_name(file[platlib_len:].split('/', 1)[0]) )
-
-      elif not (
-        file.startswith(self.dist_info_path)
-        or file.startswith(self.data_path) ):
-
+      try:
+        subdir(self.dist_info_path,file)
+        subdir(self.data_path,file)
+      except ValueError:
         # check any other files that aren't in .dist-info or .data
-        top_level.add( pkg_name(file.split('/', 1)[0]) )
+        top_level.add(pkg_name(file.parts[0]))
 
     self.top_level = [ dir for dir in top_level if dir ]
 

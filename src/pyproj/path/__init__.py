@@ -1,5 +1,6 @@
 from .pattern import (
-  PatternError )
+  PatternError,
+  subdir )
 
 from .match import (
   PathMatcher,

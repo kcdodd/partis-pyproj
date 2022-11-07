@@ -86,9 +86,9 @@ def dist_copy(*,
 
       with validating(key = i):
         src = Path(src)
-        dst = '/'.join( [base_path, norm_path(dst)] )
+        dst = base_path.joinpath(dst)
 
-        if not individual and ignore_patterns( PurePosixPath(src).parent, [PurePosixPath(src).name]):
+        if not individual and ignore_patterns( src.parent, [src.name]):
           logger.debug( f'ignoring: {src}' )
           continue
 

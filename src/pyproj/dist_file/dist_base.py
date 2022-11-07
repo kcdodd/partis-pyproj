@@ -234,6 +234,10 @@ class dist_base( ABC ):
 
     self.logger.debug( f'copytree {src}' )
 
+    #print("Something: " , list(src.glob('*.py')))
+    #print("Something Else: ", list(os.scandir(src)))
+
+
     entries = list( os.scandir(src))
 
     if ignore is not None:

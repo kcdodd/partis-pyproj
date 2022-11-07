@@ -6,6 +6,11 @@ import stat
 
 import shutil
 
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
+
 from ..norms import (
   norm_path,
   norm_data,
@@ -91,9 +96,9 @@ class dist_source_targz( dist_targz ):
       norm_dist_filename( self.pkg_info.name_normed ),
       norm_dist_filename( self.pkg_info.version ) ]
 
-    self.base_path = '-'.join( sdist_name_parts )
+    self.base_path = PurePosixPath('-'.join( sdist_name_parts ))
 
-    self.metadata_path = self.base_path + '/PKG-INFO'
+    self.metadata_path = self.base_path.joinpath('PKG-INFO')
 
     super().__init__(
       outname = '-'.join( sdist_name_parts ) + '.tar.gz',
