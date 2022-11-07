@@ -1,8 +1,9 @@
 import os
 import os.path as osp
-from pathlib import Path
-from pathlib import PurePath
-from pathlib import PurePosixPath
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 import io
 import warnings
 import stat

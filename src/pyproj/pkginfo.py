@@ -1,8 +1,9 @@
 import os
 import os.path as osp
-from pathlib import PurePath
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 import io
 import warnings
 import stat
@@ -243,11 +244,12 @@ class PkgInfo:
               f"'root' must be given to resolve a 'readme.file' path")
 
           readme_file = Path(root).joinpath(self.readme.file)
+          readme_file = PurePosixPath(readme_file)
 
-          if PurePosixPath(readme_file).suffix == '.rst':
+          if readme_file.suffix == '.rst':
             self._desc_type = 'text/x-rst'
 
-          elif PurePosixPath(readme_file).suffix == '.md':
+          elif readme_file.suffix == '.md':
             self._desc_type = 'text/markdown'
 
           if not Path(readme_file).exists():
@@ -307,7 +309,7 @@ class PkgInfo:
 
           license_file = Path(root).joinpath(self.license_file) 
 
-          if not Path(license_file).exists():
+          if not license_file.exists():
             raise ValidationError(
               f"'license' file not found: {license_file}")
 

@@ -2,7 +2,10 @@ import os
 import os.path as osp
 import sys
 import importlib
-from pathlib import Path
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 import hashlib
 from base64 import b16encode
 

@@ -1,6 +1,9 @@
 import os
 import os.path as osp
-from pathlib import Path
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 import io
 import warnings
 import stat
@@ -117,7 +120,8 @@ class dist_targz( dist_base ):
   def remove_distfile( self ):
 
     # remove temporary file
-    self._tmp_path.unlink(missing_ok = true)
+    self._tmp_path = Path(self._tmp_path)
+    self._tmp_path.unlink(missing_ok = True)
 
 
   #-----------------------------------------------------------------------------

@@ -3,9 +3,10 @@
 import sys
 import os
 import os.path as osp
-from pathlib import Path
-from pathlib import PurePath
-from pathlib import PurePosixPath
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 import importlib
 import logging
 import argparse
@@ -20,33 +21,33 @@ def egg_info( args ):
   logger.warning(
     "running legacy 'setup.py egg_info'" )
 
-  dir = PurePath(args.egg_base).joinpath(EGG_INFO_NAME)
+  dir = Path(args.egg_base).joinpath(EGG_INFO_NAME)
 
-  if not Path(dir).exists():
-    Path( dir ).mkdir(parents=True, exist_ok = True)
+  if not dir.exists():
+    dir.mkdir(parents=True, exist_ok = True)
 
-  with open( PurePath(dir).joinpath('PKG-INFO'), 'wb' ) as fp:    PurePath(dir).joinpath('PKG-INFO') 
+  with open(dir.joinpath('PKG-INFO'), 'wb' ) as fp:  
     fp.write( PKG_INFO )
 
-  with open( PurePath(dir).joinpath('setup_requires.txt'), 'wb' ) as fp: PurePath(dir).joinpath('setup_requires.txt')
+  with open( dir.joinpath('setup_requires.txt'), 'wb' ) as fp: 
     fp.write( b'' )
 
-  with open( PurePath(dir).joinpath('requires.txt'), 'wb' ) as fp: PurePath(dir).joinpath('not-zip-safe')
+  with open( dir.joinpath('requires.txt'), 'wb' ) as fp: 
     fp.write( REQUIRES )
 
-  with open( PurePath(dir).joinpath('SOURCES.txt'), 'wb' ) as fp:
+  with open( dir.joinpath('SOURCES.txt'), 'wb' ) as fp:
     fp.write( SOURCES )
 
-  with open( PurePath(dir).joinpath('top_level.txt'), 'wb' ) as fp:
+  with open( dir.joinpath('top_level.txt'), 'wb' ) as fp:
     fp.write( TOP_LEVEL )
 
-  with open( PurePath(dir).joinpath('entry_points.txt'), 'wb' ) as fp:
+  with open( dir.joinpath('entry_points.txt'), 'wb' ) as fp:
     fp.write( ENTRY_POINTS )
 
-  with open( PurePath(dir).joinpath('dependency_links.txt'), 'wb' ) as fp:
+  with open(dir.joinpath('dependency_links.txt'), 'wb' ) as fp:
     fp.write( b'' )
 
-  with open( PurePath(dir).joinpath('not-zip-safe'), 'wb' ) as fp:
+  with open( dir.joinpath('not-zip-safe'), 'wb' ) as fp:
     fp.write( b'' )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -90,7 +91,7 @@ def install( args ):
       '-m',
       'pip',
       'install',
-      Pure(tmpdir).joinpath(wheel_name) ]) 
+      tmpdir.joinpath(wheel_name) ]) 
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dummy( args ):

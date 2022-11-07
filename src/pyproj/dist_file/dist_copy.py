@@ -2,9 +2,10 @@ import os
 import os.path as osp
 import glob
 import pathlib
-from pathlib import Path
-from pathlib import PurePath
-from pathlib import PurePosixPath
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 
 import logging
 
@@ -84,15 +85,14 @@ def dist_copy(*,
       root = root ):
 
       with validating(key = i):
-
-        src = Path(src).resolve() #normpath is not something in pathlib, supposed to be a black box
+        src = Path(src)
         dst = '/'.join( [base_path, norm_path(dst)] )
 
-        if not individual and ignore_patterns( PurePosixPath(src).parent, PurePosixPath(src).name):
+        if not individual and ignore_patterns( PurePosixPath(src).parent, [PurePosixPath(src).name]):
           logger.debug( f'ignoring: {src}' )
           continue
 
-        src_abs = Path(src).resolve()
+        src_abs = src.resolve()
 
         if root and not contains(root, src_abs):
           raise FileOutsideRootError(
@@ -100,7 +100,7 @@ def dist_copy(*,
 
         logger.debug(f"dist copy: {src} -> {dst}")
 
-        if Path.is_dir(src):
+        if src.is_dir():
           dist.copytree(
             src = src,
             dst = dst,

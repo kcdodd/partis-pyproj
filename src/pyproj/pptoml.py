@@ -1,9 +1,10 @@
 
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from pathlib import Path 
-from pathlib import PurePath
-from pathlib import PurePosixPath
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 
 from collections.abc import (
   Mapping,

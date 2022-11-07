@@ -13,7 +13,10 @@ import multiprocessing
 import glob
 import warnings
 import tomli
-from pathlib import Path
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 
 try:
   from importlib.metadata import metadata

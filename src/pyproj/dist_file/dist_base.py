@@ -1,8 +1,9 @@
 import os
 import os.path as osp
-from pathlib import Path
-from pathlib import PurePath
-from pathlib import PurePosixPath
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 import io
 import stat
 import logging
@@ -81,7 +82,7 @@ class dist_base( ABC ):
       named_dirs = dict()
 
     self.outname = str(outname)
-    self.outdir = outdir
+    self.outdir = Path(outdir) if outdir else None
     self.outpath = self.outdir.joinpath(self.outname)
     self.tmpdir = Path(tmpdir) if tmpdir else None
     self.logger = logger
@@ -182,8 +183,9 @@ class dist_base( ABC ):
     record : bool
       Add file to the RECORD
     """
+    src = Path(src)
 
-    if not Path.exists( src ):
+    if not src.exists():
       raise ValueError(f"Source file not found: {src}")
 
     if not exist_ok and self.exists( dst ):
@@ -192,7 +194,7 @@ class dist_base( ABC ):
     self.logger.debug( f'copyfile {src}' )
 
     if mode is None:
-      mode = Path.stat( src ).st_mode
+      mode = src.stat().st_mode
 
     with open( src, "rb" ) as fp:
       self.write(
@@ -225,13 +227,14 @@ class dist_base( ABC ):
     record : bool
       Add all files to the RECORD
     """
+    dst = Path(dst)
 
-    if not Path.exists( src ):
+    if not src.exists():
       raise ValueError(f"Source directory not found: {src}")
 
     self.logger.debug( f'copytree {src}' )
 
-    entries = list( os.scandir( src ) )
+    entries = list( os.scandir(src))
 
     if ignore is not None:
       ignored_names = ignore(
@@ -246,8 +249,8 @@ class dist_base( ABC ):
           if entry.name not in ignored_names ]
 
     for entry in entries:
-      src_path = Path(src).joinpath(entry.name)
-      dst_path = Path(dst).joinpath(entry.name)
+      src_path = src.joinpath(entry.name)
+      dst_path = dst.joinpath(entry.name)
 
       mode = entry.stat().st_mode
 

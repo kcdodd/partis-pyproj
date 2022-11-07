@@ -5,9 +5,10 @@
 
 import os
 import os.path as osp 
-from pathlib import Path
-from pathlib import PurePath
-from pathlib import PurePosixPath
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 import sys
 import argparse
 from argparse import RawTextHelpFormatter
@@ -38,12 +39,13 @@ def main():
 
   out_dir = args.outdir
 
-  root_dir = PurePosixPath( Path(__file__).absolute() ).parent
+  root_dir = Path(__file__).absolute().parent
 
   if not out_dir:
-    out_dir = Path(root_dir).joinpath('dist')
-  if not Path('.').exists():
-    Path(out_dir).mkdir(parents=True,exist_ok = True)
+    out_dir = root_dir.joinpath('dist')
+
+  out_dir.mkdir(parents = True, exist_ok = True)
+
 
   subprocess.check_call([
     'python3',
