@@ -18,7 +18,7 @@ class Build:
 
   Parameters
   ----------
-  root : str
+  root : str | path
     Path to root project directory
   builds : :class:`pyproj_build <partis.pyproj.pptoml.pyproj_builds>`
   logger : logging.Logger

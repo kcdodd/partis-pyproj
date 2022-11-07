@@ -28,13 +28,13 @@ class dist_base( ABC ):
   ----------
   outname : str
     Name of output file.
-  outdir : str
+  outdir : str | Path
     Path to directory where the file should be copied after completing build.
   tmpdir : None | str
     If not None, uses the given directory to place the temporary file(s) before
     copying to final location.
     May be the same as outdir.
-  named_dirs : None | Dict[ str, str ]
+  named_dirs : None | Dict[ str, PurePosixPath ]
     Mapping of specially named directories within the distribution.
     By default a named directory { 'root' : '.' } will be added,
     unless overridden with another directory name.
@@ -43,7 +43,7 @@ class dist_base( ABC ):
 
   Attributes
   ----------
-  outpath : str
+  outpath : Path
     Path to final output file location
   named_dirs : Dict[ str, str ]
     Mapping of specially named directories within the distribution
@@ -107,7 +107,7 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    dst : str | path
+    dst : str | PurePosixPath
 
     Returns
     -------
@@ -125,7 +125,7 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    dst : str | path
+    dst : str | PurePosixPath
     data : bytes
     mode : int
     record : bool
@@ -148,7 +148,7 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    dst : str | path
+    dst : str | PurePosixPath
     mode : int
     exist_ok : bool
     record : bool
@@ -176,8 +176,8 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    src : str | path
-    dst : str | path
+    src : str | Path
+    dst : str | PurePosixPath
     mode : int
     exist_ok : bool
     record : bool
@@ -217,8 +217,8 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    src : str | path
-    dst : str | path
+    src : str | Path
+    dst : str | PurePosixPath
     ignore : None | callable
 
       If not None, ``callable(src, names) -> ignored_names``
@@ -330,7 +330,7 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    dst : str
+    dst : str | PurePosixPath
       Path of item within the distribution
     data : bytes
       Binary data that was added

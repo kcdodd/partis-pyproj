@@ -1,9 +1,6 @@
 import os
 import os.path as osp
-from pathlib import (
-  Path,
-  PurePath,
-  PurePosixPath)
+
 import io
 import warnings
 import stat
@@ -12,6 +9,11 @@ import re
 import tempfile
 import shutil
 import configparser
+
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
 
 from collections.abc import (
   Mapping,
@@ -152,7 +154,7 @@ class PkgInfoReq:
 class PkgInfo:
   def __init__( self,
     project,
-    root ):
+    root = None ):
     """Internal container for normalizing metadata as defined in PEP 621 and
 
 
@@ -440,7 +442,7 @@ class PkgInfo:
       headers.append( ( 'License', license_folded ) )
 
     if self.license_file:
-      headers.append( ( 'License-File', str(self.license_file) ) )
+      headers.append( ( 'License-File', os.fspath(self.license_file) ) )
 
     if len(self.keywords) > 0:
       headers.append( ( 'Keywords', ', '.join(self.keywords) ) )

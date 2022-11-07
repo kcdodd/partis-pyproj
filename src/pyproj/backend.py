@@ -6,6 +6,11 @@ import logging
 import tempfile
 import re
 
+from pathlib import (
+  Path,
+  PurePath,
+  PurePosixPath)
+
 from collections.abc import (
   Mapping,
   Sequence )
@@ -44,7 +49,7 @@ def backend_init(
 
   Parameters
   ----------
-  root : str
+  root : str | Path
     Directory containing 'pyproject.toml'
   logger : :class:`logging.Logger`
     Logger to use
@@ -190,7 +195,7 @@ def prepare_metadata_for_build_wheel(
   with zipfile.ZipFile( dist.outpath ) as fp:
     fp.extractall(metadata_directory)
 
-  return dist.dist_info_path
+  return os.fspath(Path(dist.dist_info_path))
 
 #-----------------------------------------------------------------------------
 def build_wheel(

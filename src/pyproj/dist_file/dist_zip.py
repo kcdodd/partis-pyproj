@@ -166,7 +166,7 @@ class dist_zip( dist_base ):
     self.assert_open()
 
     try:
-      self._zipfile.getinfo(dst)
+      self._zipfile.getinfo(os.fspath(dst))
       return True
     except KeyError as e:
       return False

@@ -216,10 +216,6 @@ def test_min():
   run_pyproj('pkg_min')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def test_base():
-  run_pyproj('pkg_base')
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_bad_1():
   with raises(EntryPointError):
     # declares non-existent entrypoint

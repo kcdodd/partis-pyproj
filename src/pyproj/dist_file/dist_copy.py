@@ -51,11 +51,12 @@ def dist_iter(*,
         matches = glob.glob(incl.glob, recursive = True)
       finally:
         os.chdir(cwd)
-
+      src = Path(src)
+      dst = Path(dst)
       for match in matches:
-        _src = Pure(src).joinpath(match)
+        _src = src.joinpath(match)
         # re-base the dst path, path relative to src == path relative to dst
-        _dst = Pure(dst).joinpath(match)
+        _dst = dst.joinpath(match)
 
         yield ( i, _src, _dst, _ignore_patterns, False )
 

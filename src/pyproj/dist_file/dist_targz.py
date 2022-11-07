@@ -163,7 +163,7 @@ class dist_targz( dist_base ):
     self.assert_open()
 
     try:
-      self._tarfile.getmember(dst)
+      self._tarfile.getmember(os.fspath(dst))
       return True
     except KeyError as e:
       return False
