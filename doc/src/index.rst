@@ -9,6 +9,10 @@ Package Reference
   pptoml
   pkginfo
   dist_file
+  path
+  build
+  meson
+  load_module
   validate
   norms
   pep

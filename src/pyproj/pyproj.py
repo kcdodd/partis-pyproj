@@ -74,7 +74,7 @@ class PyProjBase:
 
   Parameters
   ----------
-  root : PathLike
+  root : str | pathlib.Path
     Path to the root project directory containing 'pyproject.toml'.
   logger : logging.Logger
     Parent logger to use when processing project.
@@ -146,10 +146,14 @@ class PyProjBase:
     #...........................................................................
     self.prep()
 
-    with validating(key = 'project', root = self._pptoml, file = self.pptoml_file):
+    with validating(
+      key = 'project', 
+      root = self._pptoml, 
+      file = self.pptoml_file):
+
       self.pkg_info = PkgInfo(
         project = self.project,
-        root = root )
+        root = self.root )
 
     # Update logger once package info is created
     self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )

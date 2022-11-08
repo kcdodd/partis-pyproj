@@ -5,19 +5,19 @@ Distribution Utilities :mod:`partis.pyproj.dist_file`
 
 
 dist_base
-----------
+---------
 
 .. autoclass:: dist_base
 
 
 dist_targz
------------
+----------
 
 .. autoclass:: dist_targz
 
 
 dist_zip
----------
+--------
 
 .. autoclass:: dist_zip
 

@@ -3,6 +3,7 @@ import os.path as osp
 import tempfile
 import shutil
 import subprocess
+from pathlib import Path
 
 from .validate import (
   validating,
@@ -12,15 +13,18 @@ from .validate import (
 
 from .load_module import EntryPoint
 
+from .path import (
+  subdir )
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Build:
-  """Run meson setup, compile, install commands
+  """Run build setup, compile, install commands
 
   Parameters
   ----------
-  root : str | path
+  root : str | pathlib.Path
     Path to root project directory
-  builds : :class:`pyproj_build <partis.pyproj.pptoml.pyproj_builds>`
+  builds : :class:`pyproj_build <partis.pyproj.pptoml.pyproj_build>`
   logger : logging.Logger
   """
   #-----------------------------------------------------------------------------
@@ -31,7 +35,7 @@ class Build:
     logger):
 
     self.pyproj = pyproj
-    self.root = str(root)
+    self.root = Path(root).resolve()
     self.builds = builds
     self.logger = logger
     self.build_paths = [
@@ -39,8 +43,7 @@ class Build:
         src_dir = build.src_dir,
         build_dir = build.build_dir,
         prefix = build.prefix )
-
-      for build in builds]
+      for build in builds ]
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
@@ -57,14 +60,13 @@ class Build:
 
             rel_path = paths[k]
 
-            abs_path = osp.realpath( osp.join(
-              self.root,
-              rel_path ) )
+            abs_path = (self.root / rel_path).resolve()
 
-            if osp.commonpath([self.root, abs_path]) != self.root:
+            if not subdir(self.root, abs_path, check = False):
               raise FileOutsideRootError(
                 f"Must be within project root directory:"
                 f"\n  file = \"{abs_path}\"\n  root = \"{self.root}\"")
+
 
             paths[k] = abs_path
 
@@ -73,11 +75,11 @@ class Build:
         prefix = paths['prefix']
 
         with validating(key = f"tool.pyproj.build[{i}].src_dir"):
-          if not osp.exists(src_dir):
+          if not src_dir.exists():
             raise ValidPathError(f"Source directory not found: {src_dir}")
 
         with validating(key = f"tool.pyproj.build[{i}]"):
-          if osp.commonpath([build_dir, prefix]) == build_dir:
+          if subdir(build_dir, prefix, check = False):
             raise ValidPathError(f"'prefix' cannot be inside 'build_dir': {build_dir}")
 
         for k in ['build_dir', 'prefix']:
@@ -87,8 +89,7 @@ class Build:
             if dir == self.root:
               raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
 
-            if not osp.exists(dir):
-              os.makedirs(dir)
+            dir.mkdir( parents = True, exist_ok = True )
 
         entry_point = EntryPoint(
           pyproj = self,
@@ -128,6 +129,6 @@ class Build:
     for i, (build, paths) in enumerate(zip(self.builds, self.build_paths)):
       build_dir = paths['build_dir']
 
-      if build_dir is not None and osp.exists(build_dir) and build.build_clean:
+      if build_dir is not None and build_dir.exists() and build.build_clean:
         self.logger.info(f"Removing build dir: {build_dir}")
         shutil.rmtree(build_dir)

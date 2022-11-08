@@ -28,13 +28,13 @@ class dist_base( ABC ):
   ----------
   outname : str
     Name of output file.
-  outdir : str | Path
+  outdir : str | pathlib.Path
     Path to directory where the file should be copied after completing build.
-  tmpdir : None | str
+  tmpdir : None | str | pathlib.Path
     If not None, uses the given directory to place the temporary file(s) before
     copying to final location.
     May be the same as outdir.
-  named_dirs : None | Dict[ str, PurePosixPath ]
+  named_dirs : None | Dict[ str, str | pathlib.PurePosixPath ]
     Mapping of specially named directories within the distribution.
     By default a named directory { 'root' : '.' } will be added,
     unless overridden with another directory name.
@@ -43,9 +43,9 @@ class dist_base( ABC ):
 
   Attributes
   ----------
-  outpath : Path
+  outpath : pathlib.Path
     Path to final output file location
-  named_dirs : Dict[ str, str ]
+  named_dirs : Dict[ str, pathlib.PurePosixPath ]
     Mapping of specially named directories within the distribution
   opened : bool
     Build temporary file has been opened for writing
@@ -55,7 +55,7 @@ class dist_base( ABC ):
     Build temporary file has been closed
   copied : bool
     Build temporary has been copied to ``outpath`` location
-  records : List[ Tuple[ str, str, int ] ]
+  records : List[ Tuple[ pathlib.PurePosixPath, str, int ] ]
     Recorded list of path, hash, and size (bytes) of files added to distribution
   record_hash : None | str
     Final hash value of the record after being finalized
@@ -73,16 +73,16 @@ class dist_base( ABC ):
     logger = None,
     named_dirs = None ):
 
-    outdir = Path(outdir) if outdir else Path.cwd()
-
     if logger is None:
       logger = logging.getLogger( type(self).__name__ )
 
     if named_dirs is None:
       named_dirs = dict()
 
+    named_dirs = { name: PurePosixPath(dir) for name, dir in named_dirs.items() }
+
     self.outname = str(outname)
-    self.outdir = Path(outdir) if outdir else None
+    self.outdir = Path(outdir) if outdir else Path.cwd()
     self.outpath = self.outdir.joinpath(self.outname)
     self.tmpdir = Path(tmpdir) if tmpdir else None
     self.logger = logger
@@ -176,8 +176,8 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    src : str | Path
-    dst : str | PurePosixPath
+    src : str | pathlib.Path
+    dst : str | pathlib.PurePosixPath
     mode : int
     exist_ok : bool
     record : bool
@@ -217,8 +217,8 @@ class dist_base( ABC ):
 
     Parameters
     ----------
-    src : str | Path
-    dst : str | PurePosixPath
+    src : str | pathlib.Path
+    dst : str | pathlib.PurePosixPath
     ignore : None | callable
 
       If not None, ``callable(src, names) -> ignored_names``
@@ -237,11 +237,8 @@ class dist_base( ABC ):
 
     self.logger.debug( f'copytree {src}' )
 
-    #print("Something: " , list(src.glob('*.py')))
-    #print("Something Else: ", list(os.scandir(src)))
-
-
-    entries = list( os.scandir(src))
+    # returns an iterator of DirEntry
+    entries = list(os.scandir(src))
 
     if ignore is not None:
       ignored_names = ignore(
@@ -288,8 +285,6 @@ class dist_base( ABC ):
             record = record )
 
     return dst
-
-
 
   #-----------------------------------------------------------------------------
   def open( self ):
@@ -344,7 +339,7 @@ class dist_base( ABC ):
 
     hash, size = hash_sha256( data )
 
-    record = ( dst, hash, size )
+    record = ( PurePosixPath(dst), hash, size )
 
     self.logger.debug( 'record ' + str(record) )
 

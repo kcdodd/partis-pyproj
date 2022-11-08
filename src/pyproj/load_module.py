@@ -32,9 +32,9 @@ def module_name_from_path( path, root ):
 
   Parameters
   ----------
-  path : Path
+  path : pathlib.Path
     Path to the module directory relative to 'root'
-  root : Path
+  root : pathlib.Path
     Base path from which the module will be imported
   """
 
@@ -89,7 +89,7 @@ def load_entrypoint( entry_point, root ):
   ----------
   entry_point : str
     Entry point spec
-  root : Path
+  root : pathlib.Path
     Root project directory.
   """
 
@@ -120,8 +120,6 @@ def load_entrypoint( entry_point, root ):
     except Exception as e:
       raise EntryPointError(f"failed to load '{entry_point}'") from e
 
-  print(entry_point, mod_path)
-  print('  ', mod_name, attr_name, dir(mod))
 
   if not hasattr( mod, attr_name ):
     raise EntryPointError(
@@ -138,7 +136,7 @@ class EntryPoint:
   Parameters
   ----------
   pyproj : PyProjBase
-  root : Path
+  root : pathlib.Path
     Root project directory.
   name : str
     A name for this entry point

@@ -15,14 +15,7 @@ from .pattern import (
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class PathMatcher:
-  """Pattern matching similar to '.gitignore'
-
-  .. attention::
-
-    This is simply a container for storing information parsed from the pattern.
-    It does not actually do any normalization of paths or convert windows/posix
-    paths before matching, or differentiate between files and directories.
-    See :meth:`PathFilter.filter`.
+  r"""Pattern matching similar to '.gitignore'
 
   Parameters
   ----------
@@ -41,7 +34,7 @@ class PathMatcher:
   * An optional prefix "!" which negates the pattern; any matching file excluded
     by a previous pattern will become included again. It is not possible to
     re-include a file if a parent directory of that file is excluded.
-    Git doesn’t list excluded directories for performance reasons, so any
+    Git doesn't list excluded directories for performance reasons, so any
     patterns on contained files have no effect, no matter where they are defined.
     Put a backslash ("\") in front of the first "!" for patterns that begin with
     a literal "!", for example, "\!important!.txt".
@@ -154,10 +147,14 @@ class PathMatcher:
 
   #-----------------------------------------------------------------------------
   def __call__(self, path):
+    return self.match(path)
+
+  #-----------------------------------------------------------------------------
+  def match(self, path):
     """
     Parameters
     ----------
-    path: PathLike | PurePath
+    path: str | pathlib.PurePath
 
     Returns
     -------
@@ -192,7 +189,7 @@ class PathFilter:
   Parameters
   ----------
   patterns : list[str | PathMatcher]
-  start : None | PathLike | PurePath
+  start : None | pathlib.PurePath
   """
   #-----------------------------------------------------------------------------
   def __init__(self, patterns = None, start = None):

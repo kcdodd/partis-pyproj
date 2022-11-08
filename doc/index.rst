@@ -28,7 +28,11 @@ The process of building a source or binary distribution is broken down into
 a 'prep' stage followed by 'copy' stage.
 The 'prep' may be any custom function the developer wants to occur before files
 are copied into the distribution, such as filling in dynamic metadata,
-generating files, or running another build program (E.G. https://mesonbuild.com/).
+or generating files.
+Running another build program (E.G. https://mesonbuild.com/) should be performed
+using the 'build' stage, which handles some checking/cleanup of build directories,
+and can also be separated from the 'prep'.
+
 The 'copy' operation is specified by a sequence of find-filter-copy pattern based
 rules. Instead of using a ``MANIFEST.in`` file or ``find_packages`` routine,
 this gives full control within the ``pyproject.toml`` file over what goes into
@@ -414,16 +418,15 @@ With the optional dependency ``partis-pyproj[meson]``, support is included for
 the Meson Build system https://mesonbuild.com/ as a method to compile extensions
 and non-Python code.
 To use this feature, the source directory must contain appropriate 'meson.build' files,
-since the 'pyproject.toml' configuration only provides a way of running
+since the 'pyproject.toml' configuration only *provides* a way of running
 ``meson setup`` and ``meson compile`` before creating the binary distribution.
 Also, the ``meson install`` must be able to be done in a way that can be
-copied into the distribution, instead of actually being installed to the system.
+*copied into the distribution*, instead of actually being installed to the system.
 
 The ``src_dir`` and ``prefix`` paths are always relative to the project
 root directory, and default to ``src_dir = '.'`` and ``prefix = './build'``.
-If ``build_dir`` is given, it is also relative to the project root directory,
-otherwise the build will occur in a temporary directory that is removed after
-"installing" to ``prefix``.
+Currently these must all be a sub-directory relative to the 'pyproject.toml'
+(e.g. a specified temporary directory).
 
 The result should be equivalent to running the following commands:
 
@@ -437,9 +440,11 @@ For example, the following configuration,
 
 .. code-block:: toml
 
-  [tool.pyproj.meson]
-  # flag that the meson commands should be run.
-  compile = true
+  [[tool.pyproj.build]]
+  # boolean flag (or marker, like 'python>3.6') that the meson commands should be run.
+  enabled = true
+
+  entry = 'partis.pyproj.meson:build'
 
   # automatically use available number of parallel build jobs
   compile_args = [
@@ -448,13 +453,13 @@ For example, the following configuration,
   # location of root 'meson.build' and 'meson_options.txt' files
   src_dir = '.'
   # location to create temporary build files (optional)
-  build_dir = 'build'
+  build_dir = 'build/meson'
   # location to place final build targets
   prefix = 'build'
 
-  [tool.pyproj.meson.options]
-  # Custom build options
-  custom_feature=enabled
+  [[tool.pyproj.build.options]]
+  # Custom build options (e.g. passing to meson -Dcustom_feature=enabled)
+  custom_feature = 'enabled'
 
   [tool.pyproj.dist.binary.platlib]
   # binary distribution platform specific install path
@@ -475,8 +480,11 @@ followed by copying all files in 'build/lib' into the binary distribution's
 
   The ``ignore`` patterns should be considered specially when including compiled
   extensions, for example to ensure that the extension shared object '.so' are
-  actually copied into the binary distribution.
+  not ignored, and actually copied into the binary distribution.
 
+A custom 'builder' for the entry-point simply has to be a callable with the 
+correct signature.
+See :func:`partis.pyproj.meson.build` for an example.
 
 Support for 'legacy setup.py'
 -----------------------------

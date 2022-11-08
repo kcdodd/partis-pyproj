@@ -29,7 +29,9 @@ from ..pkginfo import PkgInfo
 
 from .dist_zip import dist_zip
 
-from ..path import subdir
+from ..path import (
+  subdir, 
+  PathError )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def pkg_name(dir):
@@ -229,22 +231,22 @@ class dist_binary_wheel( dist_zip ):
       file = PurePosixPath(file)
 
       try:
-        top_level.add(pkg_name(subdir(purelib,file).parts[0]))
+        top_level.add(pkg_name(subdir(purelib, file).parts[0]))
         continue
-      except ValueError:
+      except PathError:
         pass
 
       try:
-        top_level.add(pkg_name(subdir(platlib,file).parts[0]))
+        top_level.add(pkg_name(subdir(platlib, file).parts[0]))
         self.purelib = False
         continue
-      except ValueError:
+      except PathError:
         pass
 
       try:
-        subdir(self.dist_info_path,file)
-        subdir(self.data_path,file)
-      except ValueError:
+        subdir(self.dist_info_path, file)
+        subdir(self.data_path, file)
+      except PathError:
         # check any other files that aren't in .dist-info or .data
         top_level.add(pkg_name(file.parts[0]))
 
@@ -283,10 +285,10 @@ class dist_binary_wheel( dist_zip ):
 
     # the record file itself is listed in records, but the hash of the record
     # file cannot be included in the file.
-    _records = self.records + [ ( self.record_path, '', '' ), ]
+    _records = self.records + [ ( os.fspath(self.record_path), '', '' ), ]
 
     for file, hash, size in _records:
-      record.write( f'{file}, sha256={hash}, {size}\n' )
+      record.write( f'{os.fspath(file)}, sha256={hash}, {size}\n' )
 
     content = record.getvalue().encode('utf-8')
 

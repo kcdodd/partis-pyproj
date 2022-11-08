@@ -33,7 +33,7 @@ def legacy_setup_content( pyproj, sdist ):
     str(d) for d in  pkg_info.requires_dist ]).encode('utf-8')
 
   sources = '\n'.join( [
-    file
+    os.fspath(file)
     for file, hash, size in sdist.records ] ).encode('utf-8')
 
   with open( osp.join( osp.dirname(__file__), '_legacy_setup.py' ), 'r' ) as fp:

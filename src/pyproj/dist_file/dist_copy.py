@@ -20,6 +20,7 @@ from ..norms import (
 from ..path import (
   PathMatcher,
   PathFilter,
+  subdir,
   combine_ignore_patterns,
   contains )
 
@@ -41,7 +42,7 @@ def dist_iter(*,
       patterns,
       PathFilter(
         patterns = _ignore,
-        start = pathlib.PurePath(src) ) )
+        start = src ) )
 
     if incl.glob:
 
@@ -51,8 +52,7 @@ def dist_iter(*,
         matches = glob.glob(incl.glob, recursive = True)
       finally:
         os.chdir(cwd)
-      src = Path(src)
-      dst = Path(dst)
+
       for match in matches:
         _src = src.joinpath(match)
         # re-base the dst path, path relative to src == path relative to dst
@@ -86,7 +86,7 @@ def dist_copy(*,
       root = root ):
 
       with validating(key = i):
-        src = Path(src)
+
         dst = base_path.joinpath(dst)
 
         if not individual and ignore_patterns( src.parent, [src.name]):
@@ -95,7 +95,7 @@ def dist_copy(*,
 
         src_abs = src.resolve()
 
-        if root and not contains(root, src_abs):
+        if root and not subdir(root, src_abs, check = False):
           raise FileOutsideRootError(
             f"Must have common path with root:\n  file = \"{src_abs}\"\n  root = \"{root}\"")
 

@@ -31,9 +31,9 @@ class dist_source_targz( dist_targz ):
   Parameters
   ----------
   pkg_info : :class:`PkgInfo <partis.pyproj.pkginfo.PkgInfo>`
-  outdir : str
+  outdir : None | str | pathlib.Path
     Path to directory where the wheel file should be copied after completing build.
-  tmpdir : None | :class:`str`
+  tmpdir : None | str | pathlib.Path
     If not None, uses the given directory to place the temporary wheel file before
     copying to final location.
     My be the same as outdir.
@@ -139,10 +139,10 @@ class dist_source_dummy( dist_base ):
       self.pkg_info.name_normed,
       self.pkg_info.version ]
 
-    self.base_path = '-'.join( sdist_name_parts )
+    self.base_path = PurePosixPath('-'.join( sdist_name_parts ))
 
-    self.metadata_path = self.base_path + '/PKG-INFO'
-
+    self.metadata_path = self.base_path.joinpath('PKG-INFO')
+    
     super().__init__(
       outname = '-'.join( sdist_name_parts ) + '.tar.gz',
       outdir = outdir,

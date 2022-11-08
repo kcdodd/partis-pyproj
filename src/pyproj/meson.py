@@ -32,6 +32,19 @@ def build(
   install_args,
   build_clean ):
   """Run meson setup, compile, install commands
+
+  Parameters
+  ----------
+  pyproj : :class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>`
+  logger : logging.Logger
+  options : dict
+  src_dir : pathlib.Path
+  build_dir : pathlib.Path
+  prefix : pathlib.Path
+  setup_args : list[str]
+  compile_args : list[str]
+  install_args : list[str]
+  build_clean : bool
   """
 
   if not shutil.which('meson'):
@@ -41,17 +54,17 @@ def build(
     raise ValueError(f"The 'ninja' program not found.")
 
   # TODO: ensure any paths in setup_args are normalized
-  if not ( osp.exists(build_dir) and os.listdir(build_dir) ):
-    # only run setup if the build directory does not already exist
+  if not ( build_dir.exists() and any(build_dir.iterdir()) ):
+    # only run setup if the build directory does not already exist (or is empty)
     setup_args = [
       'meson',
       'setup',
       *setup_args,
       '--prefix',
-      prefix,
+      os.fspath(prefix),
       *[ meson_option_arg(k,v) for k,v in options.items() ],
-      build_dir,
-      src_dir ]
+      os.fspath(build_dir),
+      os.fspath(src_dir) ]
 
   elif not build_clean:
     # only re-compile if the build directory should be 'clean'
@@ -66,7 +79,7 @@ def build(
     'compile',
     *compile_args,
     '-C',
-    build_dir ]
+    os.fspath(build_dir) ]
 
   install_args = [
     'meson',
@@ -74,7 +87,7 @@ def build(
     *install_args,
     '--no-rebuild',
     '-C',
-    build_dir ]
+    os.fspath(build_dir) ]
 
 
   if setup_args:

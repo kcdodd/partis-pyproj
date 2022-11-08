@@ -3,6 +3,12 @@ import os.path as osp
 import re
 from collections import namedtuple
 
+from .utils import _subdir
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class PathPatternError(ValueError):
+  pass
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # NOTE: The regular expressions are constructed to match path separators defined
 # by these (non-printable) control characters, unlikely to be in any filename,
@@ -27,7 +33,7 @@ PARDIR = chr(0x1e)
 def tr_path(path):
   """Translates path to be compatible with the translated regex.match
 
-  Paramters
+  Parameters
   ---------
   path: PurePath
 
@@ -148,20 +154,13 @@ def tr_subdir(start, path):
   _start = start.split(SEP)
   _path = path.split(SEP)
 
-  if len(_start) > len(_path):
-    raise ValueError(f"Not a subdirectory of {inv_path(start)}: {inv_path(path)}")
+  _rpath = _subdir(_start, _path)
 
-  for i, (p, s) in enumerate(zip(_path, _start)):
-    #DEBUG print(f"    {i}: {p} != {s} ({p != s})")
-    if p != s:
-      return SEP.join(_path[i:])
+  if _rpath is None:
+    raise PathPatternError(f"Not a subdirectory of {inv_path(start)}: {inv_path(path)}")
 
-  return SEP.join(_path[i+1:])
+  return SEP.join(_rpath)
   
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def subdir(start, path):
-  return type(path)(*tr_subdir(tr_path(start), tr_path(path)).split(SEP))
-
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class GRef(namedtuple('GRef', ['ori', 'case', 'start', 'end'])):
   __slots__ = ()
@@ -385,7 +384,7 @@ class PatternError(ValueError):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def esc_chrset(c):
   if c == '/':
-    raise ValueError("Path separator '/' in character range is undefined.")
+    raise PathPatternError("Path separator '/' in character range is undefined.")
 
   if c in r'\]-':
     return '\\' + c
@@ -403,7 +402,7 @@ def tr_range(pat):
   _sep = ord('/')
 
   if _d < _a:
-    raise ValueError(f"Character range is out of order: {a}-{d} -> {_a}-{_d}")
+    raise PathPatternError(f"Character range is out of order: {a}-{d} -> {_a}-{_d}")
 
   if _a <= _sep and _sep <= _d:
     # ranges do not match forward slash '/'
@@ -422,7 +421,7 @@ def tr_chrset(pat):
   n = len(pat)
 
   if n <= 2 or pat[0] != '[' or pat[-1] != ']':
-    raise ValueError(f"Character set must be non-empty: {pat}")
+    raise PathPatternError(f"Character set must be non-empty: {pat}")
 
   wild = pat[1:-1]
   parts = ['[']

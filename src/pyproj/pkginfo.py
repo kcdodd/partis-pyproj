@@ -164,7 +164,7 @@ class PkgInfo:
       The project meta-data as defined in 'pyproject.toml'.
       May be the parsed [project] table from a 'pyproject.toml' file located
       in the 'root' directory.
-    root : None | str
+    root : None | str | pathlib.Path
       Path to the root project directory that would contain 'pyproject.toml'.
       This is used to resolve file paths defined in the project metatada.
       If there are no files referenced, then this value has no effect.
@@ -177,6 +177,8 @@ class PkgInfo:
 
     if not isinstance(project, pptoml_project):
       project = pptoml_project(project)
+
+    root = Path(root) if root else None
 
     with validating(key = 'dynamic'):
       if project.dynamic:
@@ -245,8 +247,7 @@ class PkgInfo:
             raise ValidationError(
               f"'root' must be given to resolve a 'readme.file' path")
 
-          readme_file = Path(root).joinpath(self.readme.file)
-          readme_file = PurePosixPath(readme_file)
+          readme_file = root.joinpath(self.readme.file)
 
           if readme_file.suffix == '.rst':
             self._desc_type = 'text/x-rst'
@@ -254,7 +255,7 @@ class PkgInfo:
           elif readme_file.suffix == '.md':
             self._desc_type = 'text/markdown'
 
-          if not Path(readme_file).exists():
+          if not readme_file.exists():
             raise ValidationError(
               f"'readme' file not found: {readme_file}")
 
@@ -307,9 +308,9 @@ class PkgInfo:
           # It is not clear if this is now deprecated, or if any tools actually
           # expect this to be set
 
-          self.license_file = self.license.file
+          self.license_file = os.fspath(PurePosixPath(self.license.file))
 
-          license_file = Path(root).joinpath(self.license_file) 
+          license_file = root.joinpath(self.license.file) 
 
           if not license_file.exists():
             raise ValidationError(
@@ -442,7 +443,7 @@ class PkgInfo:
       headers.append( ( 'License', license_folded ) )
 
     if self.license_file:
-      headers.append( ( 'License-File', os.fspath(self.license_file) ) )
+      headers.append( ( 'License-File', self.license_file ) )
 
     if len(self.keywords) > 0:
       headers.append( ( 'Keywords', ', '.join(self.keywords) ) )

@@ -79,7 +79,9 @@ class readme(valid_dict):
   _mutex_keys = [
     ('file', 'text')]
   _default = {
-    'file' : valid(OPTIONAL, union(Path, OPTIONAL)),
+    # NOTE: file paths should initially be given as a POSIX path,
+    # but converted to current OS path so it may be read.
+    'file': valid(OPTIONAL, PurePosixPath, Path),
     'text': valid(OPTIONAL, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -88,7 +90,7 @@ class license(valid_dict):
   _min_keys = [
     ('file', 'text')]
   _default = {
-    'file' : valid(OPTIONAL, union(Path, OPTIONAL)),
+    'file': valid(OPTIONAL, PurePosixPath, Path),
     'text': valid(OPTIONAL, nonempty_str, norm_printable) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -256,9 +258,10 @@ class pyproj_build_target(valid_dict):
     'enabled': valid(True, marker_evaluated),
     'entry': valid('partis.pyproj.meson:build', norm_entry_point_ref),
     'options': dict,
-    'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
-    'build_dir': valid('build/meson', nonempty_str, norm_path, norm_path_to_os),
-    'prefix': valid('build', nonempty_str, norm_path, norm_path_to_os),
+    # NOTE: paths should start as POSIX, but transformed to current OS
+    'src_dir': valid('.', PurePosixPath, Path),
+    'build_dir': valid('build/meson', PurePosixPath, Path),
+    'prefix': valid('build', PurePosixPath, Path),
     'setup_args': nonempty_str_list,
     'compile_args': nonempty_str_list,
     'install_args': nonempty_str_list,
@@ -284,8 +287,11 @@ class pyproj_dist_copy(valid_dict):
   _min_keys = [
     ('src', 'glob') ]
   _default = {
-    'src': valid('', union(empty_str, valid(norm_path, norm_path_to_os))),
-    'dst': valid(OPTIONAL, union(empty_str, valid(norm_path, norm_path_to_os))),
+    # NOTE: file paths should initially be given as a POSIX path,
+    # but converted to current OS path so it may be read.
+    'src': valid(REQUIRED, PurePosixPath, Path),
+    # the destination path in the archive should remain as a POSIX path
+    'dst': valid(REQUIRED, PurePosixPath),
     # TODO; how to normalize patterns?
     'glob': str,
     'ignore': ignore_list }

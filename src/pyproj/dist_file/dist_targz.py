@@ -84,6 +84,8 @@ class dist_targz( dist_base ):
     ( self._fd, self._tmp_path ) = tempfile.mkstemp(
       dir = self.tmpdir )
 
+    self._tmp_path = Path(self._tmp_path)
+
     self._fp = os.fdopen( self._fd, "w+b" )
 
     self._tarfile = tarfile.open(
@@ -110,19 +112,27 @@ class dist_targz( dist_base ):
 
   #-----------------------------------------------------------------------------
   def copy_distfile( self ):
+    if not self._tmp_path:
+      return
 
-    if not self.outdir.exists():
-      self.outdir.mkdir(parents=True, exist_ok = True)
+    # overwiting in destination directory
+    if self.outpath.exists():
+      # NOTE: the missing_ok parameter was not added until py38
+      self.outpath.unlink()
 
+    self.outdir.mkdir( parents = True, exist_ok = True )
     shutil.copyfile( self._tmp_path, self.outpath )
 
   #-----------------------------------------------------------------------------
   def remove_distfile( self ):
+    if not self._tmp_path:
+      return
 
     # remove temporary file
-    self._tmp_path = Path(self._tmp_path)
-    self._tmp_path.unlink(missing_ok = True)
-
+    if self._tmp_path.exists():
+      self._tmp_path.unlink()
+      
+    self._tmp_path = None
 
   #-----------------------------------------------------------------------------
   def write( self,
@@ -133,7 +143,7 @@ class dist_targz( dist_base ):
 
     self.assert_open()
 
-    dst = norm_path( dst )
+    dst = norm_path( os.fspath(dst) )
 
     data = norm_data( data )
 

@@ -114,6 +114,10 @@ class ValidationError( ValueError ):
     return str(self)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class RequiredValueError( ValidationError ):
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class ValidDefinitionError( ValidationError ):
   pass
 
@@ -240,7 +244,7 @@ def validate(val, default, validators):
       return None
 
     elif REQUIRED == default:
-      raise ValidationError(f"Value is required")
+      raise RequiredValueError(f"Value is required")
 
     else:
       val = default
@@ -354,6 +358,10 @@ class Validator:
 
           try:
             default = v()
+          except RequiredValueError:
+            # this really is a required value
+            pass
+
           except Exception as e:
             # the type cannot be instantiated without arguments
             raise ValidDefinitionError(
