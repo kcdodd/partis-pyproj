@@ -75,8 +75,8 @@ from .pkginfo import (
   PkgInfoURL,
   PkgInfo )
 
-from .build import (
-  Build )
+from .builder import (
+  Builder )
 
 from .pyproj import (
   EntryPointError,

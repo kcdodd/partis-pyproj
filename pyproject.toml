@@ -56,6 +56,10 @@ meson = [
   "meson >= 0.61.3",
   "ninja >= 1.10.2.3" ]
 
+cmake = [
+  "cmake >= 3.24.3",
+  "ninja >= 1.10.2.3" ]
+
 doc = [
   'partis-utils[sphinx] >= 0.1.0' ]
 
@@ -73,6 +77,7 @@ test = [
   "coverage[toml] >= 6.2",
   # for testing partis-pyproj[meson]
   "meson >= 0.61.3",
+  "cmake >= 3.24.3",
   "ninja >= 1.10.2.3",
   "Cython>=0.29.18" ]
 

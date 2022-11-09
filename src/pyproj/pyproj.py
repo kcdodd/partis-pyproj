@@ -59,8 +59,8 @@ from .legacy import legacy_setup_content
 from .pptoml import (
   pptoml )
 
-from .build import (
-  Build )
+from .builder import (
+  Builder )
 
 from .dist_file import (
   dist_copy )
@@ -339,7 +339,7 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
-    with Build(
+    with Builder(
       pyproj = self,
       root = self.root,
       builds = self.build,

@@ -5,19 +5,19 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .validate import (
+from ..validate import (
   validating,
   ValidationError,
   ValidPathError,
   FileOutsideRootError )
 
-from .load_module import EntryPoint
+from ..load_module import EntryPoint
 
-from .path import (
+from ..path import (
   subdir )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class Build:
+class Builder:
   """Run build setup, compile, install commands
 
   Parameters

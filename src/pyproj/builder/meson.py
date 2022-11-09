@@ -4,7 +4,7 @@ import tempfile
 import shutil
 import subprocess
 
-from .validate import (
+from ..validate import (
   validating,
   ValidationError,
   ValidPathError,
@@ -20,7 +20,7 @@ def meson_option_arg(k, v):
   return f'-D{k}={v}'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def build(
+def meson(
   pyproj,
   logger,
   options,

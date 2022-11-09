@@ -256,11 +256,11 @@ class pyproj_build_target(valid_dict):
   _deprecate_keys = [('compile', 'enabled')]
   _default = {
     'enabled': valid(True, marker_evaluated),
-    'entry': valid('partis.pyproj.meson:build', norm_entry_point_ref),
+    'entry': valid('partis.pyproj.builder:meson', norm_entry_point_ref),
     'options': dict,
     # NOTE: paths should start as POSIX, but transformed to current OS
     'src_dir': valid('.', PurePosixPath, Path),
-    'build_dir': valid('build/meson', PurePosixPath, Path),
+    'build_dir': valid('build/tmp', PurePosixPath, Path),
     'prefix': valid('build', PurePosixPath, Path),
     'setup_args': nonempty_str_list,
     'compile_args': nonempty_str_list,
