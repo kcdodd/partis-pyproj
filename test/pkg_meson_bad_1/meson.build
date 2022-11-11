@@ -14,9 +14,7 @@ if py3.found() and not py3.language_version().version_compare('>= 3.6')
   error('Python 3.6 or newer is required.')
 endif
 
-py3_dep = dependency(
-  'python3',
-  required : true )
+py3_dep = py3.dependency( required : true )
 
 py3.extension_module(
   'plat_mod',

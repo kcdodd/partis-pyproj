@@ -34,13 +34,7 @@ copy = [
 #...............................................................................
 # Configuration of the meson build system
 [[tool.pyproj.build]]
-entry = 'partis.pyproj.builder:meson'
-
-compile_args = [
-  '-j', '1' ]
-
-prefix = 'build'
-build_dir = 'build/meson'
+entry = 'partis.pyproj.builder:cmake'
 
 [[tool.pyproj.build.options]]
 opt_a = true
