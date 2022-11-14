@@ -301,62 +301,64 @@ Compiling Extensions
 --------------------
 
 The method of compiling extensions is delegated to a third-party build system,
-such as Meson Build system https://mesonbuild.com/ or CMake https://cmake.org/.
-Both of these options are available on PyPI.
+such as Meson Build system https://mesonbuild.com/ or CMake https://cmake.org/,
+both available on PyPI.
 This means that, unlike with setuptools, detailed configuration of the build itself 
-would be given in separate files like ``meson.build`` or ``CMakeLists.txt``.
+would be given in separate files like ``meson.build`` with Meson, 
+or ``CMakeLists.txt`` with CMake.
 
-This stage of the build process is specified in the 'pyproject.toml' field ``tool.pyproj.build``,
-which is an array of tables.
-Only one is needed, but it is possible to give several in case different ones
-are needed for different environments (the ``enabled`` field is a 
-:class:`Marker <packaging.markers.Marker>`), or generally if multiple 
-builds are needed.
+This stage of the build process is specified in the 'pyproject.toml' array 
+``tool.pyproj.targets``.
+Only one is needed, but it is possible to define more than one.
+In case different options are needed depending on the environment, the ``enabled`` 
+field is a :class:`Marker <packaging.markers.Marker>`, or can also be set manually
+by an earlier 'prep' stage.
 
 Each third-party build system is given by the ``entry``, which is an entry-point
 to a pure function that takes in the arguments and options given in the table 
 for that build.
-The two built builtin functions just format these arguments into command-line
+The builtin functions for Meson or CMake simply format the options into command-line
 arguments for the typical 'setup', 'compile', and 'install' steps.
 
 * ``partis.pyproj.builder:meson``: With the 'extra' ``partis-pyproj[meson]``
 * ``partis.pyproj.builder:cmake``: With the 'extra' ``partis-pyproj[cmake]``
 
+A custom 'builder' for the entry-point can also be used, and is simply a callable 
+with the correct signature. See :func:`partis.pyproj.meson.build` for an example.
+
 For example, the following configuration,
 
 .. code-block:: toml
 
-  [[tool.pyproj.build]]
-  # boolean flag (or marker, like 'python>3.6') that the meson commands should be run.
-  enabled = true
+  [[tool.pyproj.targets]]
 
-  entry = 'partis.pyproj.meson:build'
+  entry = 'partis.pyproj.builder:meson'
 
-  # automatically use available number of parallel build jobs
-  compile_args = [
-    '-j', '-1' ]
-
-  # location of root 'meson.build' and 'meson_options.txt' files
-  src_dir = '.'
   # location to create temporary build files (optional)
-  build_dir = 'build/meson'
+  build_dir = 'tmp/build'
   # location to place final build targets
-  prefix = 'build'
+  prefix = 'tmp/prefix'
 
-  [[tool.pyproj.build.options]]
+  [tool.pyproj.targets.options]
   # Custom build options (e.g. passing to meson -Dcustom_feature=enabled)
   custom_feature = 'enabled'
 
   [tool.pyproj.dist.binary.platlib]
   # binary distribution platform specific install path
   copy = [
-    { src = 'build/lib', dst = 'my_project' } ]
+    { src = 'tmp/prefix/lib', dst = 'my_project' } ]
 
 To use this feature, the source directory must contain appropriate 'meson.build' files,
-since the 'pyproject.toml' configuration only *provides* a way of running
+since the 'pyproject.toml' configuration only provides a way of running
 ``meson setup`` and ``meson compile`` before creating the binary distribution.
-Also, the ``meson install`` must be able to be done in a way that can be
-*copied into the distribution*, instead of actually being installed to the system.
+
+.. attention::
+
+  The ``meson install`` (or ``cmake install``) must be done in a way that can be
+  copied into the distribution and then installed to another location, instead of 
+  actually being installed to the system.
+  This means that the compiled code **must be relocateable**, avoiding the use of
+  absolute paths in configurations and dynamic linking.
 
 The ``src_dir`` and ``prefix`` paths are always relative to the project
 root directory, and default to ``src_dir = '.'`` and ``prefix = './build'``.
@@ -371,25 +373,14 @@ The result should be equivalent to running the following commands:
   meson compile [compile_args] -C build_dir
   meson install [install_args] -C build_dir
 
-will result in the commands executed in the project directory,
-followed by copying all files in 'build/lib' into the binary distribution's
-'platlib' install path:
-
-.. code-block:: bash
-
-  meson setup --prefix ./build -Dcustom_feature=enabled ./build .
-  meson compile -j -1 -C ./build
-  meson install -C ./build
+executed in the project directory, followed by copying all files in 'build/lib' 
+into the binary distribution's 'platlib' install path.
 
 .. attention::
 
   The ``ignore`` patterns should be considered specially when including compiled
   extensions, for example to ensure that the extension shared object '.so' are
   not ignored, and actually copied into the binary distribution.
-
-A custom 'builder' for the entry-point simply has to be a callable with the 
-correct signature.
-See :func:`partis.pyproj.meson.build` for an example.
 
 Binary distribution install paths
 ---------------------------------

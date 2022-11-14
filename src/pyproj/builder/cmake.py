@@ -70,7 +70,7 @@ def cmake(
       os.fspath(src_dir) ]
 
   elif not build_clean:
-    # only re-compile if the build directory should be 'clean'
+    # skip setup if the build directory should be 'clean'
     setup_args = list()
 
   else:
@@ -79,16 +79,14 @@ def cmake(
 
   compile_args = [
     'cmake',
-    '--build',
     *compile_args,
-    '-B',
+    '--build',
     os.fspath(build_dir) ]
 
   install_args = [
     'cmake',
-    '--install',
     *install_args,
-    '-B',
+    '--install',
     os.fspath(build_dir) ]
 
 

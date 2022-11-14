@@ -21,6 +21,7 @@ from partis.pyproj import (
   dist_binary_wheel )
 
 SKIP_MESON = False
+SKIP_CMAKE = True
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def uninstall( name, ignore_errors = False ):
@@ -272,3 +273,8 @@ def test_meson_bad_1():
       'pkg_meson_bad_1',
       source = False,
       binary = True )
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+@mark.skipif(SKIP_CMAKE, reason="")
+def test_cmake_1():
+  run_pyproj('pkg_cmake_1')

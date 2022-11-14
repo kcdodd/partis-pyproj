@@ -24,39 +24,39 @@ class Builder:
   ----------
   root : str | pathlib.Path
     Path to root project directory
-  builds : :class:`pyproj_build <partis.pyproj.pptoml.pyproj_build>`
+  targets : :class:`pyproj_build <partis.pyproj.pptoml.pyproj_targets>`
   logger : logging.Logger
   """
   #-----------------------------------------------------------------------------
   def __init__(self,
     pyproj,
     root,
-    builds,
+    targets,
     logger):
 
     self.pyproj = pyproj
     self.root = Path(root).resolve()
-    self.builds = builds
+    self.targets = targets
     self.logger = logger
-    self.build_paths = [
+    self.target_paths = [
       dict(
-        src_dir = build.src_dir,
-        build_dir = build.build_dir,
-        prefix = build.prefix )
-      for build in builds ]
+        src_dir = target.src_dir,
+        build_dir = target.build_dir,
+        prefix = target.prefix )
+      for target in targets ]
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
 
     try:
-      for i, (build, paths) in enumerate(zip(self.builds, self.build_paths)):
-        if not build.enabled:
-          self.logger.info(f"Skipping build[{i}], disabled for environment markers")
+      for i, (target, paths) in enumerate(zip(self.targets, self.target_paths)):
+        if not target.enabled:
+          self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
           continue
 
         # check paths
         for k in ['src_dir', 'build_dir', 'prefix']:
-          with validating(key = f"tool.pyproj.build[{i}].{k}"):
+          with validating(key = f"tool.pyproj.targets[{i}].{k}"):
 
             rel_path = paths[k]
 
@@ -74,16 +74,16 @@ class Builder:
         build_dir = paths['build_dir']
         prefix = paths['prefix']
 
-        with validating(key = f"tool.pyproj.build[{i}].src_dir"):
+        with validating(key = f"tool.pyproj.targets[{i}].src_dir"):
           if not src_dir.exists():
             raise ValidPathError(f"Source directory not found: {src_dir}")
 
-        with validating(key = f"tool.pyproj.build[{i}]"):
+        with validating(key = f"tool.pyproj.targets[{i}]"):
           if subdir(build_dir, prefix, check = False):
             raise ValidPathError(f"'prefix' cannot be inside 'build_dir': {build_dir}")
 
         for k in ['build_dir', 'prefix']:
-          with validating(key = f"tool.pyproj.build[{i}].{k}"):
+          with validating(key = f"tool.pyproj.targets[{i}].{k}"):
             dir = paths[k]
 
             if dir == self.root:
@@ -94,9 +94,9 @@ class Builder:
         entry_point = EntryPoint(
           pyproj = self,
           root = self.root,
-          name = f"tool.pyproj.build[{i}]",
+          name = f"tool.pyproj.targets[{i}]",
           logger = self.logger,
-          entry = build.entry )
+          entry = target.entry )
 
         self.logger.info(f"Running build[{i}]")
         self.logger.info(f"Source dir: {src_dir}")
@@ -104,14 +104,14 @@ class Builder:
         self.logger.info(f"Prefix: {prefix}")
 
         entry_point(
-          options = build.options,
+          options = target.options,
           src_dir = src_dir,
           build_dir = build_dir,
           prefix = prefix,
-          setup_args = build.setup_args,
-          compile_args = build.compile_args,
-          install_args = build.install_args,
-          build_clean = build.build_clean )
+          setup_args = target.setup_args,
+          compile_args = target.compile_args,
+          install_args = target.install_args,
+          build_clean = target.build_clean )
 
     except:
       self.build_clean()
@@ -126,9 +126,9 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_clean(self):
-    for i, (build, paths) in enumerate(zip(self.builds, self.build_paths)):
+    for i, (target, paths) in enumerate(zip(self.targets, self.target_paths)):
       build_dir = paths['build_dir']
 
-      if build_dir is not None and build_dir.exists() and build.build_clean:
+      if build_dir is not None and build_dir.exists() and target.build_clean:
         self.logger.info(f"Removing build dir: {build_dir}")
         shutil.rmtree(build_dir)

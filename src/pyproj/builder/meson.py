@@ -67,7 +67,7 @@ def meson(
       os.fspath(src_dir) ]
 
   elif not build_clean:
-    # only re-compile if the build directory should be 'clean'
+    # skip setup if the build directory should be 'clean'
     setup_args = list()
 
   else:

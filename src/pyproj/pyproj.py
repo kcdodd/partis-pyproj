@@ -188,10 +188,10 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def build(self):
-    """:class:`partis.pyproj.pptoml.pyproj_build`
+  def targets(self):
+    """:class:`partis.pyproj.pptoml.pyproj_targets`
     """
-    return self._pptoml.tool.pyproj.build
+    return self._pptoml.tool.pyproj.targets
 
   #-----------------------------------------------------------------------------
   @property
@@ -342,8 +342,8 @@ class PyProjBase:
     with Builder(
       pyproj = self,
       root = self.root,
-      builds = self.build,
-      logger = self.logger.getChild( f"build" ) ):
+      targets = self.targets,
+      logger = self.logger.getChild( f"targets" ) ):
 
       self.prep_entrypoint(
         name = f"tool.pyproj.dist.binary.prep",

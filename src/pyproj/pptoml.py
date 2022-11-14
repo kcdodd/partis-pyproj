@@ -268,7 +268,7 @@ class pyproj_build_target(valid_dict):
     'build_clean': valid(True, norm_bool) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class pyproj_build(valid_list):
+class pyproj_targets(valid_list):
   _as_list = valid(as_list)
   _value_valid = valid(pyproj_build_target)
 
@@ -353,8 +353,8 @@ class pyproj(valid_dict):
     'config': pyproj_config,
     'prep': valid(OPTIONAL, pyproj_prep),
     'dist': pyproj_dist,
-    'build': pyproj_build }
-  _deprecate_keys = [('meson', 'build')]
+    'targets': pyproj_targets }
+  _deprecate_keys = [('meson', 'targets')]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class tool(valid_dict):

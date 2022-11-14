@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 [project]
-name = "test_pkg_meson_1"
+name = "test_pkg_cmake_1"
 version = "0.0.1"
 description = "Test Package"
 
@@ -27,18 +27,18 @@ build-backend = "partis.pyproj.backend"
 
 copy = [
   'src',
-  'meson.build',
-  'meson_options.txt',
+  'CMakeLists.txt',
   'pyproject.toml' ]
 
 #...............................................................................
 # Configuration of the meson build system
-[[tool.pyproj.build]]
+[[tool.pyproj.targets]]
 entry = 'partis.pyproj.builder:cmake'
+prefix = 'build'
+build_clean = false
 
-[[tool.pyproj.build.options]]
+[tool.pyproj.targets.options]
 opt_a = true
-opt_b = "enabled"
 
 #...............................................................................
 [tool.pyproj.dist.binary]

@@ -34,7 +34,7 @@ copy = [
 
 #...............................................................................
 # Configuration of the meson build system
-[[tool.pyproj.build]]
+[[tool.pyproj.targets]]
 
 entry = 'partis.pyproj.builder:meson'
 
@@ -44,7 +44,7 @@ compile_args = [
 prefix = 'bad_link'
 build_dir = 'build'
 
-[[tool.pyproj.build.options]]
+[tool.pyproj.targets.options]
 opt_a = true
 opt_b = "enabled"
 
