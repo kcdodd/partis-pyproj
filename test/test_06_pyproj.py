@@ -21,7 +21,7 @@ from partis.pyproj import (
   dist_binary_wheel )
 
 SKIP_MESON = False
-SKIP_CMAKE = True
+SKIP_CMAKE = False
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def uninstall( name, ignore_errors = False ):

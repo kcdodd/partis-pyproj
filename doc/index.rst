@@ -29,14 +29,39 @@ a 'prep' stage followed by 'copy' stage.
 The 'prep' may be any custom function the developer wants to occur before files
 are copied into the distribution, such as filling in dynamic metadata,
 or generating files.
-Running another build program (E.G. https://mesonbuild.com/) should be performed
-using the 'build' stage, which handles some checking/cleanup of build directories,
-and can also be separated from the 'prep'.
+However, running another build program should be performed in the 'targets' stage
+(see :ref:`build_targets`), which is run only for binary distributinos and handles 
+some checking/cleanup of build directories.
 
 The 'copy' operation is specified by a sequence of find-filter-copy pattern based
 rules. Instead of using a ``MANIFEST.in`` file or ``find_packages`` routine,
 this gives full control within the ``pyproject.toml`` file over what goes into
 the distribution and where it ends up.
+
+The overall sequence of actions for a distribution is:
+
+* ``tool.pyproj.prep`` : called to fill in 'dynamic' metadata, or update
+  the 'build_requires' list of requirements needed to build a binary distribution.
+* ``tool.pyproj.dist.prep``: called first for both source or binary distributions.
+  Can be used to prepare or configure files.
+* ``tool.pyproj.dist.source.prep``: called before copying files to a source distribution.
+* ``tool.pyproj.targets``: Run any targets where ``enabled`` evaluates to true.
+  This is only used for compiling extensions (see :ref:`build_targets`).
+* ``tool.pyproj.dist.binary.prep``: called before copying files to a binary distribution.
+
+  .. note::
+
+    The ``tool.pyproj.dist.binary.prep`` hook may also be used to
+    customize the compatibility tags for the binary distribution
+    (according to :pep:`425`) as a list of tuples
+    ``( py_tag, abi_tag, plat_tag )`` assigned to
+    the ``compat_tags`` key of
+    :py:obj:`PyProjBase.binary <partis.pyproj.pyproj.PyProjBase.binary>`.
+
+    If no tags are returned from the hook, the default tags
+    will be used for the current Python interpreter if any files are copied to
+    the ``platlib`` install path.
+    Otherwise, ``[( 'py{X}', 'none', 'any' )]`` is the default.
 
 Copy Operations
 ---------------
@@ -199,30 +224,6 @@ Prep Processing Hooks
 The backend provides a mechanism to perform an arbitrary operation before any
 files are copied into either the source or binary distribution:
 
-* ``tool.pyproj.prep`` : called to fill in 'dynamic' metadata, or update
-  the 'build_requires' list of requirements needed to build a binary distribution.
-* ``tool.pyproj.dist.prep`` : called first for both source or binary distributions.
-* ``tool.pyproj.dist.source.prep``: called before copying files to a source distribution.
-* ``tool.pyproj.dist.binary.prep``: called before copying files to a binary distribution.
-
-  .. note::
-
-    If Build commands are specified, those will be run
-    **before** ``tool.pyproj.dist.binary.prep``, but
-    **after** ``tool.pyproj.dist.prep``.
-
-    The ``tool.pyproj.dist.binary.prep`` hook may also be used to
-    customize the compatibility tags for the binary distribution
-    (according to :pep:`425`) as a list of tuples
-    ``( py_tag, abi_tag, plat_tag )`` assigned to
-    the ``compat_tags`` key of
-    :py:obj:`PyProjBase.binary <partis.pyproj.pyproj.PyProjBase.binary>`.
-
-    If no tags are returned from the hook, the default tags
-    will be used for the current Python interpreter if any files are copied to
-    the ``platlib`` install path.
-    Otherwise, ``[( 'py{X}', 'none', 'any' )]`` is the default.
-
 Each hook must be a pure python module (a directory with an
 ``__init__.py`` file), either directly importable or relative to the 'pyproject.toml'.
 The hook is specified according to the ``entry_points`` specification, and
@@ -297,6 +298,8 @@ in ``project.dynamic``.
     builder.project.version = "1.2.3"
 
 
+.. _build_targets:
+
 Compiling Extensions
 --------------------
 
@@ -311,8 +314,8 @@ This stage of the build process is specified in the 'pyproject.toml' array
 ``tool.pyproj.targets``.
 Only one is needed, but it is possible to define more than one.
 In case different options are needed depending on the environment, the ``enabled`` 
-field is a :class:`Marker <packaging.markers.Marker>`, or can also be set manually
-by an earlier 'prep' stage.
+field can be a :pep:`508` environment :class:`Marker <packaging.markers.Marker>`, 
+or can also be set manually (True/False) by an earlier 'prep' stage.
 
 Each third-party build system is given by the ``entry``, which is an entry-point
 to a pure function that takes in the arguments and options given in the table 
@@ -320,11 +323,12 @@ for that build.
 The builtin functions for Meson or CMake simply format the options into command-line
 arguments for the typical 'setup', 'compile', and 'install' steps.
 
-* ``partis.pyproj.builder:meson``: With the 'extra' ``partis-pyproj[meson]``
-* ``partis.pyproj.builder:cmake``: With the 'extra' ``partis-pyproj[cmake]``
+* :func:`partis.pyproj.builder:meson <partis.pyproj.builder.meson.meson>`: With the 'extra' ``partis-pyproj[meson]``
+* :func:`partis.pyproj.builder:cmake <partis.pyproj.builder.cmake.cmake>`: With the 'extra' ``partis-pyproj[cmake]``
 
 A custom 'builder' for the entry-point can also be used, and is simply a callable 
-with the correct signature. See :func:`partis.pyproj.meson.build` for an example.
+with the correct signature. 
+See one of the above builtin methods as an example.
 
 For example, the following configuration,
 
@@ -378,9 +382,9 @@ into the binary distribution's 'platlib' install path.
 
 .. attention::
 
-  The ``ignore`` patterns should be considered specially when including compiled
+  The ``ignore`` patterns should be considered when including compiled
   extensions, for example to ensure that the extension shared object '.so' are
-  not ignored, and actually copied into the binary distribution.
+  *not ignored* and actually copied into the binary distribution.
 
 Binary distribution install paths
 ---------------------------------

@@ -10,8 +10,7 @@ Package Reference
   pkginfo
   dist_file
   path
-  build
-  meson
+  builder
   load_module
   validate
   norms
