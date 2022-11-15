@@ -26,7 +26,7 @@
 
 [project]
 name = "partis-pyproj"
-version = "0.1.0"
+version = "0.1.1"
 description = "Minimal set of Python project utilities (PEP-517/621)"
 maintainers = [
   { name = "Nanohmics Inc.", email = "software.support@nanohmics.com" } ]

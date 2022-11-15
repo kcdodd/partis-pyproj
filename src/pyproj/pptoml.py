@@ -268,6 +268,26 @@ class pyproj_build_target(valid_dict):
     'build_clean': valid(True, norm_bool) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class pyproj_meson(valid_dict):
+  """
+
+  .. deprecated:: 0.1.0
+    Replaced by more general :class:`pyproj_build_target`
+
+  """
+  _allow_keys = list()
+  _default = {
+    'compile': valid(False, norm_bool),
+    'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
+    'build_dir': valid('build/meson', nonempty_str, norm_path, norm_path_to_os),
+    'prefix': valid('build', nonempty_str, norm_path, norm_path_to_os),
+    'setup_args': nonempty_str_list,
+    'compile_args': nonempty_str_list,
+    'install_args': nonempty_str_list,
+    'options': dict,
+    'build_clean': valid(True, norm_bool) }
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_targets(valid_list):
   _as_list = valid(as_list)
   _value_valid = valid(pyproj_build_target)

@@ -57,7 +57,9 @@ from .load_module import (
 from .legacy import legacy_setup_content
 
 from .pptoml import (
-  pptoml )
+  pptoml,
+  # NOTE: deprecated
+  pyproj_meson )
 
 from .builder import (
   Builder )
@@ -189,9 +191,30 @@ class PyProjBase:
   #-----------------------------------------------------------------------------
   @property
   def targets(self):
-    """:class:`partis.pyproj.pptoml.pyproj_targets`
+    """
     """
     return self._pptoml.tool.pyproj.targets
+
+  #-----------------------------------------------------------------------------
+  @property
+  def meson(self):
+    """:class:`partis.pyproj.pptoml.pyproj_meson`
+
+    .. deprecated:: 0.1.0
+      Use :attr:`PyProjBase.targets` to access all build targets. 
+      These are no longer restricted to meson, but this attribute kept for backward
+      compatability.
+
+    """
+    targets = self._pptoml.tool.pyproj.targets
+
+    if not (len(targets) == 1 and targets[0].entry == 'partis.pyproj.builder:meson'):
+      raise ValidationError("The 'meson' attribute is undefined for targets")
+
+    meson = dict(targets[0])
+    meson.pop('entry')
+    meson['compile'] = meson.pop('enabled')
+    return pyproj_meson(meson)
 
   #-----------------------------------------------------------------------------
   @property
