@@ -13,6 +13,7 @@ from collections.abc import (
 
 from .validate import (
   OPTIONAL,
+  OPTIONAL_NONE,
   REQUIRED,
   valid,
   union,
@@ -215,7 +216,7 @@ class build_system(valid_dict):
   _default = {
     'requires': build_requires,
     'build-backend': norm_entry_point_ref,
-    'backend-path': valid(OPTIONAL, path_parts) }
+    'backend-path': valid(OPTIONAL_NONE, path_parts) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def compat_tag(v):
@@ -331,10 +332,10 @@ class pyproj_dist_scheme(valid_dict):
 class pyproj_dist_binary(valid_dict):
   _allow_keys = list()
   _default = {
-    'build_number': valid(OPTIONAL, int),
-    'build_suffix': valid(OPTIONAL, str),
+    'build_number': valid(OPTIONAL_NONE, int),
+    'build_suffix': valid(OPTIONAL_NONE, str),
     'compat_tags': valid(purelib_compat_tags(), compat_tags),
-    'prep': valid(OPTIONAL, pyproj_dist_binary_prep),
+    'prep': valid(OPTIONAL_NONE, pyproj_dist_binary_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'data': pyproj_dist_scheme,
@@ -347,7 +348,7 @@ class pyproj_dist_binary(valid_dict):
 class pyproj_dist_source(valid_dict):
   _allow_keys = list()
   _default = {
-    'prep': valid(OPTIONAL, pyproj_dist_source_prep),
+    'prep': valid(OPTIONAL_NONE, pyproj_dist_source_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'add_legacy_setup': valid(False, norm_bool) }
@@ -356,7 +357,7 @@ class pyproj_dist_source(valid_dict):
 class pyproj_dist(valid_dict):
   _allow_keys = list()
   _default = {
-    'prep': valid(OPTIONAL, pyproj_dist_prep),
+    'prep': valid(OPTIONAL_NONE, pyproj_dist_prep),
     'ignore': ignore_list,
     'source': pyproj_dist_source,
     'binary': pyproj_dist_binary }
@@ -371,7 +372,7 @@ class pyproj(valid_dict):
   _allow_keys = list()
   _default = {
     'config': pyproj_config,
-    'prep': valid(OPTIONAL, pyproj_prep),
+    'prep': valid(OPTIONAL_NONE, pyproj_prep),
     'dist': pyproj_dist,
     'targets': pyproj_targets }
   _deprecate_keys = [('meson', 'targets')]
