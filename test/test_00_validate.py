@@ -10,8 +10,11 @@ from partis.pyproj.validate import (
   ValidDefinitionError,
   validating,
   validate,
+  NOTSET,
   Optional,
   OPTIONAL,
+  OptionalNone,
+  OPTIONAL_NONE,
   Required,
   REQUIRED,
   fmt_validator,
@@ -39,6 +42,8 @@ def test_special():
 
   assert OPTIONAL != REQUIRED
   assert OPTIONAL != None
+  assert OPTIONAL_NONE != None
+  assert OPTIONAL_NONE != OPTIONAL
   assert REQUIRED != None
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -128,28 +133,50 @@ def test_validator():
   assert m._default == REQUIRED
   assert m._validators == []
 
-  m = Validator(default = None)
-  assert m._default == OPTIONAL
+  m = Validator(default = REQUIRED)
+  assert m._default == REQUIRED
   assert m._validators == []
 
+  with raises(ValidationError):
+    m()
+
+  m = Validator(default = None)
+  assert m._default == OPTIONAL_NONE
+  assert m._validators == []
+  assert m() == None
+
   m = Validator(None)
+  assert m._default == OPTIONAL_NONE
+  assert m._validators == []
+  assert m() == None
+
+  m = Validator(default = OPTIONAL)
   assert m._default == OPTIONAL
   assert m._validators == []
+  assert m() == NOTSET
+
+  m = Validator(OPTIONAL)
+  assert m._default == OPTIONAL
+  assert m._validators == []
+  assert m() == NOTSET
 
   a = Validator(1)
   print(str(a))
   assert a._default == 1
   assert a._validators == [int]
+  assert a() == 1
 
   b = Validator(int)
   print(str(b))
   assert b._default == 0
   assert b._validators == [int]
+  assert b() == 0
 
   c = Validator(int, default = 2)
   print(str(c))
   assert c._default == 2
   assert c._validators == [int]
+  assert c() == 2
 
   class Test:
     def __init__(self, x):

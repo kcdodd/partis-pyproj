@@ -102,6 +102,17 @@ class PyProjBase:
     with validating(root = self._pptoml, file = self.pptoml_file):
       self._pptoml = pptoml(self._pptoml)
 
+      with validating(key = 'tool'):
+        if 'tool' not in self.pptoml:
+          raise RequiredValueError(f"tool.pyproj is required for backend")
+
+        with validating(key = 'pyproj'):
+          if 'pyproj' not in self.pptoml.tool:
+            raise RequiredValueError(f"tool.pyproj is required for backend")
+
+      if self.project.dynamic and 'prep' not in self.pyproj:
+        raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
+
     #...........................................................................
     # construct a validator from the tool.pyproj.config table
     config_default = dict()
@@ -149,8 +160,8 @@ class PyProjBase:
     self.prep()
 
     with validating(
-      key = 'project', 
-      root = self._pptoml, 
+      key = 'project',
+      root = self._pptoml,
       file = self.pptoml_file):
 
       self.pkg_info = PkgInfo(
@@ -201,7 +212,7 @@ class PyProjBase:
     """:class:`partis.pyproj.pptoml.pyproj_meson`
 
     .. deprecated:: 0.1.0
-      Use :attr:`PyProjBase.targets` to access all build targets. 
+      Use :attr:`PyProjBase.targets` to access all build targets.
       These are no longer restricted to meson, but this attribute kept for backward
       compatability.
 
@@ -281,10 +292,6 @@ class PyProjBase:
     # backup project to detect changes made by prep
     project = deepcopy(self.project)
     dynamic = project.dynamic
-
-
-    if dynamic and 'prep' not in self.pyproj:
-      raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
 
     self.prep_entrypoint(
       name = f"tool.pyproj.prep",

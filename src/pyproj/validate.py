@@ -113,6 +113,18 @@ class ValidationError( ValueError ):
   def __repr__(self):
     return str(self)
 
+  #-----------------------------------------------------------------------------
+  def model_hint(self):
+    from partis.utils import ModelHint, Loc
+
+    return ModelHint(
+      msg = type(self).__name__,
+      data = self.msg,
+      level = 'error',
+      loc = Loc(
+        filename = self.doc_file,
+        path = self.doc_path ))
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class RequiredValueError( ValidationError ):
   pass
@@ -416,7 +428,7 @@ class Validator:
     return str(self)
 
   #-----------------------------------------------------------------------------
-  def __call__(self, val):
+  def __call__(self, val = NOTSET):
     return validate(val, self._default, self._validators)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

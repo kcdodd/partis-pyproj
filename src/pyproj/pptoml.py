@@ -348,7 +348,7 @@ class pyproj_dist_binary(valid_dict):
 class pyproj_dist_source(valid_dict):
   _allow_keys = list()
   _default = {
-    'prep': valid(OPTIONAL_NONE, pyproj_dist_source_prep),
+    'prep': valid(OPTIONAL, pyproj_dist_source_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'add_legacy_setup': valid(False, norm_bool) }
@@ -357,7 +357,7 @@ class pyproj_dist_source(valid_dict):
 class pyproj_dist(valid_dict):
   _allow_keys = list()
   _default = {
-    'prep': valid(OPTIONAL_NONE, pyproj_dist_prep),
+    'prep': valid(OPTIONAL, pyproj_dist_prep),
     'ignore': ignore_list,
     'source': pyproj_dist_source,
     'binary': pyproj_dist_binary }
@@ -372,7 +372,7 @@ class pyproj(valid_dict):
   _allow_keys = list()
   _default = {
     'config': pyproj_config,
-    'prep': valid(OPTIONAL_NONE, pyproj_prep),
+    'prep': valid(OPTIONAL, pyproj_prep),
     'dist': pyproj_dist,
     'targets': pyproj_targets }
   _deprecate_keys = [('meson', 'targets')]
@@ -388,9 +388,8 @@ class pptoml(valid_dict):
   _allow_keys = list()
   _require_keys = [
     'project',
-    'tool',
     'build-system']
   _default = {
     'project': valid(REQUIRED, project),
-    'tool': valid(REQUIRED, tool),
-    'build-system': valid(REQUIRED, build_system) }
+    'build-system': valid(REQUIRED, build_system),
+    'tool': valid(OPTIONAL, tool) }
