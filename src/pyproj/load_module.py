@@ -178,7 +178,7 @@ class EntryPoint:
 
     try:
 
-      with validating( file = f"{self.name} -> {self.entry}(**{{{kwargs}}})" ):
+      with validating( file = f"{self.name} -> {self.entry}" ):
         self.func(
           self.pyproj,
           logger = self.logger,
