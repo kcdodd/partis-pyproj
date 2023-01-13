@@ -113,6 +113,18 @@ class ValidationError( ValueError ):
   def __repr__(self):
     return str(self)
 
+  #-----------------------------------------------------------------------------
+  def model_hint(self):
+    from partis.utils import ModelHint, Loc
+
+    return ModelHint(
+      msg = type(self).__name__,
+      data = self.msg,
+      level = 'error',
+      loc = Loc(
+        filename = self.doc_file,
+        path = self.doc_path ))
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class RequiredValueError( ValidationError ):
   pass
@@ -220,6 +232,12 @@ class Optional(Special):
   pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class OptionalNone(Special):
+  """Optional value, but is set to None if not initially set
+  """
+  pass
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Required(Special):
   """Required value
   """
@@ -232,6 +250,7 @@ class NotSet(Special):
   pass
 
 OPTIONAL = Optional()
+OPTIONAL_NONE = OptionalNone()
 REQUIRED = Required()
 NOTSET = NotSet()
 
@@ -239,11 +258,17 @@ NOTSET = NotSet()
 def validate(val, default, validators):
   """Internal method to apply default value and validators
   """
-  if val is None:
-    if OPTIONAL == default:
-      return None
 
-    elif REQUIRED == default:
+  if val in [NOTSET, None]:
+    if default in [OPTIONAL, OPTIONAL_NONE]:
+      #               | NOTSET | None |
+      # --------------+--------+------+
+      # OPTIONAL      | NOTSET | None |
+      # --------------+--------+------+
+      # OPTIONAL_NONE | None   | None |
+      return None if default == OPTIONAL_NONE else val
+
+    elif default == REQUIRED:
       raise RequiredValueError(f"Value is required")
 
     else:
@@ -340,14 +365,19 @@ class Validator:
     args = list(args)
 
     # TODO: change comparisons from 'is' to "==", reimplement Special __eq__
-    if NOTSET == default:
+    if default == NOTSET:
       default = REQUIRED
 
       if len(args):
         v = args.pop(0)
 
-        if OPTIONAL == v or v is None:
-          default = OPTIONAL
+        if v in [REQUIRED, OPTIONAL, OPTIONAL_NONE]:
+          # set from special value
+          default = v
+
+        elif v is None:
+          # set to fill in None if not given
+          default = OPTIONAL_NONE
 
         elif any(isinstance(v, t) for t in [bool, int, float, str, Sequence, Mapping]):
           default = v
@@ -369,12 +399,14 @@ class Validator:
 
         else:
           # cannot be used as default, put back to use as validator
+          # and a value is assumed to be required
           args.insert(0, v)
 
-    if default is None:
-      default = OPTIONAL
+    elif default is None:
+      # set to fill in None if not given
+      default = OPTIONAL_NONE
 
-    if len(args) == 0 and default not in [REQUIRED, OPTIONAL]:
+    if len(args) == 0 and default not in [REQUIRED, OPTIONAL, OPTIONAL_NONE]:
       # convenience method to used default value to derive type
       args.append(type(default))
 
@@ -396,7 +428,7 @@ class Validator:
     return str(self)
 
   #-----------------------------------------------------------------------------
-  def __call__(self, val):
+  def __call__(self, val = NOTSET):
     return validate(val, self._default, self._validators)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -537,8 +569,8 @@ def valid_keys(
       if k_old in out:
         out = copy_once(out)
 
-        if k_new and OPTIONAL != k_new:
-          if REQUIRED == k_new:
+        if k_new and k_new not in [OPTIONAL, OPTIONAL_NONE]:
+          if k_new == REQUIRED:
             # Use of REQUIRED indicates this is an error
             raise ValidationError(f"Use of key '{k_old}' is deprecated")
           else:
@@ -598,7 +630,7 @@ def valid_keys(
     allow_keys.extend( [
         k_new
         for k_old, k_new in deprecate_keys
-        if k_new not in [None, OPTIONAL, REQUIRED ] ]
+        if k_new not in [None, OPTIONAL, OPTIONAL_NONE, REQUIRED ] ]
       if deprecate_keys else [] )
 
     allow_keys.extend( default.keys() if default else [] )
@@ -629,9 +661,10 @@ def valid_keys(
   if default:
     for k, v in default.items():
       if not isinstance(v, Validator):
+        # convert literal value to a validator
         v = valid(v)
 
-      val = out.get(k, None)
+      val = out.get(k, NOTSET)
 
       with validating(key = k):
         _val = v( val )
@@ -784,7 +817,7 @@ class valid_dict(Mapping):
 
       v = args[0]
 
-      if v in [None, OPTIONAL]:
+      if v in [None, OPTIONAL, OPTIONAL_NONE]:
         args = [dict()]
       elif cls._proxy_key:
         args = [{ cls._proxy_key : v }]
@@ -807,7 +840,7 @@ class valid_dict(Mapping):
         self._p_all_keys.extend( [
             k_new
             for k_old, k_new in self._deprecate_keys
-            if k_new not in [None, OPTIONAL, REQUIRED] ] )
+            if k_new not in [None, OPTIONAL, OPTIONAL_NONE, REQUIRED] ] )
 
     if self._min_keys:
       for keys in self._min_keys:

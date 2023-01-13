@@ -13,6 +13,7 @@ from collections.abc import (
 
 from .validate import (
   OPTIONAL,
+  OPTIONAL_NONE,
   REQUIRED,
   valid,
   union,
@@ -215,7 +216,7 @@ class build_system(valid_dict):
   _default = {
     'requires': build_requires,
     'build-backend': norm_entry_point_ref,
-    'backend-path': valid(OPTIONAL, path_parts) }
+    'backend-path': valid(OPTIONAL_NONE, path_parts) }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def compat_tag(v):
@@ -331,10 +332,10 @@ class pyproj_dist_scheme(valid_dict):
 class pyproj_dist_binary(valid_dict):
   _allow_keys = list()
   _default = {
-    'build_number': valid(OPTIONAL, int),
-    'build_suffix': valid(OPTIONAL, str),
+    'build_number': valid(OPTIONAL_NONE, int),
+    'build_suffix': valid(OPTIONAL_NONE, str),
     'compat_tags': valid(purelib_compat_tags(), compat_tags),
-    'prep': valid(OPTIONAL, pyproj_dist_binary_prep),
+    'prep': valid(OPTIONAL_NONE, pyproj_dist_binary_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
     'data': pyproj_dist_scheme,
@@ -387,9 +388,8 @@ class pptoml(valid_dict):
   _allow_keys = list()
   _require_keys = [
     'project',
-    'tool',
     'build-system']
   _default = {
     'project': valid(REQUIRED, project),
-    'tool': valid(REQUIRED, tool),
-    'build-system': valid(REQUIRED, build_system) }
+    'build-system': valid(REQUIRED, build_system),
+    'tool': valid(OPTIONAL, tool) }

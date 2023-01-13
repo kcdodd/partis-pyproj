@@ -3,6 +3,7 @@
 from .validate import (
   ValidationError,
   ValidationWarning,
+  validating,
   valid_type,
   valid_keys,
   mapget,

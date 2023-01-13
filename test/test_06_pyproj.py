@@ -278,3 +278,7 @@ def test_meson_bad_1():
 @mark.skipif(SKIP_CMAKE, reason="")
 def test_cmake_1():
   run_pyproj('pkg_cmake_1')
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+if __name__ == '__main__':
+  test_cmake_1()
