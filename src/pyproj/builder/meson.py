@@ -53,6 +53,8 @@ def meson(
   if not shutil.which('ninja'):
     raise ValueError(f"The 'ninja' program not found.")
 
+  os.environ['MESON_FORCE_BACKTRACE'] = '1'
+
   # TODO: ensure any paths in setup_args are normalized
   if not ( build_dir.exists() and any(build_dir.iterdir()) ):
     # only run setup if the build directory does not already exist (or is empty)

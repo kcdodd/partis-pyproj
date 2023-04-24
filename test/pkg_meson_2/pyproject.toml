@@ -36,7 +36,6 @@ copy = [
 [[tool.pyproj.targets]]
 entry = 'partis.pyproj.builder:meson'
 
-build_clean = false
 compile_args = [
   '-j', '1' ]
 
