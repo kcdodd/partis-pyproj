@@ -1120,8 +1120,8 @@ def mapget(
   return _obj
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def as_list( obj ):
-  if isinstance( obj, str ) or isinstance(obj, Mapping) or not isinstance(obj, Iterable):
-    return [ obj ]
+def as_list(obj):
+  if isinstance(obj, (str, Mapping)) or not isinstance(obj, Iterable):
+    return [obj]
 
   return list(obj)

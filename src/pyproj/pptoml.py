@@ -1,4 +1,4 @@
-
+import re
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from pathlib import (
@@ -299,11 +299,33 @@ class ignore_list(valid_list):
   _value_valid = valid(nonempty_str)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class glob_list(valid_list):
+  _as_list = valid(as_list)
+  _value_valid = valid(nonempty_str)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class include(valid_dict):
+  _allow_keys = list()
+  # a string at top-level interpreted as 'match'
+  _proxy_key = 'glob'
+  # TODO: how to normalize patterns?
+  _default = {
+    'glob': valid(nonempty_str),
+    'rematch': valid(r'.*', nonempty_str, re.compile),
+    'replace': valid('{0}', nonempty_str)}
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class include_list(valid_list):
+  _as_list = valid(as_list)
+  _value_valid = valid(include)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class pyproj_dist_copy(valid_dict):
   # a string at top-level interpreted as 'src'
   _proxy_key = 'src'
   # take 'dst' from 'src' if not set
   _proxy_keys = [('dst', 'src')]
+  _deprecate_keys = [('glob', 'include')]
   _allow_keys = list()
   _min_keys = [
     ('src', 'glob') ]
@@ -313,8 +335,7 @@ class pyproj_dist_copy(valid_dict):
     'src': valid(REQUIRED, PurePosixPath, Path),
     # the destination path in the archive should remain as a POSIX path
     'dst': valid(REQUIRED, PurePosixPath),
-    # TODO; how to normalize patterns?
-    'glob': str,
+    'include': include_list,
     'ignore': ignore_list }
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

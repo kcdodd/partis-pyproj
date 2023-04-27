@@ -54,7 +54,10 @@ def cmake(
     raise ValueError(f"The 'ninja' program not found.")
 
   # TODO: ensure any paths in setup_args are normalized
-  if not ( build_dir.exists() and any(build_dir.iterdir()) ):
+  if not build_clean:
+    # skip setup if the build directory
+    setup_args = list()
+  else:
     # only run setup if the build directory does not already exist (or is empty)
     setup_args = [
       'cmake',
@@ -62,32 +65,24 @@ def cmake(
       '-G',
       'Ninja',
       '--install-prefix',
-      os.fspath(prefix),
+      str(prefix),
       *[ cmake_option_arg(k,v) for k,v in options.items() ],
       '-B',
-      os.fspath(build_dir),
+      str(build_dir),
       '-S',
-      os.fspath(src_dir) ]
-
-  elif not build_clean:
-    # skip setup if the build directory should be 'clean'
-    setup_args = list()
-
-  else:
-    raise ValidPathError(
-      f"'build_dir' is not empty, remove manually if this is intended or set 'build_clean = false': {build_dir}")
+      str(src_dir) ]
 
   compile_args = [
     'cmake',
     *compile_args,
     '--build',
-    os.fspath(build_dir) ]
+    str(build_dir) ]
 
   install_args = [
     'cmake',
     *install_args,
     '--install',
-    os.fspath(build_dir) ]
+    str(build_dir) ]
 
 
   if setup_args:

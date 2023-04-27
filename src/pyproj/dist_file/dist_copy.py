@@ -24,6 +24,24 @@ from ..path import (
   combine_ignore_patterns,
   contains )
 
+# #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# def rematch_replace(rematch, replace, name):
+
+#   m = rematch.fullmatch(path)
+#   if not m:
+#     continue
+
+#   args = (m.group(0), *m.groups())
+#   kwargs = m.groupdict()
+#   try:
+#     replace.format(*args, **kwargs))
+#   except (IndexError, KeyError) as e:
+#     raise ValueError(
+#       f"Replacement '{replace}' failed to format match '{m.group(0)}': "
+#       f"{args}, {kwargs}") from None
+
+
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dist_iter(*,
   include,
@@ -44,25 +62,43 @@ def dist_iter(*,
         patterns = _ignore,
         start = src ) )
 
-    if incl.glob:
-
-      cwd = Path.cwd()
-      try:
-        os.chdir(src) #Doesn't seems to be an pathlib way of changing working direcotry
-        matches = glob.glob(incl.glob, recursive = True)
-      finally:
-        os.chdir(cwd)
-
-      for match in matches:
-        _src = src.joinpath(match)
-        # re-base the dst path, path relative to src == path relative to dst
-        _dst = dst.joinpath(match)
-
-        yield ( i, _src, _dst, _ignore_patterns, False )
-
-    else:
-
+    if not incl.include:
       yield ( i, src, dst, _ignore_patterns, True )
+    else:
+      for incl_pattern in incl.include:
+        cwd = Path.cwd()
+        try:
+          # TODO: better way of globing *relative* to src directory
+          os.chdir(src)
+          matches = glob.glob(incl_pattern.glob, recursive = True)
+        finally:
+          os.chdir(cwd)
+
+        for match in matches:
+          match = Path(match)
+          basename = match.parent
+          src_filename = match.name
+
+          m = incl_pattern.rematch.fullmatch(src_filename)
+          if not m:
+            continue
+
+          args = (m.group(0), *m.groups())
+          kwargs = m.groupdict()
+          try:
+            dst_filename = incl_pattern.replace.format(*args, **kwargs)
+          except (IndexError, KeyError) as e:
+            raise ValueError(
+              f"Replacement '{incl_pattern.replace}' failed for"
+              f" '{incl_pattern.rematch.pattern}':"
+              f" {args}, {kwargs}") from None
+
+          _src = src/basename/src_filename
+          # re-base the dst path, path relative to src == path relative to dst
+          _dst = dst/basename/dst_filename
+
+          yield (i, _src, _dst, _ignore_patterns, False)
+
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def dist_copy(*,

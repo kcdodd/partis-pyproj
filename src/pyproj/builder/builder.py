@@ -82,6 +82,13 @@ class Builder:
           if subdir(build_dir, prefix, check = False):
             raise ValidPathError(f"'prefix' cannot be inside 'build_dir': {build_dir}")
 
+        build_dirty = build_dir.exists() and any(build_dir.iterdir())
+
+        if target.build_clean and build_dirty:
+          raise ValidPathError(
+            f"'build_dir' is not empty, please remove manually."
+            f"If this was intended, set 'build_clean = false': {build_dir}")
+
         for k in ['build_dir', 'prefix']:
           with validating(key = f"tool.pyproj.targets[{i}].{k}"):
             dir = paths[k]
@@ -111,7 +118,7 @@ class Builder:
           setup_args = target.setup_args,
           compile_args = target.compile_args,
           install_args = target.install_args,
-          build_clean = target.build_clean )
+          build_clean = not build_dirty )
 
     except:
       self.build_clean()
