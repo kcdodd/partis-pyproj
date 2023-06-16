@@ -16,6 +16,7 @@ def process(
   pyproj,
   logger,
   options,
+  work_dir,
   src_dir,
   build_dir,
   prefix,
@@ -30,6 +31,7 @@ def process(
   pyproj : :class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>`
   logger : logging.Logger
   options : dict
+  work_dir: pathlib.Path
   src_dir : pathlib.Path
   build_dir : pathlib.Path
   prefix : pathlib.Path
@@ -41,9 +43,11 @@ def process(
 
   namespace = {
     **options,
+    'work_dir': os.fspath(work_dir),
     'src_dir': os.fspath(src_dir),
     'build_dir': os.fspath(build_dir),
-    'prefix': os.fspath(build_dir) }
+    'prefix': os.fspath(prefix),
+    **{f"env_{k}": v for k,v in os.environ.items()}}
 
   # TODO: ensure any paths in setup_args are normalized
   if not ( build_dir.exists() and any(build_dir.iterdir()) ):
@@ -59,9 +63,9 @@ def process(
     raise ValidPathError(
       f"'build_dir' is not empty, remove manually if this is intended or set 'build_clean = false': {build_dir}")
 
-  compile_args = [ Template(arg).substitute(namespace) for arg in compile_args ]
+  compile_args = [Template(arg).substitute(namespace) for arg in compile_args]
 
-  install_args = [ Template(arg).substitute(namespace) for arg in install_args ]
+  install_args = [Template(arg).substitute(namespace) for arg in install_args]
 
   for cmd in [setup_args, compile_args, install_args]:
 
@@ -69,6 +73,6 @@ def process(
       if not shutil.which(cmd[0]):
         raise ValueError(f"The program not found: {setup_args[0]}")
 
-      logger.debug(' '.join(cmd))
+      logger.info(f"Running command: {' '.join(cmd)}")
       subprocess.check_call(cmd)
 

@@ -260,6 +260,7 @@ class pyproj_build_target(valid_dict):
     'entry': valid('partis.pyproj.builder:meson', norm_entry_point_ref),
     'options': dict,
     # NOTE: paths should start as POSIX, but transformed to current OS
+    'work_dir': valid('.', PurePosixPath, Path),
     'src_dir': valid('.', PurePosixPath, Path),
     'build_dir': valid('build/tmp', PurePosixPath, Path),
     'prefix': valid('build', PurePosixPath, Path),

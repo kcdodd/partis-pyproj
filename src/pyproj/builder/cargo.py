@@ -18,6 +18,7 @@ def cargo(
   pyproj: PyProjBase,
   logger: Logger,
   options: dict,
+  work_dir,
   src_dir: Path,
   build_dir: Path,
   prefix: Path,

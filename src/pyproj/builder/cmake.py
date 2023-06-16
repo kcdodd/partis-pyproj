@@ -24,6 +24,7 @@ def cmake(
   pyproj,
   logger,
   options,
+  work_dir,
   src_dir,
   build_dir,
   prefix,

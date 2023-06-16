@@ -68,10 +68,12 @@ def backend_init(
 
   # NOTE: this is mainly used for debugging, since front-ends don't seem to have
   # an option to set logging level for the backend.
-  # logging.basicConfig(
-  #   level = logging.NOTSET,
-  #   format = "{name}:{levelname}: {message}",
-  #   style = "{" )
+  root = logging.getLogger()
+  if not root.handlers:
+    logging.basicConfig(
+      level = logging.INFO,
+      format = "{message}",
+      style = "{" )
 
   return pyproj
 

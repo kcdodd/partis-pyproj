@@ -42,7 +42,8 @@ class Builder:
       dict(
         src_dir = target.src_dir,
         build_dir = target.build_dir,
-        prefix = target.prefix )
+        prefix = target.prefix,
+        work_dir = target.work_dir)
       for target in targets ]
 
   #-----------------------------------------------------------------------------
@@ -55,7 +56,7 @@ class Builder:
           continue
 
         # check paths
-        for k in ['src_dir', 'build_dir', 'prefix']:
+        for k in ['src_dir', 'build_dir', 'prefix', 'work_dir']:
           with validating(key = f"tool.pyproj.targets[{i}].{k}"):
 
             rel_path = paths[k]
@@ -73,6 +74,7 @@ class Builder:
         src_dir = paths['src_dir']
         build_dir = paths['build_dir']
         prefix = paths['prefix']
+        work_dir = paths['work_dir']
 
         with validating(key = f"tool.pyproj.targets[{i}].src_dir"):
           if not src_dir.exists():
@@ -105,20 +107,30 @@ class Builder:
           logger = self.logger,
           entry = target.entry )
 
-        self.logger.info(f"Running build[{i}]")
+        self.logger.info(f"Build targets[{i}]")
+        self.logger.info(f"Working dir: {work_dir}")
         self.logger.info(f"Source dir: {src_dir}")
         self.logger.info(f"Build dir: {build_dir}")
         self.logger.info(f"Prefix: {prefix}")
 
-        entry_point(
-          options = target.options,
-          src_dir = src_dir,
-          build_dir = build_dir,
-          prefix = prefix,
-          setup_args = target.setup_args,
-          compile_args = target.compile_args,
-          install_args = target.install_args,
-          build_clean = not build_dirty )
+        cwd = os.getcwd()
+
+        try:
+          os.chdir(work_dir)
+
+          entry_point(
+            options = target.options,
+            work_dir = work_dir,
+            src_dir = src_dir,
+            build_dir = build_dir,
+            prefix = prefix,
+            setup_args = target.setup_args,
+            compile_args = target.compile_args,
+            install_args = target.install_args,
+            build_clean = not build_dirty)
+
+        finally:
+          os.chdir(cwd)
 
     except:
       self.build_clean()
