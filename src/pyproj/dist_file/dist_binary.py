@@ -3,6 +3,7 @@ import os.path as osp
 import io
 import warnings
 import stat
+import csv
 
 import tempfile
 import shutil
@@ -30,7 +31,7 @@ from ..pkginfo import PkgInfo
 from .dist_zip import dist_zip
 
 from ..path import (
-  subdir, 
+  subdir,
   PathError )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -190,7 +191,7 @@ class dist_binary_wheel( dist_zip ):
 
     if self.pkg_info.license_file:
       self.write(
-        dst = self.dist_info_path.joinpath(self.pkg_info.license_file), 
+        dst = self.dist_info_path.joinpath(self.pkg_info.license_file),
         data = self.pkg_info.license_file_content )
 
     self.write(
@@ -282,16 +283,18 @@ class dist_binary_wheel( dist_zip ):
     """
 
     record = io.StringIO()
+    record_csv = csv.writer(record)
 
     # the record file itself is listed in records, but the hash of the record
     # file cannot be included in the file.
-    _records = self.records + [ ( os.fspath(self.record_path), '', '' ), ]
+    _records = self.records + [ (self.record_path, '', ''), ]
 
     for file, hash, size in _records:
-      record.write( f'{os.fspath(file)}, sha256={hash}, {size}\n' )
+      hash = f'sha256={hash}' if hash else ''
+      record_csv.writerow([os.fspath(file), hash, size])
 
     content = record.getvalue().encode('utf-8')
 
-    hash, size = hash_sha256( content )
+    hash, size = hash_sha256(content)
 
     return content, hash
