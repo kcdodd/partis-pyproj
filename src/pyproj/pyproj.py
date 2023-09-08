@@ -224,6 +224,7 @@ class PyProjBase:
 
     meson = dict(targets[0])
     meson.pop('entry')
+    meson.pop('work_dir')
     meson['compile'] = meson.pop('enabled')
     return pyproj_meson(meson)
 

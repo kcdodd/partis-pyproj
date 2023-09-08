@@ -89,7 +89,7 @@ class Builder:
         if target.build_clean and build_dirty:
           raise ValidPathError(
             f"'build_dir' is not empty, please remove manually."
-            f"If this was intended, set 'build_clean = false': {build_dir}")
+            f" If this was intended, set 'build_clean = false': {build_dir}")
 
         for k in ['build_dir', 'prefix']:
           with validating(key = f"tool.pyproj.targets[{i}].{k}"):
