@@ -31,7 +31,8 @@ def meson(
   setup_args,
   compile_args,
   install_args,
-  build_clean ):
+  build_clean,
+  runner):
   """Run meson setup, compile, install commands
 
   Parameters
@@ -89,13 +90,7 @@ def meson(
 
 
   if setup_args:
-    logger.debug(' '.join(setup_args))
-    subprocess.check_call(setup_args)
+    runner.run(setup_args)
 
-  logger.debug(' '.join(compile_args))
-
-  subprocess.check_call(compile_args)
-
-  logger.debug(' '.join(install_args))
-
-  subprocess.check_call(install_args)
+  runner.run(compile_args)
+  runner.run(install_args)

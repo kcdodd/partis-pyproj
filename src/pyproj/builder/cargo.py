@@ -25,7 +25,8 @@ def cargo(
   setup_args: list[str],
   compile_args: list[str],
   install_args: list[str],
-  build_clean: bool ):
+  build_clean: bool,
+  runner):
   """Run cargo build
   """
 
@@ -51,7 +52,5 @@ def cargo(
     str(build_dir),
     '--root', str(prefix) ]
 
-  logger.debug(' '.join(compile_args))
-
-  subprocess.check_call(compile_args)
+  runner.run(compile_args)
 

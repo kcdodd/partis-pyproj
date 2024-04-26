@@ -23,7 +23,8 @@ def process(
   setup_args,
   compile_args,
   install_args,
-  build_clean ):
+  build_clean,
+  runner):
   """Run general three-part set of commands
 
   Parameters
@@ -70,9 +71,5 @@ def process(
   for cmd in [setup_args, compile_args, install_args]:
 
     if cmd:
-      if not shutil.which(cmd[0]):
-        raise ValueError(f"The program not found: {setup_args[0]}")
-
-      logger.info(f"Running command: {' '.join(cmd)}")
-      subprocess.check_call(cmd)
+      runner.run(cmd)
 

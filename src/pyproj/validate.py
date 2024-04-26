@@ -67,7 +67,8 @@ class ValidationError( ValueError ):
   def __init__( self, msg,
     doc_root = None,
     doc_file = None,
-    doc_path = None ):
+    doc_path = None,
+    extra = None):
 
     msg = inspect.cleandoc( msg )
 
@@ -75,6 +76,7 @@ class ValidationError( ValueError ):
     self.doc_root = doc_root
     self.doc_file = doc_file
     self.doc_path = doc_path or list()
+    self.extra = extra
 
     super().__init__( msg )
 
@@ -106,6 +108,9 @@ class ValidationError( ValueError ):
 
     if loc:
       msg += '\n' + loc
+
+    if self.extra:
+      msg += '\n' + str(self.extra)
 
     return msg
 
