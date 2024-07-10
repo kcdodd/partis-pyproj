@@ -32,6 +32,7 @@ from .validate import (
   ValidationWarning,
   ValidationError,
   FileOutsideRootError,
+  RequiredValueError,
   valid_dict,
   validating,
   valid,
@@ -104,14 +105,15 @@ class PyProjBase:
 
       with validating(key = 'tool'):
         if 'tool' not in self.pptoml:
-          raise RequiredValueError(f"tool.pyproj is required for backend")
+          # TODO: !!!
+          raise RequiredValueError("tool.pyproj is required for backend")
 
         with validating(key = 'pyproj'):
           if 'pyproj' not in self.pptoml.tool:
-            raise RequiredValueError(f"tool.pyproj is required for backend")
+            raise RequiredValueError("tool.pyproj is required for backend")
 
       if self.project.dynamic and 'prep' not in self.pyproj:
-        raise ValidationError(f"tool.pyproj.prep is required to resolve project.dynamic")
+        raise RequiredValueError("tool.pyproj.prep is required to resolve project.dynamic")
 
     #...........................................................................
     # construct a validator from the tool.pyproj.config table

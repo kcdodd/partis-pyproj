@@ -220,7 +220,8 @@ class ProcessRunner:
     except subprocess.CalledProcessError as e:
 
 
-      n = 10
+      num_windows = 20
+      window_size = 5
       with open(stdout_file, 'rb') as fp:
         lines = [
           (lineno,line)
@@ -231,16 +232,16 @@ class ProcessRunner:
         for lineno,line in lines
         if ERROR_REC.search(line)]
 
-      # suspect_linenos = suspect_linenos[:n]
+      # suspect_linenos = suspect_linenos[:num_windows]
 
       extra = [
         '\n'.join(
           [f"{'':-<70}",f"{'':>4}⋮"]
-          +[f"{j:>4d}| {line}" for j,line in lines[i:i+3]]
+          +[f"{j:>4d}| {line}" for j,line in lines[i:i+window_size]]
           +[f"{'':>4}⋮"])
         for i in suspect_linenos]
 
-      m = len(lines)-n
+      m = len(lines)-num_windows
 
       if suspect_linenos:
         m = max(m, suspect_linenos[-1])
