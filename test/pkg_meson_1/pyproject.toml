@@ -40,11 +40,12 @@ compile_args = [
   '-j', '1' ]
 
 prefix = 'build'
-build_dir = 'build/meson'
+build_dir = '${root}/build/meson'
 
 [tool.pyproj.targets.options]
 opt_a = true
 opt_b = "enabled"
+opt_c = "${prefix}/${project.name}/${options.opt_b}"
 
 #...............................................................................
 [tool.pyproj.dist.binary]

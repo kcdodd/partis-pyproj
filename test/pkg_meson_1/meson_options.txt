@@ -9,3 +9,9 @@ option(
   type : 'feature',
   value : 'auto',
   description : '...' )
+
+option(
+  'opt_c',
+  type : 'string',
+  value : 'auto',
+  description : '...' )
