@@ -254,7 +254,9 @@ class pyproj_build_target(valid_dict):
   _allow_keys = list()
   _require_keys = [
     'entry' ]
-  _deprecate_keys = [('compile', 'enabled')]
+  _deprecate_keys = [
+    # name changed to be more general
+    ('compile', 'enabled')]
   _default = {
     'enabled': valid(True, marker_evaluated),
     'entry': valid('partis.pyproj.builder:meson', norm_entry_point_ref),

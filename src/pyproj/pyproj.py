@@ -117,6 +117,7 @@ class PyProjBase:
 
     #...........................................................................
     # construct a validator from the tool.pyproj.config table
+    # NOTE: only really used in the event that "config_settings" are passed to the backend
     config_default = dict()
 
     for k,v in self.pyproj.config.items():
@@ -297,9 +298,9 @@ class PyProjBase:
     dynamic = project.dynamic
 
     self.prep_entrypoint(
-      name = f"tool.pyproj.prep",
+      name = "tool.pyproj.prep",
       obj = self.pyproj,
-      logger = self.logger.getChild( f"prep" ) )
+      logger = self.logger.getChild("prep") )
 
     # NOTE: check that any dynamic meta-data is defined after prep
     for k in dynamic:
@@ -327,9 +328,9 @@ class PyProjBase:
     """
 
     self.prep_entrypoint(
-      name = f"tool.pyproj.dist.prep",
+      name = "tool.pyproj.dist.prep",
       obj = self.dist,
-      logger = self.logger.getChild( f"dist.prep" ) )
+      logger = self.logger.getChild("dist.prep") )
 
 
   #-----------------------------------------------------------------------------
@@ -338,9 +339,9 @@ class PyProjBase:
     """
 
     self.prep_entrypoint(
-      name = f"tool.pyproj.dist.source.prep",
+      name = "tool.pyproj.dist.source.prep",
       obj = self.dist.source,
-      logger = self.logger.getChild( f"dist.source.prep" ) )
+      logger = self.logger.getChild("dist.source.prep") )
 
   #-----------------------------------------------------------------------------
   def dist_source_copy( self, *, dist ):
@@ -352,7 +353,7 @@ class PyProjBase:
       Builder used to write out source distribution files
     """
 
-    with validating( key = f'tool.pyproj.dist.source' ):
+    with validating( key = 'tool.pyproj.dist.source'):
       dist_copy(
         base_path = dist.named_dirs['root'],
         include = self.source.copy,
@@ -362,9 +363,9 @@ class PyProjBase:
         logger = self.logger )
 
       if self.add_legacy_setup:
-        with validating( key = f'add_legacy_setup' ):
+        with validating(key = 'add_legacy_setup'):
 
-          self.logger.info(f"generating legacy 'setup.py'")
+          self.logger.info("generating legacy 'setup.py'")
           legacy_setup_content( self, dist )
 
   #-----------------------------------------------------------------------------
@@ -372,16 +373,19 @@ class PyProjBase:
     """Prepares project files for a binary distribution
     """
 
-    with Builder(
+    builder = Builder(
       pyproj = self,
       root = self.root,
       targets = self.targets,
-      logger = self.logger.getChild( f"targets" ) ):
+      logger = self.logger.getChild("targets"))
+
+    with builder:
+      builder.build_targets()
 
       self.prep_entrypoint(
-        name = f"tool.pyproj.dist.binary.prep",
+        name = "tool.pyproj.dist.binary.prep",
         obj = self.binary,
-        logger = self.logger.getChild( f"dist.binary.prep" ) )
+        logger = self.logger.getChild("dist.binary.prep") )
 
     self.logger.debug(f"Compatibility tags after dist.binary.prep: {self.binary.compat_tags}")
 
@@ -396,7 +400,7 @@ class PyProjBase:
     """
 
 
-    with validating( key = f'tool.pyproj.dist.binary' ):
+    with validating(key = 'tool.pyproj.dist.binary'):
       ignore = self.dist.ignore + self.dist.binary.ignore
 
       dist_copy(

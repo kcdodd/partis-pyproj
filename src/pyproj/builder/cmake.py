@@ -14,10 +14,13 @@ from ..validate import (
 def cmake_option_arg(k, v):
   """Convert python key-value pair to cmake ``-Dkey=value`` option
   """
+  typename = ''
+
   if isinstance(v, bool):
+    typename = ':BOOL'
     v = ({True: 'ON', False: 'OFF'})[v]
 
-  return f'-D{k}={v}'
+  return f'-D{k}{typename}={v}'
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def cmake(

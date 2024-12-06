@@ -1,5 +1,7 @@
+from __future__ import annotations
 import os
 import re
+from copy import copy
 import shutil
 import subprocess
 from pathlib import Path
@@ -15,6 +17,10 @@ from ..load_module import EntryPoint
 
 from ..path import (
   subdir )
+
+from ..template import (
+  template_substitute,
+  Namespace)
 
 ERROR_REC = re.compile(r"error:", re.I)
 
@@ -42,116 +48,21 @@ class Builder:
 
     self.pyproj = pyproj
     self.root = Path(root).resolve()
-    self.targets = targets
+    self.targets = [copy(v) for v in targets]
+    self.clean_dirs = [False]*len(self.targets)
     self.logger = logger
-    self.target_paths = [
-      dict(
-        src_dir = target.src_dir,
-        build_dir = target.build_dir,
-        prefix = target.prefix,
-        work_dir = target.work_dir)
-      for target in targets ]
+    self.namespace = Namespace({
+      'root': self.root,
+      'pptoml': pyproj.pptoml,
+      'project': pyproj.project,
+      'pyproj': pyproj.pyproj,
+      'config': pyproj.config,
+      'targets': targets,
+      'env': os.environ})
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
-
-    try:
-      for i, (target, paths) in enumerate(zip(self.targets, self.target_paths)):
-        if not target.enabled:
-          self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
-          continue
-
-        # check paths
-        for k in ['src_dir', 'build_dir', 'prefix', 'work_dir']:
-          with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-
-            rel_path = paths[k]
-
-            abs_path = (self.root / rel_path).resolve()
-
-            if not subdir(self.root, abs_path, check = False):
-              raise FileOutsideRootError(
-                f"Must be within project root directory:"
-                f"\n  file = \"{abs_path}\"\n  root = \"{self.root}\"")
-
-
-            paths[k] = abs_path
-
-        src_dir = paths['src_dir']
-        build_dir = paths['build_dir']
-        prefix = paths['prefix']
-        work_dir = paths['work_dir']
-
-        with validating(key = f"tool.pyproj.targets[{i}].src_dir"):
-          if not src_dir.exists():
-            raise ValidPathError(f"Source directory not found: {src_dir}")
-
-        with validating(key = f"tool.pyproj.targets[{i}]"):
-          if subdir(build_dir, prefix, check = False):
-            raise ValidPathError(f"'prefix' cannot be inside 'build_dir': {build_dir}")
-
-        build_dirty = build_dir.exists() and any(build_dir.iterdir())
-
-        if target.build_clean and build_dirty:
-          raise ValidPathError(
-            f"'build_dir' is not empty, please remove manually."
-            f" If this was intended, set 'build_clean = false': {build_dir}")
-
-        for k in ['build_dir', 'prefix']:
-          with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-            dir = paths[k]
-
-            if dir == self.root:
-              raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
-
-            dir.mkdir( parents = True, exist_ok = True )
-
-        entry_point = EntryPoint(
-          pyproj = self,
-          root = self.root,
-          name = f"tool.pyproj.targets[{i}]",
-          logger = self.logger,
-          entry = target.entry )
-
-        log_dir = self.root/'build'/'logs'
-        if not log_dir.exists():
-          log_dir.mkdir(parents=True)
-
-        runner = ProcessRunner(
-          logger = self.logger,
-          log_dir=log_dir,
-          target_name=f"target_{i:02d}")
-
-        self.logger.info(f"Build targets[{i}]")
-        self.logger.info(f"Working dir: {work_dir}")
-        self.logger.info(f"Source dir: {src_dir}")
-        self.logger.info(f"Build dir: {build_dir}")
-        self.logger.info(f"Log dir: {log_dir}")
-        self.logger.info(f"Prefix: {prefix}")
-
-        cwd = os.getcwd()
-
-        try:
-          os.chdir(work_dir)
-
-          entry_point(
-            options = target.options,
-            work_dir = work_dir,
-            src_dir = src_dir,
-            build_dir = build_dir,
-            prefix = prefix,
-            setup_args = target.setup_args,
-            compile_args = target.compile_args,
-            install_args = target.install_args,
-            build_clean = not build_dirty,
-            runner = runner)
-
-        finally:
-          os.chdir(cwd)
-
-    except:
-      self.build_clean()
-      raise
+    return self
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback):
@@ -161,9 +72,147 @@ class Builder:
     return False
 
   #-----------------------------------------------------------------------------
+  def build_targets(self):
+    for i, target in enumerate(self.targets):
+      # print(f"target[{i}]:\n" + '\n'.join([f"  {k}: {v!r}" for k,v in target.items()]))
+
+      if not target.enabled:
+        self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
+        continue
+
+      namespace = self.namespace
+
+      # check paths
+      for k in ['work_dir', 'src_dir', 'build_dir', 'prefix']:
+        with validating(key = f"tool.pyproj.targets[{i}].{k}"):
+
+          rel_path = target[k]
+          rel_path = template_substitute(rel_path, namespace)
+
+          if rel_path.is_absolute():
+            abs_path = rel_path
+          else:
+            abs_path = self.root/rel_path
+
+          # ensure no escaped symbolic links
+          abs_path = abs_path.resolve()
+
+          if not subdir(self.root, abs_path, check = False):
+            raise FileOutsideRootError(
+              f"Must be within project root directory:"
+              f"\n  file = \"{abs_path}\"\n  root = \"{self.root}\"")
+
+          target[k] = abs_path
+          namespace[k] = abs_path
+
+      src_dir = target.src_dir
+      build_dir = target.build_dir
+      prefix = target.prefix
+      work_dir = target.work_dir
+
+      with validating(key = f"tool.pyproj.targets[{i}].src_dir"):
+        if not src_dir.exists():
+          raise ValidPathError(f"Source directory not found: {src_dir}")
+
+      with validating(key = f"tool.pyproj.targets[{i}]"):
+        if subdir(build_dir, prefix, check = False):
+          raise ValidPathError(
+            f"'prefix' cannot be inside 'build_dir', which will be cleaned: {build_dir} > {prefix}")
+
+      build_dirty = build_dir.exists() and any(build_dir.iterdir())
+
+      if target.build_clean and build_dirty:
+        raise ValidPathError(
+          f"'build_dir' is not empty, please remove manually."
+          f" If this was intended, set 'build_clean = false': {build_dir}")
+
+      for k in ['build_dir', 'prefix']:
+        with validating(key = f"tool.pyproj.targets[{i}].{k}"):
+          dir = target[k]
+
+          if dir == self.root:
+            raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
+
+          dir.mkdir(parents = True, exist_ok = True)
+
+      with validating(key = f"tool.pyproj.targets[{i}].options"):
+        # original target options remain until evaluated
+        options = target.options
+
+        # top-level options updated in order of appearance
+        _options = {}
+        namespace['options'] = _options
+
+        for k,v in options.items():
+          v = template_substitute(v, namespace)
+          options[k] = v
+          _options[k] = v
+
+      for attr in ['setup_args', 'compile_args', 'install_args']:
+        with validating(key = f"tool.pyproj.targets[{i}].{attr}"):
+          value = target[attr]
+          value = template_substitute(value, namespace)
+
+          target[attr] = value
+          namespace[attr] = value
+
+      entry_point = EntryPoint(
+        pyproj = self,
+        root = self.root,
+        name = f"tool.pyproj.targets[{i}]",
+        logger = self.logger,
+        entry = target.entry)
+
+      log_dir = self.root/'build'/'logs'
+
+      if not log_dir.exists():
+        log_dir.mkdir(parents=True)
+
+      runner = ProcessRunner(
+        logger=self.logger,
+        log_dir=log_dir,
+        target_name=f"target_{i:02d}")
+
+      self.logger.info('\n'.join([
+        f"targets[{i}]:",
+        f"  work_dir: {work_dir}",
+        f"  src_dir: {src_dir}",
+        f"  build_dir: {build_dir}",
+        f"  prefix: {prefix}",
+        "  options:\n" + '\n'.join([
+          f"    {k}: {v}" for k,v in target.options.items()]),
+        f"  log_dir: {log_dir}"]))
+
+      cwd = os.getcwd()
+
+      # allow cleaning once the target is validated
+      self.clean_dirs[i] = True
+
+      try:
+        os.chdir(work_dir)
+
+        entry_point(
+          options = target.options,
+          work_dir = work_dir,
+          src_dir = src_dir,
+          build_dir = build_dir,
+          prefix = prefix,
+          setup_args = target.setup_args,
+          compile_args = target.compile_args,
+          install_args = target.install_args,
+          build_clean = not build_dirty,
+          runner = runner)
+
+      finally:
+        os.chdir(cwd)
+
+  #-----------------------------------------------------------------------------
   def build_clean(self):
-    for i, (target, paths) in enumerate(zip(self.targets, self.target_paths)):
-      build_dir = paths['build_dir']
+    for i, (target, clean) in enumerate(zip(self.targets, self.clean_dirs)):
+      if not clean:
+        continue
+
+      build_dir = target.build_dir
 
       if build_dir is not None and build_dir.exists() and target.build_clean:
         self.logger.info(f"Removing build dir: {build_dir}")
