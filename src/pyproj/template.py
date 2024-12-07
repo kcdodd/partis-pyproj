@@ -4,23 +4,90 @@ from pathlib import Path
 from collections.abc import (
   Sequence,
   Mapping)
-from string import Template
+# from string import Template
+
+from .validate import (
+  ValidationError,
+  FileOutsideRootError)
+from .path import (
+  subdir)
 
 namespace_sep = re.compile(r"[\.\[\]]")
 
+_idpattern = re.compile(r"""(?:
+  # first type references a template variable
+  [A-Z_][A-Z0-9_]* # Python identifier
+  (?:
+    \.[A-Z_][A-Z0-9_]* # python identifier attribute
+    |
+    \[-?[0-9]+\])* # integer index (potentially negative)
+  |
+  \/ # forward slash separate for building path
+  |
+  (?<=\/)\.\. # double-dot (parent directory)
+  |
+  '[A-Z0-9\-_\.]+' # string literal, quotes to be removed
+  )+
+  """,
+  re.IGNORECASE|re.VERBOSE)
+
+_group_pattern = re.compile(
+  # NOTE: handles missing closing brace
+  r"\$(?:(?P<escaped>\$)|{ *(?P<braced>[^\s\}]+)(?: *}|(?P<unterminated> *$| *[^}])))",
+  re.IGNORECASE)
+
 #===============================================================================
-class NamespaceTemplate(Template):
-  r"""Template subclass to support nested mappings using :class:`Namespace`
+class Template:
+  r"""Template support nested mappings and paths using :class:`Namespace`
   """
-  idpattern = r"[A-Z_][A-Z0-9_]*(\.[A-Z0-9_]+|\[-?[0-9]+\])*"
+
+  #-----------------------------------------------------------------------------
+  def __init__(self, template):
+    self.template = template
+
+  #-----------------------------------------------------------------------------
+  def substitute(self, namespace: Mapping = None, /, **kwargs):
+    if namespace is None:
+      namespace = kwargs
+
+    elif kwargs:
+      raise TypeError("Cannot use both namespace and kwargs")
+
+    if not isinstance(namespace, Namespace):
+      namespace = Namespace(namespace)
+
+    def _handler(m):
+      if m.group('escaped'):
+        return '$'
+
+      if m.group('unterminated') is not None:
+        raise ValidationError(f"Unterminated template substitution: {m.group()}")
+
+      name = m.group('braced').strip()
+
+      if not _idpattern.fullmatch(name):
+        raise ValidationError(f"Invalid template substitution: {name}")
+
+      return str(namespace[name])
+
+    return _group_pattern.sub(_handler, self.template)
 
 #===============================================================================
 class Namespace(Mapping):
-  r"""Namespace mapping for using with :class:`NamespaceTemplate`
+  r"""Namespace (potentially nested) mapping for using with :class:`Template`
+
+  Parameters
+  ----------
+  data:
+    Mapping for names to values
+  root:
+    If given, absolute path to project root, used to resolve relative paths and ensure
+    any derived paths are within this parent directory.
   """
   #-----------------------------------------------------------------------------
-  def __init__(self, data: Mapping):
+  def __init__(self, data: Mapping, *, root: Path = None):
     self.data = data
+    self.root = root
 
   #-----------------------------------------------------------------------------
   def __iter__(self):
@@ -35,7 +102,53 @@ class Namespace(Mapping):
     self.data[name] = value
 
   #-----------------------------------------------------------------------------
-  def __getitem__(self, name):
+  def __getitem__(self, key):
+    return self.resolve(key)
+
+  #-----------------------------------------------------------------------------
+  def resolve(self, key):
+    raw_segments = key.split('/')
+    segments = []
+
+    for name in raw_segments:
+      if len(name) == 0 or name == '..':
+        # empty segment
+        segments.append(name)
+
+      elif name.startswith("'"):
+        # string literal, remove quotes
+        segments.append(name[1:-1])
+
+      else:
+        # variable name lookup
+        segments.append(self.lookup(name))
+
+    if len(segments) == 1:
+      return segments[0]
+
+    if self.root is None:
+      out = Path(*segments)
+
+    else:
+      root = self.root
+      out = type(root)(*segments)
+
+      if not out.is_absolute():
+        out = root/out
+
+      if isinstance(root, Path):
+        # NOTE: ignored if root is a pure path
+        out = out.resolve()
+
+      if not subdir(root, out, check = False):
+        raise FileOutsideRootError(
+          f"Must be within project root directory:"
+          f"\n  file = \"{out}\"\n  root = \"{root}\"")
+
+    return out
+
+  #-----------------------------------------------------------------------------
+  def lookup(self, name):
     parts = namespace_sep.split(name)
     data = self.data
 
@@ -76,21 +189,21 @@ def template_substitute(
   cls = type(value)
 
   if isinstance(value, str):
-    return cls(NamespaceTemplate(value).substitute(namespace))
+    return cls(Template(value).substitute(namespace))
 
   if isinstance(value, Path):
     return cls(*(
-      NamespaceTemplate(v).substitute(namespace)
+      Template(v).substitute(namespace)
       for v in value.parts))
 
   if isinstance(value, Mapping):
     return cls({
-      k: NamespaceTemplate(v).substitute(namespace) if isinstance(v, str) else v
+      k: template_substitute(v, namespace)
       for k,v in value.items()})
 
   if isinstance(value, Sequence):
     return cls([
-      NamespaceTemplate(v).substitute(namespace)
+      template_substitute(v, namespace)
       for v in value])
 
 

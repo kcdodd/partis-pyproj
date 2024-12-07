@@ -46,19 +46,22 @@ class Builder:
     targets,
     logger):
 
+    root = Path(root).resolve()
+
     self.pyproj = pyproj
-    self.root = Path(root).resolve()
+    self.root = root
     self.targets = [copy(v) for v in targets]
     self.clean_dirs = [False]*len(self.targets)
     self.logger = logger
     self.namespace = Namespace({
-      'root': self.root,
+      'root': root,
       'pptoml': pyproj.pptoml,
       'project': pyproj.project,
       'pyproj': pyproj.pyproj,
       'config': pyproj.config,
       'targets': targets,
-      'env': os.environ})
+      'env': os.environ},
+      root=root)
 
   #-----------------------------------------------------------------------------
   def __enter__(self):

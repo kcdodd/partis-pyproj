@@ -45,7 +45,10 @@ build_dir = '${root}/build/meson'
 [tool.pyproj.targets.options]
 opt_a = true
 opt_b = "enabled"
-opt_c = "${prefix}/${project.name}/${options.opt_b}"
+# template path explicitly relative to prefix
+opt_c = "${prefix/project.name/options.opt_b/../'xyz'/'abc.so'}"
+# template path implicitly relative to root, slash ensures interpretation as path
+opt_d = "${/'xyz'}"
 
 #...............................................................................
 [tool.pyproj.dist.binary]

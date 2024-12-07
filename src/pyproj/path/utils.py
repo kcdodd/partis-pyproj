@@ -22,6 +22,8 @@ def subdir(start, path, check = True):
     Starting directory.
   path : PurePath
     Directory to compute relative path to, *must* be a sub-directory of `start`.
+  check:
+    If True, raises exception if not a subdirectory. Otherwise returns None.
 
   Returns
   -------
@@ -36,5 +38,5 @@ def subdir(start, path, check = True):
       raise PathError(f"Not a subdirectory of {start}: {path}")
 
     return None
-  
+
   return type(path)(*_rpath)

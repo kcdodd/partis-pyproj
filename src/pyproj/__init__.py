@@ -59,6 +59,11 @@ from .path import (
   combine_ignore_patterns,
   contains )
 
+from .template import (
+  Template,
+  Namespace,
+  template_substitute)
+
 from .dist_file import (
   dist_base,
   dist_zip,
