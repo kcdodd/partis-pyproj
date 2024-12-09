@@ -121,7 +121,7 @@ src = 'src/my_project'
 include = '**/*.py'
 dst = 'my_project'
 ignore = [
-  'bad_file.py'
+  'bad_file.py',
   './config_file.py']
 
 [[tool.pyproj.dist.binary.platlib.copy]]
@@ -210,11 +210,8 @@ to the backend by listing the keys in `project.dynamic`, which must be set by th
 ```toml
 # pyproject.toml
 [project]
-dynamic = ["version" ]
-
 name = "my_pkg"
-
-...
+dynamic = ["version"]
 
 [tool.pyproj.prep]
 entry = "pkgaux:prep"
@@ -224,8 +221,8 @@ The hook should set values for all keys of the `project` table listed
 in ``project.dynamic``.
 
 ```python
-  def prep( backend, logger ):
-    backend.project.version = "1.2.3"
+def prep( backend, logger ):
+  backend.project.version = "1.2.3"
 ```
 
 #### Build Targets
@@ -235,6 +232,7 @@ build systems specified in the 'pyproject.toml' array ``tool.pyproj.targets``.
 This means that, unlike with setuptools, detailed configuration of the build itself
 would likely be stored in separate files like ``meson.build`` with Meson,
 or ``CMakeLists.txt`` with CMake.
+
 In case different options are needed depending on the environment, the `enabled`
 field can be a [PEP-508](https://www.python.org/dev/peps/pep-0508) [environment marker](https://packaging.pypa.io/en/stable/markers.html),
 or can also be set manually (True/False) by an earlier 'prep' stage.
@@ -244,11 +242,11 @@ for that build.
 
 **standard config**
 ```
-entry: ENTRY_POINT # entry-point specification of builder to use
-work_dir: PATH  # directory from which the builder will be run
-src_dir: PATH   # directory of source code
-build_dir: PATH # directory for temporary build files (cleaned on exit)
-prefix: PATH    # directory which distribution files should be staged (cleaned on exit)
+entry: ENTRY_POINT           # entry-point specification of builder to use
+work_dir: PATH               # directory from which the builder will be run
+src_dir: PATH                # directory of source code
+build_dir: PATH              # directory for temporary build files (cleaned on exit)
+prefix: PATH                 # directory which distribution files should be staged (cleaned on exit)
 setup_args: array{STRING}    # 3-stage build
 compile_args: array{STRING}  # 3-stage build
 install_args: array{STRING}  # 3-stage build
@@ -260,10 +258,10 @@ enabled: (BOOL|MARKER)?      # environment marker
 There are several entry points available as-is:
 
 - `partis.pyproj.builder:meson` - Support for [Meson Build system](https://mesonbuild.com/)  with the 'extra' ``partis-pyproj[meson]``
-- `partis.pyproj.builder:cmake` - Support for [CMake](https://cmake.org/) wuth the 'extra' ``partis-pyproj[cmake]``
+- `partis.pyproj.builder:cmake` - Support for [CMake](https://cmake.org/) with the 'extra' ``partis-pyproj[cmake]``
 - `partis.pyproj.builder:process` - Support for running arbitrary command line executable
 
-In this example, the source directory must contain appropriate 'meson.build' files,
+In this example, the source directory must contain appropriate `meson.build` files,
 since the 'pyproject.toml' configuration only provides a way of running
 ``meson setup`` and ``meson compile``.
 For example:
@@ -298,7 +296,6 @@ The result should be equivalent to running the following commands in a custom
 defined builder:
 
 ```python
-# custom builder
 
 def custom_builder(
   backend,
