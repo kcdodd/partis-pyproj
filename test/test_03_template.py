@@ -12,7 +12,10 @@ from pytest import (
 from partis.pyproj import (
   Template,
   Namespace,
-  template_substitute)
+  template_substitute,
+  TemplateError,
+  NamespaceError,
+  FileOutsideRootError)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def test_template():
@@ -31,6 +34,7 @@ def test_template():
 
   valid_cases = [
     ("${plain}", "simple"),
+    ("$${plain}", "${plain}"),
     ("${a.b.c}", "xyz"),
     ("${a.b.d[0]}", "qwe"),
     ("${a.b.d[-1]}", "qwe"),
@@ -38,10 +42,23 @@ def test_template():
     ("${/'wxyz'}", "/root/wxyz"),
     ("${prefix/project.name/a.b.c/'xyz'/'abc.so'}", "/root/tmp/my_project/xyz/xyz/abc.so")]
 
+  invalid_cases = [
+    ("${plain", TemplateError),
+    ("${plain..", TemplateError),
+    ("${plain/...", TemplateError),
+    ("${plain/...}", TemplateError),
+    ("${complicated}", NamespaceError),
+    ("${/'wxyz'/../..}", FileOutsideRootError),
+    ("${/'wxyz'/../../..}", FileOutsideRootError)]
+
   for tmpl, expected in valid_cases:
     value = Template(tmpl).substitute(namespace)
     # print(f"{tmpl} -> {value}")
     assert expected == value
+
+  for tmpl, cls in invalid_cases:
+    with raises(cls):
+      Template(tmpl).substitute(namespace)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 if __name__ == '__main__':

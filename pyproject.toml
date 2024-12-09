@@ -135,7 +135,7 @@ copy = [
   'test',
   'pyproject.toml',
   'LICENSE.txt',
-  'README.rst' ]
+  'README.md' ]
 
 # adds support for legacy 'setup.py'
 add_legacy_setup = true

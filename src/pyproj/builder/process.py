@@ -1,10 +1,12 @@
-import os
-import os.path as osp
+from __future__ import annotations
+from pathlib import Path
 import tempfile
 import shutil
 import subprocess
+import logging
 from string import Template
-
+from .builder import (
+  ProcessRunner)
 from ..validate import (
   validating,
   ValidationError,
@@ -14,32 +16,18 @@ from ..validate import (
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def process(
   pyproj,
-  logger,
-  options,
-  work_dir,
-  src_dir,
-  build_dir,
-  prefix,
-  setup_args,
-  compile_args,
-  install_args,
-  build_clean,
-  runner):
+  logger: logging.Logger,
+  options: dict,
+  work_dir: Path,
+  src_dir: Path,
+  build_dir: Path,
+  prefix: Path,
+  setup_args: list[str],
+  compile_args: list[str],
+  install_args: list[str],
+  build_clean: bool,
+  runner: ProcessRunner):
   """Run general three-part set of commands
-
-  Parameters
-  ----------
-  pyproj : :class:`PyProjBase <partis.pyproj.pyproj.PyProjBase>`
-  logger : logging.Logger
-  options : dict
-  work_dir: pathlib.Path
-  src_dir : pathlib.Path
-  build_dir : pathlib.Path
-  prefix : pathlib.Path
-  setup_args : list[str]
-  compile_args : list[str]
-  install_args : list[str]
-  build_clean : bool
   """
 
   if not ( build_dir.exists() and any(build_dir.iterdir()) ):

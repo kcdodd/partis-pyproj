@@ -31,7 +31,7 @@ def cargo(
   """
 
   if not shutil.which('cargo'):
-    raise ValueError(f"The 'cargo' program not found.")
+    raise ValueError("The 'cargo' program not found.")
 
   if setup_args or install_args:
     raise ValueError(

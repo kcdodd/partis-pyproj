@@ -62,7 +62,9 @@ from .path import (
 from .template import (
   Template,
   Namespace,
-  template_substitute)
+  template_substitute,
+  TemplateError,
+  NamespaceError)
 
 from .dist_file import (
   dist_base,

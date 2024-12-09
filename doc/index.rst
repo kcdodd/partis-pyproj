@@ -30,7 +30,7 @@ The 'prep' may be any custom function the developer wants to occur before files
 are copied into the distribution, such as filling in dynamic metadata,
 or generating files.
 However, running another build program should be performed in the 'targets' stage
-(see :ref:`build_targets`), which is run only for binary distributinos and handles 
+(see :ref:`build_targets`), which is run only for binary distributinos and handles
 some checking/cleanup of build directories.
 
 The 'copy' operation is specified by a sequence of find-filter-copy pattern based
@@ -65,6 +65,66 @@ The overall sequence of actions for a distribution is:
 
 Copy Operations
 ---------------
+
+.. code-block:: EBNF
+  :caption: copy operation
+
+  copy: copy_item | listof{copy_item}
+  copy_item: PATH | dict{src = PATH, dst = PATH?, include = include?, ignore = ignore?}
+  include: GLOB | listof{include_item}
+  include_item: GLOB | dict{glob = GLOB, rematch = REGEX?, replace = FORMAT?}
+  ignore: IGNORE | listof{IGNORE}
+
+  PATH: < POSIX path, implicitly relative to project root >
+  GLOB: < https://docs.python.org/3/library/glob.html#glob.glob >
+  REGEX: < https://docs.python.org/3/library/re.html#regular-expression-syntax >
+  FORMAT: < https://docs.python.org/3/library/string.html#formatstrings >
+  IGNORE: < https://git-scm.com/docs/gitignore#_pattern_format >
+
+
+.. rubric:: Copy source and destination
+
+* Each item listed in ``copy`` for a distribution is treated like :func:`shutil.copyfile`
+  or :func:`shutil.copytree`, depending on whether the ``src`` is a file or a directory.
+* All ``src`` must existing within the root of the project, any external files
+  must be prepared separately from the copy operation.
+* If ``src`` is a directory, all files are copied recursively unless they
+  match an ignore pattern for the distribution type.
+* The ``dst`` is relative to a distribution archive base directory, specifically
+  depending on whether it is a source or binary (wheel) distribution.
+* If the item is a single path, it is expanded as ``dst = src``.
+
+.. rubric:: Include patterns
+
+* An ``include`` list is used to filter files or directories to be copied, expanded
+  to zero or more matches relative to ``src``.
+* ``glob`` follows the format of :mod:`glob`, supporting recursive ``**``.
+* The destination path is constructed from the matched source path taken relative to
+  ``src`` and joined with ``dst``.
+* ``rematch`` may further discriminate files by regular expression
+  following the format of Python :mod:`re` (must already be matched by ``glob``).
+* ``replace`` may be used to alter the destination filename following
+  :meth:`~string.format`, with values supplied by any groups defined in ``rematch``.
+
+
+.. rubric:: Ignore patterns
+
+* An ``ignore`` list follows the format of git-ignore, https://git-scm.com/docs/gitignore#_pattern_format.
+* Individual *files* explicitly listed as a ``src`` will be copied, even if it
+  matches one of the ``ignore`` patterns.
+* The ``ignore`` patterns may be specified at different levels of distributions in
+  ``tool.pyproj.dist``, specifically for ``tool.pyproj.dist.binary`` or
+  ``tool.pyproj.dist.source``, or individually for each copy operation
+  ``{ src = '...', dst = '...', ignore = [...] }``.
+  The ignore patterns are inherited at each level of specificity.
+* If an ignore pattern **does not** contain any path separators, it is matched to
+  the **base-name** of every file or directory being considered (E.G. ``foo`` is
+  equivalent to ``**/foo``).
+* If an ignore pattern does **contain** a path separator, then it is matched to the
+  **full path** relative to either the project root (for distribution-level ignores)
+  or ``src`` (for copy-level ignores).
+
+
 
 .. code-block:: toml
   :caption: ``pyproject.toml``
@@ -101,39 +161,6 @@ Copy Operations
   # the 'dst' will correspond to the location of the file in 'site-packages'
   copy = [
     { src = 'src/my_project', dst = 'my_project' } ]
-
-
-* Each item listed in ``copy`` for a distribution is treated like the
-  keyword arguments of
-  :func:`shutil.copyfile`
-  or
-  :func:`shutil.copytree`,
-  depending on whether the ``src`` is a file or a directory.
-* The ``dst`` is relative to a distribution archive base directory.
-* If the item is a single string, it is expanded as ``dst = src``.
-* A ``glob`` pattern may be used to match files or directories,
-  supporting the ``**`` recursive operator, which is expanded to zero or more
-  matches relative to ``src``.
-  When ``glob`` is used, the destination path is relative to ``dst``, taken from the
-  source path relative to ``src``.
-* The ``ignore`` list is treated like the arguments to
-  :func:`shutil.ignore_patterns`,
-  before it is passed to the :func:`shutil.copytree` function.
-* Every *file* explicitly listed as a ``src`` will be copied, even if it
-  matches one of the ``ignore`` patterns.
-* The ``ignore`` patterns may be specified for all distributions in
-  ``tool.pyproj.dist``, specifically for ``tool.pyproj.dist.binary`` or
-  ``tool.pyproj.dist.source``, or individually for each copy operation
-  ``{ src = '...', dst = '...', ignore = [...] }``.
-  The ignore patterns are inherited at each level of specificity.
-* If an ignore pattern **does not** contain any path separators, it is matched to
-  the **base-name** of every file or directory being considered.
-* If an ignore pattern **contains** a path separator, then it is matched to the
-  **full path** relative to either:
-
-  * The root project directory for ``tool.pyproj.dist.ignore``,
-    ``tool.pyproj.dist.binary.ignore``, and ``tool.pyproj.dist.source.ignore``.
-  * ``src`` for any ``copy.ignore`` specified within a ``copy`` operation.
 
 A short example of what what paths would be included or ignored based on the
 above ``pyproject.toml``:
@@ -300,25 +327,25 @@ in ``project.dynamic``.
 
 .. _build_targets:
 
-Compiling Extensions
---------------------
+Build Targets
+-------------
 
 The method of compiling extensions is delegated to a third-party build system,
 such as Meson Build system https://mesonbuild.com/ or CMake https://cmake.org/,
 both available on PyPI.
-This means that, unlike with setuptools, detailed configuration of the build itself 
-would be given in separate files like ``meson.build`` with Meson, 
+This means that, unlike with setuptools, detailed configuration of the build itself
+would be given in separate files like ``meson.build`` with Meson,
 or ``CMakeLists.txt`` with CMake.
 
-This stage of the build process is specified in the 'pyproject.toml' array 
+This stage of the build process is specified in the 'pyproject.toml' array
 ``tool.pyproj.targets``.
 Only one is needed, but it is possible to define more than one.
-In case different options are needed depending on the environment, the ``enabled`` 
-field can be a :pep:`508` environment :class:`Marker <packaging.markers.Marker>`, 
+In case different options are needed depending on the environment, the ``enabled``
+field can be a :pep:`508` environment :class:`Marker <packaging.markers.Marker>`,
 or can also be set manually (True/False) by an earlier 'prep' stage.
 
 Each third-party build system is given by the ``entry``, which is an entry-point
-to a pure function that takes in the arguments and options given in the table 
+to a pure function that takes in the arguments and options given in the table
 for that build.
 The builtin functions for Meson or CMake simply format the options into command-line
 arguments for the typical 'setup', 'compile', and 'install' steps.
@@ -326,8 +353,8 @@ arguments for the typical 'setup', 'compile', and 'install' steps.
 * :func:`partis.pyproj.builder:meson <partis.pyproj.builder.meson.meson>`: With the 'extra' ``partis-pyproj[meson]``
 * :func:`partis.pyproj.builder:cmake <partis.pyproj.builder.cmake.cmake>`: With the 'extra' ``partis-pyproj[cmake]``
 
-A custom 'builder' for the entry-point can also be used, and is simply a callable 
-with the correct signature. 
+A custom 'builder' for the entry-point can also be used, and is simply a callable
+with the correct signature.
 See one of the above builtin methods as an example.
 
 For example, the following configuration,
@@ -359,7 +386,7 @@ since the 'pyproject.toml' configuration only provides a way of running
 .. attention::
 
   The ``meson install`` (or ``cmake install``) must be done in a way that can be
-  copied into the distribution and then installed to another location, instead of 
+  copied into the distribution and then installed to another location, instead of
   actually being installed to the system.
   This means that the compiled code **must be relocateable**, avoiding the use of
   absolute paths in configurations and dynamic linking.
@@ -377,7 +404,7 @@ The result should be equivalent to running the following commands:
   meson compile [compile_args] -C build_dir
   meson install [install_args] -C build_dir
 
-executed in the project directory, followed by copying all files in 'build/lib' 
+executed in the project directory, followed by copying all files in 'build/lib'
 into the binary distribution's 'platlib' install path.
 
 .. attention::
@@ -500,54 +527,3 @@ In this example, the command
 The value of ``another_option`` may be either ``foo`` or ``bar``,
 and all other values will raise an exception before reaching the entry-point.
 
-
-Support for 'legacy setup.py'
------------------------------
-
-There is an optional mechanism to add support of setup.py for non PEP 517
-compliant installers that must install a package from source.
-This option does **not** use setuptools in any way, since that wouldn't allow
-the faithful interpretation of the build process defined in 'pyproject.toml',
-nor of included custom build hooks.
-
-.. attention::
-
-  Legacy support is likely fragile and **not guaranteed** to be successful.
-  It would be better to recommend the end-user simply update their package manager
-  to be PEP-517 capable, such as ``pip >= 18.1``, or to provide pre-built wheels
-  for those users.
-
-If enabled, a 'setup.py' file is generated when building a source
-distribution that, if run by an installation front-end, will attempt to emulate
-the setuptools CLI 'egg_info', 'bdist_wheel', and 'install' commands:
-
-* The 'egg_info' command copies out a set of equivalent '.egg-info'
-  files, which should subsequently be ignored after the meta-data is extracted.
-
-* The 'bdist_wheel' command will attempt to simply call the backend code as
-  though it were a PEP-517 build, assuming the build dependencies were
-  satisfied by the front-end (added to the regular install
-  dependencies in the '.egg-info').
-
-* If 'install' is called ( instead of 'bdist_wheel' ), then it will
-  again try to build the wheel using the backend, and then try to use pip
-  to handle installation of the wheel as another sub-process.
-  This will fail if pip is not the front-end.
-
-This 'legacy' feature is enabled by setting the value of
-``tool.pyproj.dist.source.add_legacy_setup``.
-
-.. code-block:: toml
-
-  [tool.pyproj.dist.source]
-
-  # adds support for legacy 'setup.py'
-  add_legacy_setup = true
-
-
-.. toctree::
-  :maxdepth: 2
-  :hidden:
-
-  glossary
-  src/index

@@ -15,16 +15,16 @@ from .path import (
 namespace_sep = re.compile(r"[\.\[\]]")
 
 _idpattern = re.compile(r"""(?:
-  # first type references a template variable
+  # references a template variable
   [A-Z_][A-Z0-9_]* # Python identifier
   (?:
-    \.[A-Z_][A-Z0-9_]* # python identifier attribute
+    \.[A-Z_][A-Z0-9_]* # attribute access by Python identifier
     |
     \[-?[0-9]+\])* # integer index (potentially negative)
   |
   \/ # forward slash separate for building path
   |
-  (?<=\/)\.\. # double-dot (parent directory)
+  (?<=\/)\.\. # double-dot (parent directory), must follow a slash
   |
   '[A-Z0-9\-_\.]+' # string literal, quotes to be removed
   )+
@@ -32,9 +32,17 @@ _idpattern = re.compile(r"""(?:
   re.IGNORECASE|re.VERBOSE)
 
 _group_pattern = re.compile(
-  # NOTE: handles missing closing brace
-  r"\$(?:(?P<escaped>\$)|{ *(?P<braced>[^\s\}]+)(?: *}|(?P<unterminated> *$| *[^}])))",
+  # NOTE: handles escaped '$' and missing closing brace
+  r"\$(?:(?P<escaped>\$)|{ *(?P<braced>[^\s\}]+) *(?:}|(?P<unterminated>$|[^}])))",
   re.IGNORECASE)
+
+#===============================================================================
+class TemplateError(ValidationError):
+  ...
+
+#===============================================================================
+class NamespaceError(ValidationError):
+  ...
 
 #===============================================================================
 class Template:
@@ -61,12 +69,12 @@ class Template:
         return '$'
 
       if m.group('unterminated') is not None:
-        raise ValidationError(f"Unterminated template substitution: {m.group()}")
+        raise TemplateError(f"Unterminated template substitution: {m.group()}")
 
       name = m.group('braced').strip()
 
       if not _idpattern.fullmatch(name):
-        raise ValidationError(f"Invalid template substitution: {name}")
+        raise TemplateError(f"Invalid template substitution: {name}")
 
       return str(namespace[name])
 
@@ -163,12 +171,12 @@ class Namespace(Mapping):
             i = int(k)
             data = data[i]
           else:
-            raise TypeError(f"Expected mapping or sequence for '{k}': {type(data).__name__}")
+            raise NamespaceError(f"Expected mapping or sequence for '{k}': {type(data).__name__}")
 
           cur.append(k)
 
     except (KeyError,TypeError,IndexError) as e:
-      raise KeyError(f"Invalid key '{k}' of name '{name}': {str(e)}") from None
+      raise NamespaceError(f"Invalid key '{k}' of name '{name}': {str(e)}") from None
 
     return data
 
