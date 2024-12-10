@@ -1,3 +1,6 @@
+[![linux](https://github.com/kcdodd/partis-pyproj/actions/workflows/linux.yaml/badge.svg)](https://github.com/kcdodd/partis-pyproj/actions/workflows/linux.yaml)
+[![macos](https://github.com/kcdodd/partis-pyproj/actions/workflows/macos.yaml/badge.svg)](https://github.com/kcdodd/partis-pyproj/actions/workflows/macos.yaml)
+[![windows](https://github.com/kcdodd/partis-pyproj/actions/workflows/windows.yaml/badge.svg)](https://github.com/kcdodd/partis-pyproj/actions/workflows/windows.yaml)
 
 The ``partis.pyproj`` package aims to be a minimal and
 transparent implementation of a [PEP-517](https://www.python.org/dev/peps/pep-0517) build back-end.
@@ -159,8 +162,8 @@ dst = 'my_project'
 | *Ignored*          | ``src/my_project/sub_dir/bad_file.py``            |
 
 
-Prep Processing Hooks
----------------------
+Preparation Hooks
+-----------------
 
 The backend provides a mechanism to perform an arbitrary operation before any
 files are copied into either the source or binary distribution:
