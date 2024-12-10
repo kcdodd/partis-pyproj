@@ -641,7 +641,7 @@ pep426_dist_name = re.compile(
 pep440_version = re.compile(
   r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*'
   r'((a|b|rc)(0|[1-9][0-9]*))?'
-  '(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$' )
+  r'(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$' )
 
 # NOTE: PEP 427 does not specify any constraints on the string following the
 # digits, but given the form it is used in the filenames it really cannot

@@ -96,7 +96,7 @@ class PathMatcher:
       negate = True
       pattern = pattern[1:]
 
-    elif pattern.startswith('\!'):
+    elif pattern.startswith(r'\!'):
       # Put a backslash ("\") in front of the first "!" for patterns that begin
       # with a literal "!", for example, "\!important!.txt".
       pattern = pattern[1:]

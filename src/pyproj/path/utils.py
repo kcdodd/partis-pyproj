@@ -40,10 +40,14 @@ def _subdir(_start: list[str], _path: list[str]) -> list[str]|None:
   r"""Concrete path relative to start, or `None` if path is not a sub-directory
   """
 
-  if (_start := _concretize(_start)) is None:
+  _start = _concretize(_start)
+
+  if _start is None:
     return None
 
-  if (_path := _concretize(_path)) is None:
+  _path = _concretize(_path)
+
+  if _path is None:
     return None
 
   n = len(_start)
