@@ -91,7 +91,8 @@ prepare_cmds = [
       'clean': [
         remove([sdist_dir, sdist_file])],
       'build': [
-        run('python3', '-m', 'build', '--sdist', '-o', dist_dir, '.')]}] }]
+        run('python', '-m', 'build', '--sdist', '-o', dist_dir, '.'),
+        run('python', '-m', 'build', '--wheel', '-o', dist_dir, '.')]}] }]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 doc_cmds = [{
@@ -103,7 +104,7 @@ doc_cmds = [{
     run('tar', 'zxf', sdist_file),
     sdist_dir,
     # build documentation
-    run('python3', '-m', 'docs', '-b', 'html', '-o', dist_dir) ]}]
+    run('python', '-m', 'docs', '-b', 'html', '-o', dist_dir) ]}]
 
 #===============================================================================
 # Sessions
@@ -165,7 +166,7 @@ def test(session):
     sdist_file)
 
   session.run(
-    'python3',
+    'python',
     '-m',
     'pytest',
     test_dir)
@@ -190,17 +191,3 @@ def report(session):
 
   session.run('coverage', 'json', '-o', str(reports_dir/'coverage.json'))
   session.run('coverage', 'html', '--directory', str(reports_dir/'htmlcov'))
-
-
-#===============================================================================
-# @nox.session()
-# def lint(session):
-#   session.chdir(root_dir)
-#
-#   session.install(*lint_deps)
-#
-#   session.run(
-#     'python3',
-#     '-m',
-#     'pyflakes',
-#     root_dir )

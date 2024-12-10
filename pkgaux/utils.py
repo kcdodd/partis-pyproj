@@ -1,5 +1,4 @@
 
-import os
 from pathlib import Path
 import shutil
 import hashlib
@@ -100,7 +99,7 @@ def clear_pip_cache(session, pkgs):
   for pkg in pkgs:
     try:
       session.run([
-        'python3',
+        'python',
         '-m',
         'pip',
         'cache',
@@ -111,7 +110,7 @@ def clear_pip_cache(session, pkgs):
 
   try:
     session.run([
-      'python3',
+      'python',
       '-m',
       'pip',
       'uninstall',
@@ -128,7 +127,7 @@ def run(session, *args):
 
 #===============================================================================
 def install(*args):
-  return run('python3', '-m', 'pip', 'install', *args)
+  return run('python', '-m', 'pip', 'install', *args)
 
 #===============================================================================
 @session_command

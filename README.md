@@ -416,7 +416,8 @@ copy = [
 Config Settings
 ---------------
 
-As described in :pep:`517`, an installer front-end may implement support for
+As described in [PEP-517](https://www.python.org/dev/peps/pep-0517),
+an installer front-end may implement support for
 passing additional options to the backend
 (e.g. ``--config-settings`` in `pip`).
 These options may be defined in the ``tool.pyproj.config`` table, which is used
@@ -456,15 +457,15 @@ kwargs = { deps = ["additional_build_dep >= 1.2.3"] }
 ```python
 # pkgaux/__init__.py
 
-def prep( builder, logger, deps ):
+def prep( backend, logger, deps ):
 
-  if builder.config.a_cfg_option:
-    builder.build_requires |= set(deps)
+  if backend.config.a_cfg_option:
+    backend.build_requires |= set(deps)
 
-  if builder.config.another_option == 'foo':
+  if backend.config.another_option == 'foo':
     ...
 
-  elif builder.config.another_option == 'bar':
+  elif backend.config.another_option == 'bar':
     ...
 ```
 

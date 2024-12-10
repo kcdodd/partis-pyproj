@@ -105,6 +105,8 @@ def test_dist_source_dummy():
 def test_dist_targz():
 
   with tempfile.TemporaryDirectory() as tmpdir:
+    tmpdir = Path(tmpdir)
+
     with dist_targz(
       outname = 'asd.tgz',
       outdir = tmpdir ) as dist:
@@ -133,6 +135,8 @@ def test_dist_targz():
 def test_dist_zip():
 
   with tempfile.TemporaryDirectory() as tmpdir:
+    tmpdir = Path(tmpdir)
+
     with dist_zip(
       outname = 'asd.zip',
       outdir = tmpdir ) as dist:
@@ -158,10 +162,11 @@ def test_dist_source():
     dist_source_targz( pkg_info = None )
 
   with tempfile.TemporaryDirectory() as tmpdir:
+    tmpdir = Path(tmpdir)
 
-    pkg_dir = osp.join( tmpdir, 'src', 'my_package' )
-    out_dir = osp.join( tmpdir, 'build' )
-    mod_file = osp.join( pkg_dir, 'module.py' )
+    pkg_dir = tmpdir/'src'/'my_package'
+    out_dir = tmpdir/'build'
+    mod_file = pkg_dir/'module.py'
 
     os.makedirs( pkg_dir )
 
@@ -183,25 +188,25 @@ def test_dist_source():
         sdist.open()
 
       sdist.copytree(
-        src = osp.join( tmpdir, 'src' ),
-        dst = osp.join( sdist.base_path, 'src' ),
+        src = tmpdir/'src',
+        dst = sdist.base_path/'src',
         ignore = shutil.ignore_patterns('nothing') )
 
       with raises( ValueError ):
         # duplicate
         sdist.copytree(
-          src = osp.join( tmpdir, 'src' ),
-          dst = osp.join( sdist.base_path, 'src' ) )
+          src = tmpdir/'src',
+          dst = sdist.base_path/'src')
 
       sdist.copyfile(
         src = mod_file,
-        dst = osp.join( sdist.base_path, 'src', 'mod.py' ) )
+        dst = sdist.base_path/'src'/'mod.py')
 
       with raises( ValueError ):
         # duplicate
         sdist.copyfile(
           src = mod_file,
-          dst = osp.join( sdist.base_path, 'src', 'mod.py' ) )
+          dst = sdist.base_path/'src'/'mod.py')
 
       with raises( ValueError ):
         # doesn't exist
@@ -220,8 +225,8 @@ def test_dist_source():
 
     with raises( ValueError ):
       sdist.copytree(
-        src = osp.join( tmpdir, 'src' ),
-        dst = osp.join( sdist.base_path, 'src2' ) )
+        src = tmpdir/'src' ,
+        dst = sdist.base_path/'src2'  )
 
     assert sdist.outname == 'my_package-1.0.tar.gz'
     assert osp.relpath( sdist.outpath, tmpdir ) == 'build/my_package-1.0.tar.gz'
@@ -237,8 +242,8 @@ def test_dist_source():
     with sdist:
 
       sdist.copytree(
-        src = osp.join( tmpdir, 'src' ),
-        dst = osp.join( sdist.base_path, 'src' ) )
+        src = tmpdir/'src' ,
+        dst = sdist.base_path/'src'  )
 
 #===============================================================================
 def test_dist_binary_wheel():
@@ -246,16 +251,17 @@ def test_dist_binary_wheel():
 
 
   with tempfile.TemporaryDirectory() as tmpdir:
-    pkg_dir = osp.join( tmpdir, 'src', 'my_package' )
-    out_dir = osp.join( tmpdir, 'build' )
+    tmpdir = Path(tmpdir)
+    pkg_dir = tmpdir/'src'/'my_package'
+    out_dir = tmpdir/'build'
 
     os.makedirs( pkg_dir )
 
-    with open( osp.join( pkg_dir, 'module.py' ), 'w' ) as fp:
+    with open( pkg_dir/'module.py' , 'w' ) as fp:
       fp.write("print('hello')")
 
 
-    license_file = osp.join(tmpdir, 'license.rst')
+    license_file = tmpdir/'license.rst'
 
     with open(license_file, 'w') as fp:
       fp.write("my license")

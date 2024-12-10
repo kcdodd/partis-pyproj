@@ -105,9 +105,6 @@ copy = [
   'LICENSE.txt',
   'README.md' ]
 
-# adds support for legacy 'setup.py'
-add_legacy_setup = true
-
 #...............................................................................
 [tool.pyproj.dist.binary.purelib]
 
