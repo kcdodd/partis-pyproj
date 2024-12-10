@@ -10,6 +10,7 @@ from .validate import (
   as_list )
 
 from .norms import (
+  marker_evaluated,
   scalar,
   scalar_list,
   empty_str,

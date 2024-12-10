@@ -50,6 +50,10 @@ opt_c = "${prefix/project.name/options.opt_b/../'xyz'/'abc.so'}"
 # template path implicitly relative to root, slash ensures interpretation as path
 opt_d = "${/'xyz'}"
 
+[[tool.pyproj.targets]]
+enabled = false
+entry = 'partis.pyproj.builder:process'
+
 #...............................................................................
 [tool.pyproj.dist.binary]
 ignore = [

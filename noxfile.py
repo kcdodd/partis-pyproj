@@ -184,10 +184,11 @@ def report(session):
   session.env['COVERAGE_FILE'] = str( tmp_dir/'.coverage' )
   session.env['COVERAGE_RCFILE'] = str(pptoml_file)
 
+  # NOTE: avoid error when theres nothing to combine
   session.run('coverage', 'combine', success_codes=[0, 1])
   session.run('coverage', 'report')
-  session.run('coverage', 'xml', '-o', str(reports_dir/'coverage.xml'))
-  session.run('coverage', 'json', '--output', str(reports_dir/'coverage.json'))
+
+  session.run('coverage', 'json', '-o', str(reports_dir/'coverage.json'))
   session.run('coverage', 'html', '--directory', str(reports_dir/'htmlcov'))
 
 

@@ -15,9 +15,22 @@ from partis.pyproj import (
   combine_ignore_patterns,
   contains )
 
+from partis.pyproj.path.pattern import (
+  tr_path,
+  inv_path,
+  tr_rel_join,
+  tr_glob,
+  PatternError)
+
 pxp = pathlib.PurePosixPath
 ntp = pathlib.PureWindowsPath
 prp = pathlib.PurePath
+
+#===============================================================================
+def test_translate():
+  path = 'a/b/c'
+  _path = tr_path(pxp(path))
+  assert inv_path(_path, sep='/') == path
 
 #===============================================================================
 def test_partition():

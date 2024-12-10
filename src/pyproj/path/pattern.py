@@ -1,5 +1,7 @@
+from __future__ import annotations
 import os
 import os.path as osp
+from pathlib import PurePath
 import re
 from collections import namedtuple
 
@@ -12,10 +14,9 @@ class PathPatternError(ValueError):
 #===============================================================================
 # NOTE: The regular expressions are constructed to match path separators defined
 # by these (non-printable) control characters, unlikely to be in any filename,
-# making them independent from 'os.path.sep'.
-# The paths to be matched, though, must be translated to this form as well
-# based on the OS-specific representation.
-
+# making them independent from 'os.path.sep', instead of specializing the patterns
+# to each flavor.
+# The paths to be matched, though, must be translated to this form.
 # File Separator (E.G. '/')
 SEP = chr(0x1c)
 # Group Separator (E.G. '.')
@@ -30,16 +31,17 @@ PARDIR = chr(0x1e)
 # PARDIR = '..'
 
 #===============================================================================
-def tr_path(path):
+def tr_path(path: PurePath) -> str:
   """Translates path to be compatible with the translated regex.match
 
   Parameters
   ---------
-  path: PurePath
+  path:
+    Path to be translated
 
   Returns
   -------
-  tr_path : str
+  tr_path:
     Translated path, with each path segment separated by :data:`SEP`.
   """
   parts = path.parts
@@ -54,12 +56,13 @@ def tr_path(path):
   return SEP.join(parts)
 
 #===============================================================================
-def inv_path(path):
+def inv_path(path: str, sep: str = osp.sep) -> str:
+  """Convert translated path back to os path
   """
-  """
-  return osp.sep.join(path.split(SEP))
+  return sep.join(path.split(SEP))
 
 #===============================================================================
+# The glob pattern is defined using POSIX paths, even if matching other flavors
 # path separator (NOTE: except for a trailing recursive "/**")
 re_sep = r'(?P<sep>/(?!\*\*\Z))'
 # fixed (no wildcard) segment
@@ -93,24 +96,23 @@ rec_glob = re.compile(re_glob)
 rec_unescape = re.compile(r'\\([*?[])')
 
 #===============================================================================
-def tr_rel_join(start, dir, names):
+def tr_rel_join(start: str, dir: str, names: list[str]) -> list[tuple[str, str]]:
   """Creates paths relative to a 'start' path for a list of names in a 'dir'
   'start' and 'dir' must already be translated by :func:`tr_path`.
 
   Parameters
   ----------
-  start : str
+  start:
     Starting directory, already translated by :func:`tr_path`.
-  dir : str
+  dir: str
     Directory to compute relative path to, *must* be a sub-directory of `start`,
     already translated by :func:`tr_path`.
-  names : list[str]
+  names:
     List of names in `dir`
 
   Returns
   -------
-  list[tuple[str, str]]
-    List of names joined with path relative to `start`
+  List of names joined with path relative to `start`
   """
 
   rpath = tr_subdir( start, dir )
@@ -121,7 +123,7 @@ def tr_rel_join(start, dir, names):
     for name in names ]
 
 #===============================================================================
-def tr_join(*args):
+def tr_join(*args: str):
   """Joins paths already translated by :func:`tr_path`.
   """
 
@@ -130,20 +132,20 @@ def tr_join(*args):
   return SEP.join(args)
 
 #===============================================================================
-def tr_subdir(start, path):
+def tr_subdir(start: str, path: str) -> str:
   """Relative path, restricted to sub-directories.
 
   Parameters
   ----------
-  start : str
+  start:
     Starting directory, already translated by :func:`tr_path`.
-  path : str
+  path:
     Directory to compute relative path to, *must* be a sub-directory of `start`,
     already translated by :func:`tr_path`.
 
   Returns
   -------
-  rpath : str
+  rpath:
     Relative path from `start` to `path`.
   """
 
@@ -163,20 +165,24 @@ def tr_subdir(start, path):
 
 #===============================================================================
 class GRef(namedtuple('GRef', ['ori', 'case', 'start', 'end'])):
+  r"""Helps track how a regex was constructed from a glob pattern
+  """
   __slots__ = ()
 
 
 #===============================================================================
 class GCase:
+  r"""Container for constructing parts of a regex from glob pattern
+  """
   #-----------------------------------------------------------------------------
-  def __init__(self, ref = None):
+  def __init__(self, ref: GRef|None = None):
     if ref is None:
       ref = GRef(None, 'undefined', None, None)
 
     self.ref = ref
 
   #-----------------------------------------------------------------------------
-  def regex(self):
+  def regex(self) -> str:
     raise NotImplementedError("")
 
   #-----------------------------------------------------------------------------
@@ -186,19 +192,19 @@ class GCase:
 #===============================================================================
 class GStr(GCase):
   #-----------------------------------------------------------------------------
-  def __init__(self, regex, ref = None):
+  def __init__(self, regex: str, ref: GRef|None = None):
     super().__init__(ref = ref)
 
     self._regex = regex
 
   #-----------------------------------------------------------------------------
-  def regex(self):
+  def regex(self) -> str:
     return self._regex
 
 #===============================================================================
 class GList(GCase):
   #-----------------------------------------------------------------------------
-  def __init__(self, parts = None, ref = None):
+  def __init__(self, parts: list[str] = None, ref: GRef|None = None):
     super().__init__(ref = ref)
 
     if parts is None:
@@ -207,11 +213,11 @@ class GList(GCase):
     self.parts = parts
 
   #-----------------------------------------------------------------------------
-  def regex(self):
+  def regex(self) -> str:
     return ''.join([v.regex() for v in self.parts])
 
   #-----------------------------------------------------------------------------
-  def append(self, val):
+  def append(self, val: str):
     self.parts.append(val)
 
   #-----------------------------------------------------------------------------

@@ -1,5 +1,6 @@
-import os
+from __future__ import annotations
 import os.path as osp
+from os import PathLike
 import pathlib
 from pathlib import (
   PurePath,
@@ -19,13 +20,13 @@ class PathMatcher:
 
   Parameters
   ----------
-  pattern: str
+  pattern:
     See notes below on pattern formatting.
-  negate: bool
+  negate:
     A match to this pattern negates an existing match of the same name.
-  dironly: bool
+  dironly:
     This pattern is to only match the name of a directory.
-  relative: bool
+  relative:
     This pattern is to match relative paths instead of just the base name.
 
   Notes
@@ -82,10 +83,10 @@ class PathMatcher:
   """
   #-----------------------------------------------------------------------------
   def __init__(self,
-    pattern,
-    negate = False,
-    dironly = False,
-    relative = False ):
+    pattern: str,
+    negate: bool = False,
+    dironly: bool = False,
+    relative: bool = False):
 
     pattern = str(pattern).strip()
     _pattern = pattern
@@ -146,19 +147,15 @@ class PathMatcher:
     return f"{type(self).__name__}({args})"
 
   #-----------------------------------------------------------------------------
-  def __call__(self, path):
-    return self.match(path)
-
-  #-----------------------------------------------------------------------------
-  def match(self, path):
+  def match(self, path: PathLike) -> bool:
     """
     Parameters
     ----------
-    path: str | pathlib.PurePath
+    path:
 
     Returns
     -------
-    matched : bool
+    matched :
       True if the ``path`` matches this pattern
 
     """
@@ -171,13 +168,16 @@ class PathMatcher:
     return self._match(_path)
 
   #-----------------------------------------------------------------------------
-  def nt(self, path):
+  __call__ = match
+
+  #-----------------------------------------------------------------------------
+  def nt(self, path: PathLike) -> bool:
     """Convenience method to force match as a Windows path
     """
     return self(PureWindowsPath(path))
 
   #-----------------------------------------------------------------------------
-  def posix(self, path):
+  def posix(self, path: PathLike) -> bool:
     """Convenience method to force match as a POSIX path
     """
     return self(PurePosixPath(path))
@@ -188,11 +188,14 @@ class PathFilter:
 
   Parameters
   ----------
-  patterns : list[str | PathMatcher]
-  start : None | pathlib.PurePath
+  patterns:
+  start:
   """
   #-----------------------------------------------------------------------------
-  def __init__(self, patterns = None, start = None):
+  def __init__(self,
+      patterns: list[str|PathMatcher] = None,
+      start: PathLike|None = None):
+
     if patterns is None:
       patterns = []
 
@@ -213,30 +216,33 @@ class PathFilter:
     self._start = _start
 
   #-----------------------------------------------------------------------------
-  def filter(self, dir, fnames, dnames = None, feasible = None):
+  def filter(self,
+      dir: PathLike,
+      fnames: list[str],
+      dnames: list[str]|None = None,
+      feasible: set[str]|None = None) -> set[str]:
     """Filter a list of names in a directory
 
     Parameters
     ----------
-    dir : PathLike | PurePath
+    dir:
       Directory containing ``dnames`` and ``fnames``.
-    fnames : list[str]
+    fnames:
       List of file (non-directory) names in ``dir``.
-
-    dnames : None | list[str]
+    dnames:
       List of directory names in ``dir``.
 
       .. note::
 
         If None, any fnames ending with '/' will be used as (directory) dnames.
 
-    feasible : None | set[str]
+    feasible:
       The current feasible set of names (from either dnames or fnames) that have
       been matched.
 
     Returns
     -------
-    feasible : set[str]
+    feasible:
       Updated feasible set of matched names. It is possible that the input
       feasible set contains names that are *not* in the output if a pattern
       negates an existing match.
@@ -342,6 +348,7 @@ def combine_ignore_patterns(*patterns):
   -------
   callable(dir, names) -> matches
   """
+  # TODO: implement as callable object instead of closure for possible inspection
 
   def _ignore_patterns(dir, names):
     dir = PurePath(dir)

@@ -4,10 +4,12 @@ import re
 import pathlib
 from pytest import (
   raises )
+from packaging.markers import default_environment
 
 from email.utils import formataddr
 
 from partis.pyproj import (
+  marker_evaluated,
   scalar,
   scalar_list,
   empty_str,
@@ -55,6 +57,14 @@ from partis.pyproj import (
 from partis.pyproj._nonprintable import (
   _gen_nonprintable,
   gen_nonprintable )
+
+#===============================================================================
+def test_marker():
+  env = default_environment()
+
+  assert marker_evaluated(True)
+  assert not marker_evaluated(False)
+  assert marker_evaluated(f"python_version == '{env['python_version']}'")
 
 #===============================================================================
 def test_time_encode():
