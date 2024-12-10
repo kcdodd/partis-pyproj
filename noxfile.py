@@ -28,7 +28,7 @@ pptoml_file = root_dir/'pyproject.toml'
 source_dir = root_dir/'src'
 pkgaux_dir = root_dir/'pkgaux'
 
-test_dir = root_dir/'test'
+test_dir = root_dir/'tests'
 
 work_dir = Path(os.environ.get('PIPELINE_ROOT', root_dir))
 tmp_dir = work_dir/'tmp'
@@ -91,8 +91,7 @@ prepare_cmds = [
       'clean': [
         remove([sdist_dir, sdist_file])],
       'build': [
-        run('python3', '-m', 'build', '--sdist', '-o', dist_dir, '.'),
-        run('python3', '-m', 'build', '--sdist', '-o', dist_dir, root_dir/'submodules'/'nohm-testing')]}] }]
+        run('python3', '-m', 'build', '--sdist', '-o', dist_dir, '.')]}] }]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 doc_cmds = [{
@@ -188,7 +187,9 @@ def report(session):
   session.run('coverage', 'combine', success_codes=[0, 1])
   session.run('coverage', 'report')
   session.run('coverage', 'xml', '-o', str(reports_dir/'coverage.xml'))
+  session.run('coverage', 'json', '--output', str(reports_dir/'coverage.json'))
   session.run('coverage', 'html', '--directory', str(reports_dir/'htmlcov'))
+
 
 #===============================================================================
 # @nox.session()
