@@ -12,7 +12,7 @@ from partis.pyproj import (
   PkgInfoURL,
   PkgInfoReq )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_base():
   assert PkgInfoAuthor('asd') == PkgInfoAuthor('asd')
   assert PkgInfoAuthor('asd') != PkgInfoAuthor('xyz')
@@ -27,14 +27,14 @@ def test_base():
     "PySide2 >= 5.14, < 5.15; python_version < '3.8'",
     extra = 'gui')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_default():
   pkginfo = PkgInfo(
     project = dict(
       name = 'test_pkg',
       version = '1.2.3' ) )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_full():
   with tempfile.TemporaryDirectory() as tmpdir:
 

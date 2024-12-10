@@ -1,4 +1,4 @@
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # This is the config file for running the nox testing automation tool
 # This will run pytest and generate a combined coverage report for all runs
 
@@ -11,9 +11,9 @@ import tomli
 import itertools
 import subprocess
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # Config
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 test_dir = osp.dirname(osp.abspath(__file__))
 root_dir = osp.join( test_dir, os.pardir )
 source_dir =  osp.join( root_dir, 'src' )
@@ -38,9 +38,9 @@ nox.options.envdir = osp.join( root_dir, ppnox['envdir'] )
 nox.options.default_venv_backen = 'venv'
 
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # Sessions
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 @nox.session()
 def prepare(session):
   session.chdir('..')
@@ -57,7 +57,7 @@ def prepare(session):
     'make_dists',
     '--no-doc' )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # successivly build and install sdist/wheel, run tests as individual sub-projects
 @nox.session(
   python = python_versions )
@@ -95,7 +95,7 @@ def test( session ):
     'pytest',
     test_dir )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 @nox.session( venv_backend = 'venv' )
 def report(session):
   session.chdir('..')
@@ -108,7 +108,7 @@ def report(session):
   session.run('coverage', 'report')
   session.run('coverage', 'html')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # @nox.session()
 # def lint(session):
 #   session.chdir('..')

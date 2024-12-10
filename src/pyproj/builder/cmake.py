@@ -10,7 +10,7 @@ from ..validate import (
   ValidPathError,
   FileOutsideRootError )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def cmake_option_arg(k, v):
   """Convert python key-value pair to cmake ``-Dkey=value`` option
   """
@@ -22,7 +22,7 @@ def cmake_option_arg(k, v):
 
   return f'-D{k}{typename}={v}'
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def cmake(
   pyproj,
   logger,

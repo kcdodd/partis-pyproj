@@ -19,11 +19,11 @@ pxp = pathlib.PurePosixPath
 ntp = pathlib.PureWindowsPath
 prp = pathlib.PurePath
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_partition():
   assert partition(lambda x: x > 1, [0, 1, 2]) == ([2], [0, 1])
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_match_escape():
   # These test _match to check the raw string match without normalizing as a path
 
@@ -40,7 +40,7 @@ def test_match_escape():
   assert PathMatcher(r'.*')._match(r'.*')
   assert PathMatcher(r'.{3}')._match(r'.{3}')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_match_chr():
   # These test _match to check the raw string match without normalizing as a path
   p = PathMatcher('a?c')
@@ -48,7 +48,7 @@ def test_match_chr():
   assert p._match('axc')
   assert not p._match('ac')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_match_chrset():
   # These test _match to check the raw string match without normalizing as a path
   assert PathMatcher('[!]')._match('!')
@@ -107,7 +107,7 @@ def test_match_chrset():
     # range is not ordered
     PathMatcher('[z-a]')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_match_any():
   p = PathMatcher('*.py')
   assert p.posix('.py')
@@ -127,7 +127,7 @@ def test_match_any():
   assert p.posix('aa/bb/cc')
   assert not p.posix('ab/bc/cd')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_match():
 
   p = PathMatcher('a')
@@ -197,7 +197,7 @@ def test_match():
   assert p.relative
   assert p.posix('a/b')
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_match_recurse():
 
   p = PathMatcher('**/foo')
@@ -256,7 +256,7 @@ def test_match_recurse():
     p = PathMatcher('a/**b')
 
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_filter():
 
   p = PathFilter()
@@ -278,7 +278,7 @@ def test_filter():
   assert p.filter(pxp('z/x'), dnames = [], fnames = ['y']) == {'y'}
   assert p.filter(ntp('z\\x'), dnames = [], fnames = ['y']) == {'y'}
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_file_ignore_patterns():
   ignore_patterns = combine_ignore_patterns(
     PathFilter(['a/', '!b']),
@@ -297,6 +297,6 @@ def test_file_ignore_patterns():
 
     assert ignore_patterns('z/x', ['y'])
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 if __name__ == '__main__':
   test_match_any()

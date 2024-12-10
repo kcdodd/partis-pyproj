@@ -36,13 +36,13 @@ from .validate import (
   mapget,
   as_list)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 CompatibilityTags = namedtuple('CompatibilityTags', ['py_tag', 'abi_tag', 'plat_tag'])
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # NOTE: patterns used for validation are defined at the end of this file
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PEPValidationError( ValidationError ):
   """Error from value incompatible with a :term:`PEP`
 
@@ -63,7 +63,7 @@ class PEPValidationError( ValidationError ):
     super().__init__(
       msg = f'{msg} (PEP {pep}): {val}' )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_printable(
   text = None ):
   r"""Removes leading and trailing whitespace and all non-printable characters,
@@ -112,7 +112,7 @@ def norm_printable(
 
   return nonprintable.sub( '', str(text).strip() )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def valid_dist_name( name ):
   """Checks for valid distribution name (:pep:`426`)
 
@@ -131,7 +131,7 @@ def valid_dist_name( name ):
 
   return name
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_name( name ):
   """Normalizes a distribution name (:pep:`503`)
 
@@ -154,7 +154,7 @@ def norm_dist_name( name ):
 
   return name
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_filename( name ):
   """Normalize distribution filename component (:pep:`427`)
 
@@ -170,7 +170,7 @@ def norm_dist_filename( name ):
 
   return re.sub( r"[^\w\d\.]+", "_", name )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def join_dist_filename( parts ):
   """Joins distribution filename component (:pep:`427`)
 
@@ -189,7 +189,7 @@ def join_dist_filename( parts ):
     for p in parts
     if p != ''])
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_version( version ):
   """Checks for valid distribution version (:pep:`440`)
 
@@ -209,7 +209,7 @@ def norm_dist_version( version ):
 
   return version
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_author(
   name = None,
   email = None ):
@@ -262,7 +262,7 @@ def norm_dist_author(
   # > as appropriate.
   return name, email
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_author_dict(val):
 
   name = norm_printable( val.get('name', '') )
@@ -309,7 +309,7 @@ def norm_dist_author_dict(val):
 
   return val
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_classifier( classifier ):
   """
   See Also
@@ -332,7 +332,7 @@ def norm_dist_classifier( classifier ):
 
   return classifier
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_keyword( keyword ):
   """
   See Also
@@ -350,7 +350,7 @@ def norm_dist_keyword( keyword ):
 
   return keyword
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_url( label, url ):
   """
   See Also
@@ -385,7 +385,7 @@ def norm_dist_url( label, url ):
 
   return label, url
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_extra( extra ):
   """Normalize distribution 'extra' requirement
 
@@ -404,7 +404,7 @@ def norm_dist_extra( extra ):
 
   return extra
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def dist_build( build_number = None, build_tag = None ):
   if build_number is None and build_tag is None:
     build = ''
@@ -420,7 +420,7 @@ def dist_build( build_number = None, build_tag = None ):
 
   return norm_dist_build(build)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_build( build ):
   """
   Note
@@ -443,7 +443,7 @@ def norm_dist_build( build ):
 
   return build
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_dist_compat( py_tag, abi_tag, plat_tag ):
   """
 
@@ -500,7 +500,7 @@ def norm_dist_compat( py_tag, abi_tag, plat_tag ):
 
   return CompatibilityTags( py_tag, abi_tag, plat_tag )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def join_dist_compat( tags ):
   """
   See Also
@@ -509,7 +509,7 @@ def join_dist_compat( tags ):
   """
   return '.'.join( sorted(list(set(tags))) )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def compress_dist_compat( compat ):
   """
   See Also
@@ -525,7 +525,7 @@ def compress_dist_compat( compat ):
 
   return py_tags, abi_tags, plat_tags
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def purelib_compat_tags():
   """Return general compatability tags for the current system
   """
@@ -534,7 +534,7 @@ def purelib_compat_tags():
 
   return compat
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def platlib_compat_tags():
   """Get platform compatability tags for the current system
   """
@@ -547,7 +547,7 @@ def platlib_compat_tags():
 
   return compat_tags
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_py_identifier( name ):
 
   name = norm_printable( name )
@@ -564,7 +564,7 @@ def norm_py_identifier( name ):
 
   return name
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_entry_point_group( name ):
   """Normalizes entry point group
 
@@ -582,7 +582,7 @@ def norm_entry_point_group( name ):
 
   return name
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_entry_point_name( name ):
   """Normalizes entry point name
 
@@ -600,7 +600,7 @@ def norm_entry_point_name( name ):
 
   return name
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def norm_entry_point_ref( ref ):
   """Normalizes entry point object reference
 
@@ -633,7 +633,7 @@ def norm_entry_point_ref( ref ):
       msg = f"""Entry point reference must have the form 'importable.module'
         or 'importable.module:object.attr': {ref}""") from e
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 pep426_dist_name = re.compile(
   r'^([A-Z0-9]|[A-Z0-9][A-Z0-9._\-]*[A-Z0-9])$',
   re.IGNORECASE )
@@ -654,7 +654,7 @@ pep425_pytag = re.compile(
   r'^([A-Z0-9_]+)$',
   re.IGNORECASE )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # https://www.python.org/dev/peps/pep-0621/#authors-maintainers
 # https://www.rfc-editor.org/rfc/inline-errata/rfc5322.html
 # > name value MUST be a valid email name (i.e. whatever can be put as a name,
@@ -691,7 +691,7 @@ common_plattag = {
     re.IGNORECASE ),
   'local' : re.compile( rf'^({local_plat})$', re.IGNORECASE )}
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # https://www.python.org/dev/peps/pep-0301/#distutils-trove-classification
 # > It was decided that strings would be used for the classification entries
 # > due to the deep nesting that would be involved in a more formal Python
@@ -707,17 +707,17 @@ pep_301_classifier = re.compile(
   r'^[A-Z0-9._\-\/\[\]\(\) ]+$',
   re.IGNORECASE )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # https://packaging.python.org/en/latest/specifications/core-metadata/#keywords
 # https://www.python.org/dev/peps/pep-0621/#keywords
 # NOTE: does not say what is a valid keyword, but does say they are comma separted,
 # and other implemented with space separated. To be safe ensure no white-space or commas
 pep_621_keyword = re.compile( r'^[^\s\,]+$' )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 pep_621_extra = re.compile( r'^([A-Z0-9_]+)?$', re.IGNORECASE  )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # https://packaging.python.org/en/latest/specifications/entry-points/
 # Group names must be one or more groups of letters, numbers and underscores,
 # separated by dots
@@ -726,11 +726,11 @@ entry_point_group = re.compile( r'^[A-Z0-9_]+(\.[A-Z0-9_]+)*$', re.IGNORECASE  )
 # underscores, dots and dashes
 entry_point_name = re.compile( r'^([A-Z0-9_\.\-]+)?$', re.IGNORECASE  )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 py_keyword = re.compile( '^(' + '|'.join(keyword.kwlist) + ')$' )
 py_identifier = re.compile( r'^[A-Z_][A-Z0-9_]*$', re.IGNORECASE )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # NOTE: there may be a more efficient way to strip all non-printable characters
 # Here consider new-lines '\n' and tabs '\t' to be printable
 # even though '\n'.isprintable() returns False

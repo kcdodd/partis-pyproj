@@ -20,7 +20,7 @@ from ..validate import (
   FileOutsideRootError,
   validating )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class dist_base( ABC ):
   """Builder for file distribution
 

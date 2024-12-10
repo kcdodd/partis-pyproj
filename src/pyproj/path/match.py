@@ -13,7 +13,7 @@ from .pattern import (
   tr_path,
   tr_rel_join )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PathMatcher:
   r"""Pattern matching similar to '.gitignore'
 
@@ -182,7 +182,7 @@ class PathMatcher:
     """
     return self(PurePosixPath(path))
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PathFilter:
   """A combination of file patters applied relative to a given 'start' directory
 
@@ -290,13 +290,13 @@ class PathFilter:
     return feasible
 
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def contains(a, b):
   a = str(a)
   b = str(b)
   return a == osp.commonpath([a, b])
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def partition(test, vals):
   """Separates a single list into two lists
 
@@ -322,7 +322,7 @@ def partition(test, vals):
 
   return x, y
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def partition_dir(dir, names):
   """Separates a list of names into those that are directorys and all others.
   """
@@ -330,7 +330,7 @@ def partition_dir(dir, names):
     lambda name: not osp.isdir(osp.join(dir, name)),
     names )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def combine_ignore_patterns(*patterns):
   """Creates a callable as ``ignore``
 

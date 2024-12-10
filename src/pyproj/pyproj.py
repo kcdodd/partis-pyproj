@@ -68,7 +68,7 @@ from .builder import (
 from .dist_file import (
   dist_copy )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PyProjBase:
   """Minimal build system for a Python project
 

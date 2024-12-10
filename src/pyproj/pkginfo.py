@@ -58,7 +58,7 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.markers import Marker
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class EntryPointsParser(configparser.ConfigParser):
   """
 
@@ -68,7 +68,7 @@ class EntryPointsParser(configparser.ConfigParser):
   """
   optionxform = staticmethod(str)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PkgInfoAuthor:
   """Internal container for normalizing Author/Maintainer
   and Author-email/Maintainer-email header metadata
@@ -98,7 +98,7 @@ class PkgInfoAuthor:
   def __hash__( self ):
     return hash(str(self))
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PkgInfoURL:
   """Internal container for normalizing Project-URL
   """
@@ -120,7 +120,7 @@ class PkgInfoURL:
   def __hash__( self ):
     return hash(str(self))
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PkgInfoReq:
   """Internal container for normalizing "Requires-Dist" header metadata
   """
@@ -150,7 +150,7 @@ class PkgInfoReq:
   def __hash__( self ):
     return hash(str(self))
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PkgInfo:
   def __init__( self,
     project,
@@ -310,7 +310,7 @@ class PkgInfo:
 
           self.license_file = os.fspath(PurePosixPath(self.license.file))
 
-          license_file = root.joinpath(self.license.file) 
+          license_file = root.joinpath(self.license.file)
 
           if not license_file.exists():
             raise ValidationError(

@@ -12,7 +12,7 @@ from partis.pyproj.load_module import (
   load_module,
   load_entrypoint )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_load_entrypoint():
   root = Path(__file__).parent / 'pkg_base'
 

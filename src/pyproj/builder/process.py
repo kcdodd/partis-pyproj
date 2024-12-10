@@ -13,7 +13,7 @@ from ..validate import (
   ValidPathError,
   FileOutsideRootError )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def process(
   pyproj,
   logger: logging.Logger,

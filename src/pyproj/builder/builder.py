@@ -4,6 +4,7 @@ import re
 from copy import copy
 import shutil
 import subprocess
+from logging import Logger
 from pathlib import Path
 
 from ..file import tail
@@ -21,30 +22,32 @@ from ..path import (
 from ..template import (
   template_substitute,
   Namespace)
+from ..pptoml import pyproj_targets
 
 ERROR_REC = re.compile(r"error:", re.I)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class BuildCommandError(ValidationError):
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class Builder:
   """Run build setup, compile, install commands
 
   Parameters
   ----------
-  root : str | pathlib.Path
+  root:
     Path to root project directory
-  targets : :class:`pyproj_build <partis.pyproj.pptoml.pyproj_targets>`
-  logger : logging.Logger
+  targets:
+  logger:
+
   """
   #-----------------------------------------------------------------------------
   def __init__(self,
     pyproj,
-    root,
-    targets,
-    logger):
+    root: str | Path,
+    targets: pyproj_targets,
+    logger: Logger):
 
     root = Path(root).resolve()
 
@@ -221,7 +224,7 @@ class Builder:
         self.logger.info(f"Removing build dir: {build_dir}")
         shutil.rmtree(build_dir)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class ProcessRunner:
   #-----------------------------------------------------------------------------
   def __init__(self,

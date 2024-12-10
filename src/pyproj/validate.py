@@ -13,13 +13,13 @@ from collections.abc import (
   Sequence,
   Iterable )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # NOTE: Filtering works by changing the traceback linked-list, which means
 # writing to the 'tb_next' attrbute to the next frame not to be skipped.
 # However, 'tb_next' was a read-only attribute until Python 3.7
 FILTER_VALIDATING_FRAMES = sys.version_info >= (3,7)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def filter_traceback(traceback, ignore):
   # NOTE: always keep the first frame in the trace-back (even if it would be filtered)
   cur_tb = traceback
@@ -44,18 +44,18 @@ def filter_traceback(traceback, ignore):
     else:
       prev_kept_tb = cur_tb
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def ignore_validating(frame, lineno):
   if frame.f_code.co_filename == __file__:
     return True
 
   return False
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class ValidationWarning( RuntimeWarning ):
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class ValidationError( ValueError ):
   """General validation error
 
@@ -130,27 +130,27 @@ class ValidationError( ValueError ):
         filename = self.doc_file,
         path = self.doc_path ))
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class RequiredValueError( ValidationError ):
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class ValidDefinitionError( ValidationError ):
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class ValidPathError(ValidationError):
   """File is not valid
   """
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class FileOutsideRootError(ValidPathError):
   """File path is outside a desired root directory
   """
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class validating:
   """Context manager to append information to a ValidationError as it propagates
 
@@ -208,7 +208,7 @@ class validating:
     # do not handle any exceptions here
     return False
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class Special:
   #-----------------------------------------------------------------------------
   def __str__(self):
@@ -230,25 +230,25 @@ class Special:
   def __hash__(self):
     return hash(str(self))
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class Optional(Special):
   """Optional value
   """
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class OptionalNone(Special):
   """Optional value, but is set to None if not initially set
   """
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class Required(Special):
   """Required value
   """
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class NotSet(Special):
   """Special value indicating a value is not set
   """
@@ -259,7 +259,7 @@ OPTIONAL_NONE = OptionalNone()
 REQUIRED = Required()
 NOTSET = NotSet()
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def validate(val, default, validators):
   """Internal method to apply default value and validators
   """
@@ -318,7 +318,7 @@ def validate(val, default, validators):
 
   return val
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def fmt_validator(v):
 
   if isinstance(v, Validator):
@@ -360,7 +360,7 @@ def fmt_validator(v):
 
   return f"<{name}>"
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class Validator:
   """Validates a value
   """
@@ -436,7 +436,7 @@ class Validator:
   def __call__(self, val = NOTSET):
     return validate(val, self._default, self._validators)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class Restricted(Validator):
   """Restricts a value to one of listed options
   """
@@ -466,7 +466,7 @@ class Restricted(Validator):
 
     return val
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def valid(*validators, default = NOTSET):
   """Casts list of objects to Validator, if needed
   """
@@ -478,19 +478,19 @@ def valid(*validators, default = NOTSET):
 
   return Validator(*validators, default = default)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def union(*validators):
   """Value must pass at least one of listed validators
   """
   return Validator([valid(v) for v in validators], default = REQUIRED)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def restrict(*options):
   """Restricts a value to one of listed options
   """
   return Restricted(*options)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def valid_type(
   obj,
   types ):
@@ -502,7 +502,7 @@ def valid_type(
   raise ValidationError(
     f"Must be of type {types}: {type(obj)}" )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def valid_keys(
   obj,
   key_valid = None,
@@ -705,7 +705,7 @@ def valid_keys(
 
   return out
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class validating_block:
   def __init__(self, obj):
     self._obj = obj
@@ -719,13 +719,13 @@ class validating_block:
     # do not handle any exceptions here
     return False
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def attrs_modifiable( obj ):
   return (
     not hasattr( obj, '_p_attrs_modify' )
     or obj._p_attrs_modify )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class attrs_modify:
   #-----------------------------------------------------------------------------
   def __init__( self, obj ):
@@ -739,7 +739,7 @@ class attrs_modify:
   def __exit__(self, type, value, traceback):
     self._obj._p_attrs_modify = False
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class valid_dict(Mapping):
   """Validated Mapping
 
@@ -1026,7 +1026,7 @@ class valid_dict(Mapping):
   def __repr__(self):
     return str(self)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class valid_list(list):
   """Validated list
   """
@@ -1094,7 +1094,7 @@ class valid_list(list):
     if len(self) < self._min_len:
       raise ValidationError(f"Must have length >= {self._min_len}: {len(self)}")
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def mapget(
   obj,
   path,
@@ -1124,7 +1124,7 @@ def mapget(
 
   return _obj
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def as_list(obj):
   if isinstance(obj, (str, Mapping)) or not isinstance(obj, Iterable):
     return [obj]

@@ -20,7 +20,7 @@ from ..norms import (
   norm_mode,
   norm_zip_external_attr )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class dist_zip( dist_base ):
   """Builds a zip file
 
@@ -129,7 +129,7 @@ class dist_zip( dist_base ):
     # remove temporary file
     if self._tmp_path.exists():
       self._tmp_path.unlink()
-      
+
     self._tmp_path = None
 
   #-----------------------------------------------------------------------------

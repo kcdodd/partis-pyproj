@@ -4,11 +4,11 @@ from os import (
   pardir)
 from pathlib import PurePath
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class PathError(ValueError):
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def _concretize(comps: list[str]) -> list[str]|None:
   r"""Mostly equivalent to :func:`os.path.normpath`, except for the cases where
   a concrete path is not possible or would be truncated.
@@ -33,10 +33,9 @@ def _concretize(comps: list[str]) -> list[str]|None:
     else:
       new_comps.append(comp)
 
-  print(f"_concretize: {comps} -> {new_comps}")
   return new_comps
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def _subdir(_start: list[str], _path: list[str]) -> list[str]|None:
   r"""Concrete path relative to start, or `None` if path is not a sub-directory
   """
@@ -54,8 +53,8 @@ def _subdir(_start: list[str], _path: list[str]) -> list[str]|None:
 
   return _path[n:]
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def subdir(start: PurePath, path: PurePath, check: bool = True) -> PurePath:
+#===============================================================================
+def subdir(start: PurePath, path: PurePath, check: bool = True) -> PurePath|None:
   """Relative path, restricted to sub-directories.
 
   Parameters
@@ -74,7 +73,6 @@ def subdir(start: PurePath, path: PurePath, check: bool = True) -> PurePath:
   """
 
   _rpath = _subdir(start.parts, path.parts)
-  print(f"subdir: {start}, {path} -> {_rpath}")
 
   if _rpath is None:
     if check:

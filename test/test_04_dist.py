@@ -20,7 +20,7 @@ from partis.pyproj import (
   dist_source_dummy,
   dist_binary_wheel )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_dist_base():
 
   class dist_dummy( dist_base ):
@@ -88,7 +88,7 @@ def test_dist_base():
     dist.makedirs('stuff')
 
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_dist_source_dummy():
 
   with raises( ValueError ):
@@ -101,7 +101,7 @@ def test_dist_source_dummy():
 
   dist_source_dummy( pkg_info = pkg_info )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_dist_targz():
 
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -129,7 +129,7 @@ def test_dist_targz():
     # should be able to call any number of times
     dist.close_distfile()
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_dist_zip():
 
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -151,7 +151,7 @@ def test_dist_zip():
     # should be able to call any number of times
     dist.close_distfile()
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_dist_source():
 
   with raises( ValueError ):
@@ -240,7 +240,7 @@ def test_dist_source():
         src = osp.join( tmpdir, 'src' ),
         dst = osp.join( sdist.base_path, 'src' ) )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_dist_binary_wheel():
 
 

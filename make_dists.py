@@ -4,7 +4,7 @@
 """
 
 import os
-import os.path as osp 
+import os.path as osp
 from pathlib import (
   Path,
   PurePath,
@@ -14,7 +14,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 import subprocess
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def main():
   parser = argparse.ArgumentParser(
     description = __doc__,
@@ -110,6 +110,6 @@ def main():
       '-o',
       out_dir ])
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 if __name__ == "__main__":
   main()

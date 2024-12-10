@@ -15,7 +15,7 @@ import tempfile
 from argparse import RawTextHelpFormatter
 logger = logging.getLogger(__name__)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def egg_info( args ):
 
   logger.warning(
@@ -26,13 +26,13 @@ def egg_info( args ):
   if not dir.exists():
     dir.mkdir(parents=True, exist_ok = True)
 
-  with open(dir.joinpath('PKG-INFO'), 'wb' ) as fp:  
+  with open(dir.joinpath('PKG-INFO'), 'wb' ) as fp:
     fp.write( PKG_INFO )
 
-  with open( dir.joinpath('setup_requires.txt'), 'wb' ) as fp: 
+  with open( dir.joinpath('setup_requires.txt'), 'wb' ) as fp:
     fp.write( b'' )
 
-  with open( dir.joinpath('requires.txt'), 'wb' ) as fp: 
+  with open( dir.joinpath('requires.txt'), 'wb' ) as fp:
     fp.write( REQUIRES )
 
   with open( dir.joinpath('SOURCES.txt'), 'wb' ) as fp:
@@ -50,7 +50,7 @@ def egg_info( args ):
   with open( dir.joinpath('not-zip-safe'), 'wb' ) as fp:
     fp.write( b'' )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def bdist_wheel( args ):
 
   logger.warning(
@@ -63,7 +63,7 @@ def bdist_wheel( args ):
   backend.build_wheel(
     wheel_directory = args.dist_dir or args.bdist_dir or '.' )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def install( args ):
 
   logger.warning(
@@ -91,13 +91,13 @@ def install( args ):
       '-m',
       'pip',
       'install',
-      tmpdir.joinpath(wheel_name) ]) 
+      tmpdir.joinpath(wheel_name) ])
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def dummy( args ):
   pass
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def main():
 
   logging.basicConfig(
@@ -185,7 +185,7 @@ def main():
   args.func( args )
 
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 # NOTE: these are templated literal values substituded by the backend when
 # building the source distribution
 
@@ -205,7 +205,7 @@ TOP_LEVEL = {top_level}
 
 ENTRY_POINTS = {entry_points}
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 
 if __name__ == "__main__":
   exit( main() )

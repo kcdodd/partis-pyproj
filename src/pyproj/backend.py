@@ -24,23 +24,7 @@ from . import (
   dist_binary_wheel,
   dist_source_targz )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class UnsupportedOperation( Exception ):
-  """
-  Note
-  ----
-  If the backend cannot produce an dist because a dependency is missing,
-  or for another well understood reason, it should raise an exception of a
-  specific type which it makes available as UnsupportedOperation on the
-  backend object.
-
-  See Also
-  --------
-  * https://www.python.org/dev/peps/pep-0517/
-  """
-  pass
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def backend_init(
   root = '.',
   config_settings = None,
@@ -255,3 +239,19 @@ def build_wheel(
 #   config_settings = None,
 #   metadata_directory = None ):
 #   pass
+
+#===============================================================================
+class UnsupportedOperation( Exception ):
+  """
+  Note
+  ----
+  If the backend cannot produce an dist because a dependency is missing,
+  or for another well understood reason, it should raise an exception of a
+  specific type which it makes available as UnsupportedOperation on the
+  backend object.
+
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0517/
+  """
+  pass

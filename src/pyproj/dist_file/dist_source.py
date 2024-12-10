@@ -24,7 +24,7 @@ from ..pkginfo import PkgInfo
 from .dist_base import dist_base
 from .dist_targz import dist_targz
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class dist_source_targz( dist_targz ):
   """Build a source distribution ``*.tar.gz`` file
 
@@ -118,7 +118,7 @@ class dist_source_targz( dist_targz ):
       data = self.pkg_info.encode_pkg_info() )
 
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class dist_source_dummy( dist_base ):
   """Build a dummy source distribution without a physical file
   """
@@ -142,7 +142,7 @@ class dist_source_dummy( dist_base ):
     self.base_path = PurePosixPath('-'.join( sdist_name_parts ))
 
     self.metadata_path = self.base_path.joinpath('PKG-INFO')
-    
+
     super().__init__(
       outname = '-'.join( sdist_name_parts ) + '.tar.gz',
       outdir = outdir,

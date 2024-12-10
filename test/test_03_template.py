@@ -17,7 +17,7 @@ from partis.pyproj import (
   NamespaceError,
   FileOutsideRootError)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 def test_template():
   root = PurePosixPath('/root')
 
@@ -60,6 +60,6 @@ def test_template():
     with raises(cls):
       Template(tmpl).substitute(namespace)
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 if __name__ == '__main__':
   test_template()

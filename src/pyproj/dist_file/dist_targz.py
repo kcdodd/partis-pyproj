@@ -19,7 +19,7 @@ from ..norms import (
   norm_data,
   norm_mode )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#===============================================================================
 class dist_targz( dist_base ):
   """Builds a tar-file  with gz compression
 
@@ -131,7 +131,7 @@ class dist_targz( dist_base ):
     # remove temporary file
     if self._tmp_path.exists():
       self._tmp_path.unlink()
-      
+
     self._tmp_path = None
 
   #-----------------------------------------------------------------------------

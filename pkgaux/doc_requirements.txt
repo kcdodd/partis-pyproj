@@ -1,0 +1,9 @@
+-r base_requirements.txt
+sphinx ~= 8.0.0
+pydata-sphinx-theme ~= 0.15.4
+sphinx-design ~= 0.6.1
+pygments ~= 2.17.0
+sphinx-copybutton ~= 0.5.1
+sphinx-subfigure ~= 0.2.4
+sphinxcontrib-bibtex ~= 2.6.2
+sphinxcontrib-svg2pdfconverter[CairoSVG] ~= 1.2.2
