@@ -1,6 +1,4 @@
-[![linux](https://github.com/kcdodd/partis-pyproj/actions/workflows/linux.yaml/badge.svg)](https://github.com/kcdodd/partis-pyproj/actions/workflows/linux.yaml)
-[![macos](https://github.com/kcdodd/partis-pyproj/actions/workflows/macos.yaml/badge.svg)](https://github.com/kcdodd/partis-pyproj/actions/workflows/macos.yaml)
-[![windows](https://github.com/kcdodd/partis-pyproj/actions/workflows/windows.yaml/badge.svg)](https://github.com/kcdodd/partis-pyproj/actions/workflows/windows.yaml)
+[![tests](https://github.com/kcdodd/partis-pyproj/actions/workflows/tests.yaml/badge.svg)](https://github.com/kcdodd/partis-pyproj/actions/workflows/tests.yaml)
 
 The ``partis.pyproj`` package aims to be a minimal and
 transparent implementation of a [PEP-517](https://www.python.org/dev/peps/pep-0517) build back-end.

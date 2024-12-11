@@ -286,7 +286,7 @@ class dist_binary_wheel( dist_zip ):
 
     # the record file itself is listed in records, but the hash of the record
     # file cannot be included in the file.
-    _records = self.records|{self.record_path: ('', '')}
+    _records = {**self.records, self.record_path: ('', '')}
 
     for file, (hash, size) in _records.items():
       hash = f'sha256={hash}' if hash else ''
