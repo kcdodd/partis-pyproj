@@ -1,12 +1,47 @@
 from __future__ import annotations
+import sys
 from os import (
+  mkdir as os_mkdir,
   curdir,
   pardir)
-from pathlib import PurePath
+from pathlib import (
+  Path,
+  PurePath)
 
 #===============================================================================
 class PathError(ValueError):
   pass
+
+#===============================================================================
+if sys.version_info < (3, 10):
+  def mkdir(
+      path: Path,
+      mode: int = 0o777,
+      parents: bool = False,
+      exist_ok: bool = False):
+    """Backport of :meth:`Path.mkdir`, mishandled parents/exist_ok on windows
+    """
+    try:
+      os_mkdir(path, mode)
+
+    except FileNotFoundError:
+      if not parents or path.parent == path:
+        raise
+      mkdir(path.parent, parents=True, exist_ok=True)
+      mkdir(path, mode, parents=False, exist_ok=exist_ok)
+    except OSError:
+      # Cannot rely on checking for EEXIST, since the operating system
+      # could give priority to other errors like EACCES or EROFS
+      if not exist_ok or not path.is_dir():
+        raise
+else:
+  def mkdir(
+      path: Path,
+      mode: int = 0o777,
+      parents: bool = False,
+      exist_ok: bool = False):
+
+    path.mkdir(mode=mode, parents=True, exist_ok=True)
 
 #===============================================================================
 def _concretize(comps: list[str]) -> list[str]|None:

@@ -17,6 +17,7 @@ from ..validate import (
 from ..load_module import EntryPoint
 
 from ..path import (
+  mkdir,
   subdir )
 
 from ..template import (
@@ -61,7 +62,7 @@ class Builder:
       'pptoml': pyproj.pptoml,
       'project': pyproj.project,
       'pyproj': pyproj.pyproj,
-      'config': pyproj.config,
+      'config_settings': pyproj.config_settings,
       'targets': targets,
       'env': os.environ},
       root=root)
@@ -139,7 +140,7 @@ class Builder:
           if dir == self.root:
             raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
 
-          dir.mkdir(parents = True, exist_ok = True)
+          mkdir(dir, parents = True, exist_ok = True)
 
       with validating(key = f"tool.pyproj.targets[{i}].options"):
         # original target options remain until evaluated
@@ -172,7 +173,7 @@ class Builder:
       log_dir = self.root/'build'/'logs'
 
       if not log_dir.exists():
-        log_dir.mkdir(parents=True)
+        mkdir(log_dir, parents=True)
 
       runner = ProcessRunner(
         logger=self.logger,

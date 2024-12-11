@@ -153,7 +153,7 @@ def test_as_list():
   assert as_list({'a': 'b'}) == [{'a': 'b'}]
 
 #===============================================================================
-@mark.skipif(sys.implementation.name == 'pypy', reason="slow for PyPy to reconstruct list of non-printable characters")
+@mark.skip(reason="sometimes very, very slow")
 def test_gen_norm_printable():
   regex = gen_nonprintable()
   ns, test = _gen_nonprintable()

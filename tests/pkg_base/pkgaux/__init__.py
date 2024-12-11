@@ -1,10 +1,10 @@
 #===============================================================================
 def prep( self, logger ):
-  x = self.config.opt_a
-  y = self.config.opt_b
+  x = self.config_settings.opt_a
+  y = self.config_settings.opt_b
   print(f'config opt_a: {x}')
   print(f'config opt_b: {y}')
-  assert self.config.opt_b == 'xyz'
+  assert self.config_settings.opt_b == 'xyz'
 
   self.project.version = "0.0.1"
 

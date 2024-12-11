@@ -1,5 +1,6 @@
 from .utils import (
   PathError,
+  mkdir,
   subdir )
 
 from .pattern import (

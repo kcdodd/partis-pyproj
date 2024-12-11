@@ -53,7 +53,7 @@ from .pep import (
 
 #===============================================================================
 class dynamic(valid_list):
-  _value_valid = restrict(
+  value_valid = restrict(
     'version',
     'description',
     'readme',
@@ -74,13 +74,13 @@ class dynamic(valid_list):
 #===============================================================================
 class readme(valid_dict):
   # a string at top-level interpreted as a path to the readme file
-  _proxy_key = 'file'
-  _allow_keys = list()
-  _min_keys = [
+  proxy_key = 'file'
+  allow_keys = list()
+  min_keys = [
     ('file', 'text')]
-  _mutex_keys = [
+  mutex_keys = [
     ('file', 'text')]
-  _default = {
+  default = {
     # NOTE: file paths should initially be given as a POSIX path,
     # but converted to current OS path so it may be read.
     'file': valid(OPTIONAL, PurePosixPath, Path),
@@ -88,26 +88,26 @@ class readme(valid_dict):
 
 #===============================================================================
 class license(valid_dict):
-  _allow_keys = list()
-  _min_keys = [
+  allow_keys = list()
+  min_keys = [
     ('file', 'text')]
-  _default = {
+  default = {
     'file': valid(OPTIONAL, PurePosixPath, Path),
     'text': valid(OPTIONAL, nonempty_str, norm_printable) }
 
 #===============================================================================
 class author(valid_dict):
-  _validator = valid(norm_dist_author_dict)
-  _allow_keys = list()
-  _min_keys = [
+  validator = valid(norm_dist_author_dict)
+  allow_keys = list()
+  min_keys = [
     ('name', 'email')]
-  _default = {
+  default = {
     'name': valid(str),
     'email': valid(str) }
 
 #===============================================================================
 class authors(valid_list):
-  _value_valid = valid(author)
+  value_valid = valid(author)
 
 #===============================================================================
 class maintainer(author):
@@ -115,11 +115,11 @@ class maintainer(author):
 
 #===============================================================================
 class maintainers(valid_list):
-  _value_valid = valid(maintainer)
+  value_valid = valid(maintainer)
 
 #===============================================================================
 class dependencies(valid_list):
-  _value_valid = valid(norm_printable, Requirement, str)
+  value_valid = valid(norm_printable, Requirement, str)
 
 #===============================================================================
 class optional_dependency_group(dependencies):
@@ -127,13 +127,13 @@ class optional_dependency_group(dependencies):
 
 #===============================================================================
 class optional_dependencies(valid_dict):
-  _key_valid = valid(norm_dist_extra)
-  _value_valid = valid(optional_dependency_group)
+  key_valid = valid(norm_dist_extra)
+  value_valid = valid(optional_dependency_group)
 
 #===============================================================================
 class entry_point_group(valid_dict):
-  _key_valid = valid(norm_entry_point_name)
-  _value_valid = valid(norm_entry_point_ref)
+  key_valid = valid(norm_entry_point_name)
+  value_valid = valid(norm_entry_point_ref)
 
 #===============================================================================
 class scripts(entry_point_group):
@@ -145,15 +145,15 @@ class gui_scripts(entry_point_group):
 
 #===============================================================================
 class entry_points(valid_dict):
-  _key_valid = valid(norm_entry_point_group)
-  _value_valid = valid(entry_point_group)
+  key_valid = valid(norm_entry_point_group)
+  value_valid = valid(entry_point_group)
 
   # PEP 621
   # > Build back-ends MUST raise an error if the metadata defines a
   # > [project.entry-points.console_scripts] or [project.entry-points.gui_scripts]
   # > table, as they would be ambiguous in the face of [project.scripts]
   # > and [project.gui-scripts], respectively.
-  _forbid_keys = [
+  forbid_keys = [
     'scripts',
     'console_scripts',
     'gui-scripts',
@@ -161,11 +161,11 @@ class entry_points(valid_dict):
 
 #===============================================================================
 class keywords(valid_list):
-  _value_valid = valid(norm_dist_keyword)
+  value_valid = valid(norm_dist_keyword)
 
 #===============================================================================
 class classifiers(valid_list):
-  _value_valid = valid(norm_dist_classifier)
+  value_valid = valid(norm_dist_classifier)
 
 #===============================================================================
 def norm_dist_url_item(kv):
@@ -173,14 +173,14 @@ def norm_dist_url_item(kv):
 
 #===============================================================================
 class urls(valid_dict):
-  _item_valid = valid(norm_dist_url_item)
+  item_valid = valid(norm_dist_url_item)
 
 #===============================================================================
 class project(valid_dict):
-  _allow_keys = list()
-  _require_keys = [
+  allow_keys = list()
+  require_keys = [
     'name']
-  _default = {
+  default = {
     'dynamic': dynamic,
     'name': valid(valid_dist_name),
     'version': valid('0.0.0', norm_dist_version),
@@ -207,14 +207,14 @@ class build_requires(dependencies):
 
 #===============================================================================
 class path_parts(valid_list):
-  _value_valid = valid(nonempty_str)
+  value_valid = valid(nonempty_str)
 
 #===============================================================================
 class build_system(valid_dict):
-  _allow_keys = list()
-  _require_keys = [
+  allow_keys = list()
+  require_keys = [
     'build-backend']
-  _default = {
+  default = {
     'requires': build_requires,
     'build-backend': norm_entry_point_ref,
     'backend-path': valid(OPTIONAL_NONE, path_parts) }
@@ -227,14 +227,14 @@ def compat_tag(v):
 class compat_tags(valid_list):
   _as_list = valid(as_list)
   _min_len = 1
-  _value_valid = valid(compat_tag)
+  value_valid = valid(compat_tag)
 
 #===============================================================================
 class pyproj_prep(valid_dict):
-  _allow_keys = list()
-  _require_keys = [
+  allow_keys = list()
+  require_keys = [
     'entry' ]
-  _default = {
+  default = {
     'entry': norm_entry_point_ref,
     'kwargs': dict }
 
@@ -252,13 +252,13 @@ class pyproj_dist_binary_prep(pyproj_prep):
 
 #===============================================================================
 class pyproj_build_target(valid_dict):
-  _allow_keys = list()
-  _require_keys = [
+  allow_keys = list()
+  require_keys = [
     'entry' ]
-  _deprecate_keys = [
+  deprecate_keys = [
     # name changed to be more general
     ('compile', 'enabled')]
-  _default = {
+  default = {
     'enabled': valid(True, marker_evaluated),
     'entry': valid('partis.pyproj.builder:meson', norm_entry_point_ref),
     'options': dict,
@@ -280,8 +280,8 @@ class pyproj_meson(valid_dict):
     Replaced by more general :class:`pyproj_build_target`
 
   """
-  _allow_keys = list()
-  _default = {
+  allow_keys = list()
+  default = {
     'compile': valid(False, norm_bool),
     'src_dir': valid('.', nonempty_str, norm_path, norm_path_to_os),
     'build_dir': valid('build/meson', nonempty_str, norm_path, norm_path_to_os),
@@ -295,25 +295,25 @@ class pyproj_meson(valid_dict):
 #===============================================================================
 class pyproj_targets(valid_list):
   _as_list = valid(as_list)
-  _value_valid = valid(pyproj_build_target)
+  value_valid = valid(pyproj_build_target)
 
 #===============================================================================
 class ignore_list(valid_list):
   _as_list = valid(as_list)
-  _value_valid = valid(nonempty_str)
+  value_valid = valid(nonempty_str)
 
 #===============================================================================
 class glob_list(valid_list):
   _as_list = valid(as_list)
-  _value_valid = valid(nonempty_str)
+  value_valid = valid(nonempty_str)
 
 #===============================================================================
 class include(valid_dict):
-  _allow_keys = list()
+  allow_keys = list()
   # a string at top-level interpreted as 'match'
-  _proxy_key = 'glob'
+  proxy_key = 'glob'
   # TODO: how to normalize patterns?
-  _default = {
+  default = {
     'glob': valid(nonempty_str),
     'rematch': valid(r'.*', nonempty_str, re.compile),
     'replace': valid('{0}', nonempty_str)}
@@ -321,19 +321,19 @@ class include(valid_dict):
 #===============================================================================
 class include_list(valid_list):
   _as_list = valid(as_list)
-  _value_valid = valid(include)
+  value_valid = valid(include)
 
 #===============================================================================
 class pyproj_dist_copy(valid_dict):
   # a string at top-level interpreted as 'src'
-  _proxy_key = 'src'
+  proxy_key = 'src'
   # take 'dst' from 'src' if not set
-  _proxy_keys = [('dst', 'src')]
-  _deprecate_keys = [('glob', 'include')]
-  _allow_keys = list()
-  _min_keys = [
+  proxy_keys = [('dst', 'src')]
+  deprecate_keys = [('glob', 'include')]
+  allow_keys = list()
+  min_keys = [
     ('src', 'glob') ]
-  _default = {
+  default = {
     # NOTE: file paths should initially be given as a POSIX path,
     # but converted to current OS path so it may be read.
     'src': valid(REQUIRED, PurePosixPath, Path),
@@ -344,19 +344,19 @@ class pyproj_dist_copy(valid_dict):
 
 #===============================================================================
 class pyproj_dist_copy_list(valid_list):
-  _value_valid = valid(pyproj_dist_copy)
+  value_valid = valid(pyproj_dist_copy)
 
 #===============================================================================
 class pyproj_dist_scheme(valid_dict):
-  _allow_keys = list()
-  _default = {
+  allow_keys = list()
+  default = {
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list }
 
 #===============================================================================
 class pyproj_dist_binary(valid_dict):
-  _allow_keys = list()
-  _default = {
+  allow_keys = list()
+  default = {
     'build_number': valid(OPTIONAL_NONE, int),
     'build_suffix': valid(OPTIONAL_NONE, str),
     'compat_tags': valid(purelib_compat_tags(), compat_tags),
@@ -371,8 +371,8 @@ class pyproj_dist_binary(valid_dict):
 
 #===============================================================================
 class pyproj_dist_source(valid_dict):
-  _allow_keys = list()
-  _default = {
+  allow_keys = list()
+  default = {
     'prep': valid(OPTIONAL, pyproj_dist_source_prep),
     'ignore': ignore_list,
     'copy': pyproj_dist_copy_list,
@@ -380,8 +380,8 @@ class pyproj_dist_source(valid_dict):
 
 #===============================================================================
 class pyproj_dist(valid_dict):
-  _allow_keys = list()
-  _default = {
+  allow_keys = list()
+  default = {
     'prep': valid(OPTIONAL, pyproj_dist_prep),
     'ignore': ignore_list,
     'source': pyproj_dist_source,
@@ -389,32 +389,32 @@ class pyproj_dist(valid_dict):
 
 #===============================================================================
 class pyproj_config(valid_dict):
-  _key_valid = valid(norm_dist_extra)
-  _value_valid = union(scalar, scalar_list)
+  key_valid = valid(norm_dist_extra)
+  value_valid = union(scalar, scalar_list)
 
 #===============================================================================
 class pyproj(valid_dict):
-  _allow_keys = list()
-  _default = {
+  allow_keys = list()
+  default = {
     'config': pyproj_config,
     'prep': valid(OPTIONAL, pyproj_prep),
     'dist': pyproj_dist,
     'targets': pyproj_targets }
-  _deprecate_keys = [('meson', 'targets')]
+  deprecate_keys = [('meson', 'targets')]
 
 #===============================================================================
 class tool(valid_dict):
-  _require_keys = ['pyproj']
-  _default = {
+  require_keys = ['pyproj']
+  default = {
     'pyproj': pyproj }
 
 #===============================================================================
 class pptoml(valid_dict):
-  _allow_keys = list()
-  _require_keys = [
+  allow_keys = list()
+  require_keys = [
     'project',
     'build-system']
-  _default = {
+  default = {
     'project': valid(REQUIRED, project),
     'build-system': valid(REQUIRED, build_system),
     'tool': valid(OPTIONAL, tool) }

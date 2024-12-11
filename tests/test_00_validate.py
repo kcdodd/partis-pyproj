@@ -130,52 +130,52 @@ def test_validator():
   m = Validator()
   print(str(m))
   print(repr(m))
-  assert m._default == REQUIRED
-  assert m._validators == []
+  assert m.default == REQUIRED
+  assert m.validators == ()
 
   m = Validator(default = REQUIRED)
-  assert m._default == REQUIRED
-  assert m._validators == []
+  assert m.default == REQUIRED
+  assert m.validators == ()
 
   with raises(ValidationError):
     m()
 
   m = Validator(default = None)
-  assert m._default == OPTIONAL_NONE
-  assert m._validators == []
+  assert m.default == OPTIONAL_NONE
+  assert m.validators == ()
   assert m() == None
 
   m = Validator(None)
-  assert m._default == OPTIONAL_NONE
-  assert m._validators == []
+  assert m.default == OPTIONAL_NONE
+  assert m.validators == ()
   assert m() == None
 
   m = Validator(default = OPTIONAL)
-  assert m._default == OPTIONAL
-  assert m._validators == []
+  assert m.default == OPTIONAL
+  assert m.validators == ()
   assert m() == NOTSET
 
   m = Validator(OPTIONAL)
-  assert m._default == OPTIONAL
-  assert m._validators == []
+  assert m.default == OPTIONAL
+  assert m.validators == ()
   assert m() == NOTSET
 
   a = Validator(1)
   print(str(a))
-  assert a._default == 1
-  assert a._validators == [int]
+  assert a.default == 1
+  assert a.validators == (int,)
   assert a() == 1
 
   b = Validator(int)
   print(str(b))
-  assert b._default == 0
-  assert b._validators == [int]
+  assert b.default == 0
+  assert b.validators == (int,)
   assert b() == 0
 
   c = Validator(int, default = 2)
   print(str(c))
-  assert c._default == 2
-  assert c._validators == [int]
+  assert c.default == 2
+  assert c.validators == (int,)
   assert c() == 2
 
   class Test:
@@ -191,8 +191,8 @@ def test_validator():
 
   d = Validator(Test, default = 1)
   print(str(d))
-  assert d._default == Test(1)
-  assert d._validators == [Test]
+  assert d.default == Test(1)
+  assert d.validators == (Test,)
 
   with raises( ValidDefinitionError ):
     Validator(Test)
@@ -206,9 +206,9 @@ def test_validator():
 #===============================================================================
 def test_restricted():
   a = Restricted(1, 5, 10)
-  assert a._default == 1
-  assert a._validators == [int]
-  assert a._options == {1, 5, 10}
+  assert a.default == 1
+  assert a.validators == (int,)
+  assert a.options == {1, 5, 10}
 
   assert a(1) == 1
   assert a(5) == 5
@@ -358,9 +358,9 @@ def test_valid_keys():
 #===============================================================================
 def test_valid_dict():
   class test(valid_dict):
-    _deprecate_keys = [('x', None), ('y', REQUIRED)]
-    _wedge_keys = [('a','b')]
-    _mutex_keys = [('c', 'd')]
+    deprecate_keys = [('x', None), ('y', REQUIRED)]
+    wedge_keys = [('a','b')]
+    mutex_keys = [('c', 'd')]
 
   a = test()
 
@@ -417,7 +417,7 @@ def test_valid_dict():
   assert 'c' not in c
 
   class test(valid_dict):
-    _proxy_key = 'x'
+    proxy_key = 'x'
 
   a = test()
   assert a == {}
@@ -430,11 +430,10 @@ def test_valid_dict():
   assert c['x'] == 1
 
   class test(valid_dict):
-    _allow_keys = ['x-y']
+    allow_keys = ['x-y']
 
   a = test({'x-y': 123})
-  print(a._p_key_attr)
-  print(a._p_dict)
+  print(a._data)
 
   assert a['x-y'] == 123
   assert a.x_y == 123

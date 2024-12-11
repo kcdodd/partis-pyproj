@@ -457,13 +457,13 @@ kwargs = { deps = ["additional_build_dep >= 1.2.3"] }
 
 def prep( backend, logger, deps ):
 
-  if backend.config.a_cfg_option:
+  if backend.config_settings.a_cfg_option:
     backend.build_requires |= set(deps)
 
-  if backend.config.another_option == 'foo':
+  if backend.config_settings.another_option == 'foo':
     ...
 
-  elif backend.config.another_option == 'bar':
+  elif backend.config_settings.another_option == 'bar':
     ...
 ```
 

@@ -59,7 +59,7 @@ def scalar(val):
 
 #===============================================================================
 class scalar_list(valid_list):
-  _value_valid = valid(scalar)
+  value_valid = valid(scalar)
 
 #===============================================================================
 def norm_bool(val):
@@ -96,11 +96,11 @@ def nonempty_str(val):
 
 #===============================================================================
 class str_list(valid_list):
-  _value_valid = valid(str)
+  value_valid = valid(str)
 
 #===============================================================================
 class nonempty_str_list(valid_list):
-  _value_valid = valid(nonempty_str)
+  value_valid = valid(nonempty_str)
 
 #===============================================================================
 def norm_data(data: str|bytes|IOBase) -> bytes:

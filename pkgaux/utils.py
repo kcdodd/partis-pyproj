@@ -51,8 +51,10 @@ def session_command(f):
 #===============================================================================
 @session_command
 def mkdir(session, path):
-  path.mkdir(exist_ok = True, parents = True)
+  if path.exists():
+    return
 
+  path.mkdir(parents = True)
 
 #===============================================================================
 @session_command

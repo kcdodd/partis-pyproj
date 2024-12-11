@@ -20,6 +20,7 @@ from ..norms import (
   norm_data,
   norm_mode,
   norm_zip_external_attr )
+from ..path import mkdir
 
 #===============================================================================
 class dist_zip( dist_base ):
@@ -119,7 +120,7 @@ class dist_zip( dist_base ):
       # NOTE: the missing_ok parameter was not added until py38
       self.outpath.unlink()
 
-    self.outdir.mkdir( parents = True, exist_ok = True )
+    mkdir(self.outdir, parents = True, exist_ok = True )
     shutil.copyfile( self._tmp_path, self.outpath )
 
   #-----------------------------------------------------------------------------

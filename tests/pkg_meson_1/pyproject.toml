@@ -18,7 +18,7 @@ email = "software.support@nanohmics.com"
 [build-system]
 requires = [
   "partis-pyproj[meson] >= 0.0.1",
-  "Cython>=0.29.18" ]
+  "Cython>=3.0" ]
 
 build-backend = "partis.pyproj.backend"
 

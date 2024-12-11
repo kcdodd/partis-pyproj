@@ -131,14 +131,12 @@ class PyProjBase:
       else:
         config_default[k] = valid(v, type(v))
 
-    class valid_config(valid_dict):
-      _allow_keys = list()
-      _default = config_default
+    class valid_config_settings(valid_dict):
+      allow_keys = list()
+      default = config_default
 
     with validating( key = 'config_settings' ):
-      _config_settings = valid_config(config_settings or dict())
-
-      self.pyproj.config = _config_settings
+      self._config_settings = valid_config_settings(config_settings or dict())
 
     #...........................................................................
     self.build_backend = mapget( self.pptoml,
@@ -198,10 +196,10 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def config(self):
-    """:class:`partis.pyproj.pptoml.pyproj_config`
+  def config_settings(self):
+    """Config settings passed to backend, or defaults from ``pyproj.config``
     """
-    return self._pptoml.tool.pyproj.config
+    return self._config_settings
 
   #-----------------------------------------------------------------------------
   @property

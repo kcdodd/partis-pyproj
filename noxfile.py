@@ -53,8 +53,6 @@ python_versions = ppnox['python']
 
 nox.options.stop_on_first_error = True
 nox.options.envdir = str(tmp_dir / '.nox')
-nox.options.default_venv_backen = 'venv'
-
 sitcustom_dir = test_dir/'cov_sitecustom'
 
 #===============================================================================
@@ -68,9 +66,6 @@ from pkgaux.utils import (  # noqa: E402
   install,
   clear_pip_cache,
   run_cmds)
-
-# needed for installing distributions
-env_prepend(os.environ, 'PIP_FIND_LINKS', dist_dir, ' ')
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 clean_cmds = [
