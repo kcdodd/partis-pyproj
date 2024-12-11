@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 
 log = getLogger(__name__)
+nox.needs_version = ">=2024.10.9"
 
 #===============================================================================
 # Config
@@ -109,7 +110,7 @@ doc_cmds = [{
 #===============================================================================
 # Sessions
 #===============================================================================
-@nox.session()
+@nox.session(default=False)
 def clean(session):
   run_cmds(session, 0, 'clean', clean_cmds)
 
@@ -126,7 +127,7 @@ def prepare(session):
     session.log(f"No preparation, running as distribution of {pkg}")
 
 #===============================================================================
-@nox.session()
+@nox.session(default=False)
 def doc(session):
   session.log(f"Building documentation for {pkg}")
   session.log(f"  root          : {root_dir}")
@@ -142,15 +143,12 @@ def doc(session):
 
 #===============================================================================
 # successivly build and install sdist/wheel, run tests as individual sub-projects
-@nox.session(
-  python = python_versions)
+@nox.session(python = python_versions)
 def test(session):
-  session.install(
-    '-r',
-    pkgaux_dir/'test_requirements.txt')
+  session.install('-r', pkgaux_dir/'test_requirements.txt')
 
   # coverage data for this sessions
-  name = re.sub(r"[^A-Za-z0-9]+", "", session.name)
+  name = re.sub(r"[^A-Za-z0-9\-_]+", "", session.name)
   session.env['COVERAGE_FILE'] = os.fspath(tmp_dir/f'.coverage.{name}')
 
   # global coverage config
@@ -160,27 +158,14 @@ def test(session):
   session.install(sitcustom_dir)
   session.env['COVERAGE_PROCESS_START'] = str(pptoml_file)
 
-  session.install(
-    # needed for gathering coverage from temporary build installs
-    '--no-clean',
-    sdist_file)
-
-  session.run(
-    'python',
-    '-m',
-    'pytest',
-    test_dir)
-
-  _env = {'COVERAGE_FILE': os.fspath(tmp_dir/f'.coverage')}
-  session.run('coverage', 'combine', success_codes=[0, 1], env=_env)
-  session.run('coverage', 'report', success_codes=[0, 1], env=_env)
+  # no-clean needed for gathering coverage from temporary build installs
+  session.install('--no-clean', sdist_file)
+  session.run('python', '-m', 'pytest', test_dir)
 
 #===============================================================================
-@nox.session( venv_backend = 'venv' )
+@nox.session(default=False)
 def report(session):
-  session.install(
-    '-r',
-    pkgaux_dir/'test_requirements.txt')
+  session.install('-r', pkgaux_dir/'test_requirements.txt')
 
   session.env['COVERAGE_FILE'] = str( tmp_dir/'.coverage' )
   session.env['COVERAGE_RCFILE'] = str(pptoml_file)

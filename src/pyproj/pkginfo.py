@@ -1,23 +1,14 @@
+from __future__ import annotations
 import os
-import os.path as osp
-
 import io
-import warnings
-import stat
 from copy import copy
 import re
-import tempfile
-import shutil
 import configparser
 
 from pathlib import (
   Path,
   PurePath,
   PurePosixPath)
-
-from collections.abc import (
-  Mapping,
-  Sequence )
 
 from .validate import (
   ValidationError,

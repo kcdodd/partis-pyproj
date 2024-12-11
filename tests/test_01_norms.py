@@ -1,9 +1,10 @@
-
+import sys
 import io
 import re
 import pathlib
 from pytest import (
-  raises )
+  raises,
+  mark)
 from packaging.markers import default_environment
 
 from email.utils import formataddr
@@ -152,11 +153,10 @@ def test_as_list():
   assert as_list({'a': 'b'}) == [{'a': 'b'}]
 
 #===============================================================================
-def test_norm_printable():
-
+@mark.skipif(sys.implementation.name == 'pypy', reason="slow for PyPy to reconstruct list of non-printable characters")
+def test_gen_norm_printable():
   regex = gen_nonprintable()
   ns, test = _gen_nonprintable()
-
   test = norm_printable(norm_printable)
 
   # since norm_printable considers \t and \n to be printable, but isprintable does not
@@ -164,7 +164,8 @@ def test_norm_printable():
 
   assert test.isprintable()
 
-
+#===============================================================================
+def test_norm_printable():
   assert norm_printable(None) == ''
   assert norm_printable("") == ''
   assert norm_printable("hello\t\tfoo bar\ngoodbye\n\n") == "hello\t\tfoo bar\ngoodbye"
@@ -528,3 +529,10 @@ def test_email_encode_items():
   c = b.decode('ascii')
 
   assert c == "a: b\nc: d\n\nhello world"
+
+
+if __name__ == '__main__':
+  for name, func in dict(globals()).items():
+    if callable(func) and name.startswith('test_'):
+      print(f"{name}")
+      func()

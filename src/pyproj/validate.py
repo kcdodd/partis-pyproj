@@ -1,3 +1,4 @@
+from __future__ import annotations
 import sys
 import os.path as osp
 import io
@@ -200,7 +201,7 @@ class validating:
 
       else:
         raise ValidationError(
-          f"Error while validating",
+          "Error while validating",
           doc_root = self.root,
           doc_file = self.file,
           doc_path = None if self.key is None else [self.key] ) from value

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import re
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet

@@ -96,11 +96,9 @@ ignore = [
 
 #...............................................................................
 [tool.pyproj.dist.source]
-
+# NOTE: docs, tests, etc. not distributed to minimize size
 copy = [
   'src',
-  'docs',
-  'tests',
   'pyproject.toml',
   'LICENSE.txt',
   'README.md' ]
@@ -121,7 +119,9 @@ python = [
   "3.11",
   "3.10",
   "3.9",
-  "3.8"]
+  "3.8",
+  "pypy3.9",
+  "pypy3.10"]
 
 envdir = "tmp/.nox"
 
