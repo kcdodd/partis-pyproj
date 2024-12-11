@@ -926,13 +926,7 @@ class valid_dict(Mapping, metaclass = _ValidDictMeta):
         args = [{ cls.proxy_key : v }]
 
     self._data = dict(*args, **kwargs)
-    if cls.__name__.endswith('_prep'):
-      print(f"{cls.__name__}\n {self._data=}")
-
     self._validate()
-
-    if cls.__name__.endswith('_prep'):
-      print(f" -> {self._data=}")
 
   #-----------------------------------------------------------------------------
   def __eq__(self, other):
