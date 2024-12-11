@@ -26,7 +26,6 @@ def _concretize(comps: list[str]) -> list[str]|None:
     if comp == pardir:
       if not new_comps:
         # concrete path not possible
-        print(f"_concretize: {comps} -> {None}")
         return None
 
       new_comps.pop()
@@ -40,14 +39,10 @@ def _subdir(_start: list[str], _path: list[str]) -> list[str]|None:
   r"""Concrete path relative to start, or `None` if path is not a sub-directory
   """
 
-  _start = _concretize(_start)
-
-  if _start is None:
+  if (_start := _concretize(_start)) is None:
     return None
 
-  _path = _concretize(_path)
-
-  if _path is None:
+  if (_path := _concretize(_path)) is None:
     return None
 
   n = len(_start)

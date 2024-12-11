@@ -229,7 +229,7 @@ def test_dist_source():
         dst = sdist.base_path/'src2'  )
 
     assert sdist.outname == 'my_package-1.0.tar.gz'
-    assert osp.relpath( sdist.outpath, tmpdir ) == 'build/my_package-1.0.tar.gz'
+    assert osp.relpath(sdist.outpath, tmpdir) == osp.join('build','my_package-1.0.tar.gz')
     assert osp.exists(sdist.outpath)
 
     # overwrite existing file
@@ -255,7 +255,7 @@ def test_dist_binary_wheel():
     pkg_dir = tmpdir/'src'/'my_package'
     out_dir = tmpdir/'build'
 
-    os.makedirs( pkg_dir )
+    pkg_dir.mkdir(parents=True)
 
     with open( pkg_dir/'module.py' , 'w' ) as fp:
       fp.write("print('hello')")
@@ -306,7 +306,7 @@ def test_dist_binary_wheel():
     #assert bdist.top_level == ['my_package']
     assert bdist.finalize()
     assert bdist.outname == 'my_package-1.0-py3-none-any.whl'
-    assert osp.relpath( bdist.outpath, tmpdir ) == 'build/my_package-1.0-py3-none-any.whl'
+    assert osp.relpath(bdist.outpath, tmpdir) == osp.join('build','my_package-1.0-py3-none-any.whl')
     assert osp.exists(bdist.outpath)
 
     # overwrite existing file

@@ -6,7 +6,7 @@ The ``partis.pyproj`` package aims to be a minimal and
 transparent implementation of a [PEP-517](https://www.python.org/dev/peps/pep-0517) build back-end.
 The guiding principles adopted for ``partis.pyproj`` are:
 
-* Stateless and agnostic to project structure and management, purely focused on the
+* Stateless and agnostic to project structure and management, focused on the
   stages of preparing a distribution.
 * Avoid inspecting or inferring "desired behavior" from the contents of the package
   being distributed / installed, and provide as much control as possible over the
@@ -168,7 +168,7 @@ Preparation Hooks
 The backend provides a mechanism to perform an arbitrary operation before any
 files are copied into either the source or binary distribution:
 
-Each hook must be a pure python module (a directory with an
+Each hook must be a python module (a directory with an
 ``__init__.py`` file), either directly importable or relative to the 'pyproject.toml'.
 The hook is specified according to the `entry_points` specification, and
 must resolve to a function that takes the instance of the build system and
@@ -240,7 +240,7 @@ In case different options are needed depending on the environment, the `enabled`
 field can be a [PEP-508](https://www.python.org/dev/peps/pep-0508) [environment marker](https://packaging.pypa.io/en/stable/markers.html),
 or can also be set manually (True/False) by an earlier 'prep' stage.
 Each third-party build system is given by the `entry`, which is an entry-point
-to a pure function that takes in the arguments and options given in the table
+to a function that takes in the arguments and options given in the table
 for that build.
 
 **standard config**

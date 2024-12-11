@@ -1,7 +1,9 @@
 import sys
 import os
 import os.path as osp
-import io
+from io import (
+  IOBase,
+  BytesIO)
 import warnings
 import stat
 import re
@@ -100,27 +102,28 @@ class nonempty_str_list(valid_list):
   _value_valid = valid(nonempty_str)
 
 #===============================================================================
-def norm_data( data ):
+def norm_data(data: str|bytes|IOBase) -> bytes:
   """Normalize data for writing into a distribution
 
   Parameters
   ----------
-  data : bytes | str | io.IOBase
+  data:
+    Data to process
 
   Returns
   -------
-  data : bytes
+  data:
 
     * If data is bytes, it will be returned un-modified.
     * If data is a str, it will be encoded as 'utf-8'.
     * If data is a stream, it will be read to EOF and apply one of the above.
   """
 
-  if isinstance( data, io.IOBase ):
+  if isinstance(data, IOBase):
     # read from a stream, assumes readable
     data = data.read()
 
-  if isinstance( data, str ):
+  if isinstance(data, str):
     # encode text as utf-8
     data = data.encode('utf-8')
 
@@ -288,12 +291,12 @@ def b64_nopad( data ):
   return urlsafe_b64encode( data ).decode("ascii").rstrip("=")
 
 #===============================================================================
-def hash_sha256( stream ):
+def hash_sha256(stream: BytesIO):
   """Computes SHA-256 hash
 
   Parameters
   ----------
-  stream : bytes | io.BytesIO
+  stream:
 
   Returns
   -------
@@ -306,7 +309,7 @@ def hash_sha256( stream ):
   """
 
   if isinstance( stream, bytes ):
-    with io.BytesIO( stream ) as _stream:
+    with BytesIO( stream ) as _stream:
       return hash_sha256( _stream )
 
   hasher = hashlib.sha256()
@@ -358,7 +361,7 @@ def email_encode_items(
   if payload is not None:
     msg.set_payload( payload )
 
-  buffer = io.BytesIO()
+  buffer = BytesIO()
 
   gen = BytesGenerator(
     buffer,

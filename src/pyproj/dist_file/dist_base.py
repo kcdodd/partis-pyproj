@@ -1,12 +1,15 @@
+from __future__ import annotations
 import os
-import os.path as osp
+from collections.abc import Callable
 from pathlib import (
   Path,
   PurePath,
   PurePosixPath)
 import io
 import stat
-import logging
+from logging import (
+  getLogger,
+  Logger)
 import re
 from abc import(
   ABC,
@@ -26,26 +29,26 @@ class dist_base( ABC ):
 
   Parameters
   ----------
-  outname : str
+  outname:
     Name of output file.
-  outdir : str | pathlib.Path
+  outdir:
     Path to directory where the file should be copied after completing build.
-  tmpdir : None | str | pathlib.Path
+  tmpdir:
     If not None, uses the given directory to place the temporary file(s) before
     copying to final location.
     May be the same as outdir.
-  named_dirs : None | Dict[ str, str | pathlib.PurePosixPath ]
+  named_dirs:
     Mapping of specially named directories within the distribution.
     By default a named directory { 'root' : '.' } will be added,
-    unless overridden with another directory name.
-  logger : None | logging.Logger
+    unless overridden with another directory name. Must be in form of Posix path.
+  logger:
     Logger to which any status information is to be logged.
 
   Attributes
   ----------
-  outpath : pathlib.Path
+  outpath : Path
     Path to final output file location
-  named_dirs : Dict[ str, pathlib.PurePosixPath ]
+  named_dirs : dict[str, PurePosixPath]
     Mapping of specially named directories within the distribution
   opened : bool
     Build temporary file has been opened for writing
@@ -55,8 +58,8 @@ class dist_base( ABC ):
     Build temporary file has been closed
   copied : bool
     Build temporary has been copied to ``outpath`` location
-  records : List[ Tuple[ pathlib.PurePosixPath, str, int ] ]
-    Recorded list of path, hash, and size (bytes) of files added to distribution
+  records : dict[PurePosixPath, tuple[str, int]]
+    Recorded mapping of path to hash, and size (bytes) of files added to distribution
   record_hash : None | str
     Final hash value of the record after being finalized
 
@@ -67,14 +70,14 @@ class dist_base( ABC ):
   """
   #-----------------------------------------------------------------------------
   def __init__( self,
-    outname,
-    outdir = None,
-    tmpdir = None,
-    logger = None,
-    named_dirs = None ):
+    outname: str,
+    outdir: Path|None = None,
+    tmpdir: Path|None = None,
+    logger: Logger|None = None,
+    named_dirs: dict[str, PurePosixPath]|None = None ):
 
     if logger is None:
-      logger = logging.getLogger( type(self).__name__ )
+      logger = getLogger(type(self).__name__)
 
     if named_dirs is None:
       named_dirs = dict()
@@ -90,8 +93,7 @@ class dist_base( ABC ):
       'root' : PurePosixPath(),
       **named_dirs }
 
-
-    self.records = list()
+    self.records = dict()
     self.record_bytes = None
     self.record_hash = None
 
@@ -117,18 +119,18 @@ class dist_base( ABC ):
 
   #-----------------------------------------------------------------------------
   def write( self,
-    dst,
-    data,
-    mode = None,
-    record = True ):
+    dst: PurePosixPath,
+    data: bytes,
+    mode: int|None = None,
+    record: bool = True ):
     """Write data into the distribution file
 
     Parameters
     ----------
-    dst : str | PurePosixPath
-    data : bytes
-    mode : int
-    record : bool
+    dst :
+    data :
+    mode :
+    record :
       Add file to the record
 
     """
@@ -140,18 +142,18 @@ class dist_base( ABC ):
 
   #-----------------------------------------------------------------------------
   def makedirs( self,
-    dst,
-    mode = None,
-    exist_ok = False,
-    record = True ):
+    dst: PurePosixPath,
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True ):
     """Behaviour similar to os.makedirs into the distribution file
 
     Parameters
     ----------
-    dst : str | PurePosixPath
-    mode : int
-    exist_ok : bool
-    record : bool
+    dst :
+    mode :
+    exist_ok :
+    record :
       Add file to the record
 
     Note
@@ -167,20 +169,20 @@ class dist_base( ABC ):
 
   #-----------------------------------------------------------------------------
   def copyfile( self,
-    src,
-    dst,
-    mode = None,
-    exist_ok = False,
-    record = True ):
-    """Behaviour similar to shutil.copyfile into the distribution file
+    src: Path,
+    dst: PurePosixPath,
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True ):
+    """Behavior similar to shutil.copyfile into the distribution file
 
     Parameters
     ----------
-    src : str | pathlib.Path
-    dst : str | pathlib.PurePosixPath
-    mode : int
-    exist_ok : bool
-    record : bool
+    src :
+    dst :
+    mode :
+    exist_ok :
+    record :
       Add file to the RECORD
     """
     src = Path(src)
@@ -208,19 +210,18 @@ class dist_base( ABC ):
 
   #-----------------------------------------------------------------------------
   def copytree( self,
-    src,
-    dst,
-    ignore = None,
-    exist_ok = False,
-    record = True ):
-    """Behaviour similar to shutil.copytree into the distribution file
+    src: Path,
+    dst: PurePosixPath,
+    ignore: Callable[[Path, list[str]], list[str]]|None = None,
+    exist_ok: bool = False,
+    record: bool = True ):
+    """Behavior similar to shutil.copytree into the distribution file
 
     Parameters
     ----------
-    src : str | pathlib.Path
-    dst : str | pathlib.PurePosixPath
-    ignore : None | callable
-
+    src :
+    dst :
+    ignore :
       If not None, ``callable(src, names) -> ignored_names``
 
       See :func:`shutil.copytree`
@@ -230,7 +231,6 @@ class dist_base( ABC ):
     """
     src = Path(src)
     dst = PurePosixPath(dst)
-
 
     if not src.exists():
       raise ValueError(f"Source directory not found: {src}")
@@ -317,50 +317,46 @@ class dist_base( ABC ):
 
   #-----------------------------------------------------------------------------
   def record( self,
-    dst,
-    data ):
+    dst: PurePosixPath,
+    data: bytes) -> tuple[str, int]:
     """Creates a record for an added file
 
     This produces an sha256 hash of the data and associates a record with the item
 
     Parameters
     ----------
-    dst : str | PurePosixPath
+    dst:
       Path of item within the distribution
-    data : bytes
+    data:
       Binary data that was added
 
-    Returns
-    -------
-    None
     """
 
     self.assert_recordable()
 
-    hash, size = hash_sha256( data )
+    hash, size = hash_sha256(data)
 
-    record = ( PurePosixPath(dst), hash, size )
+    dst = PurePosixPath(dst)
+    record = (hash, size)
 
-    self.logger.debug( 'record ' + str(record) )
+    self.logger.debug(f'record {dst}: {record}')
+    self.records[dst] = record
 
-    self.records.append( record )
+    return record
 
   #-----------------------------------------------------------------------------
   def close( self,
-    finalize = True,
-    copy = True ):
+    finalize: bool = True,
+    copy: bool = True ):
     """Closes the temporary distribution file
 
     Parameters
     ----------
-    finalize : bool
+    finalize :
       If true, finalizes the temporary distribution file before closing
-    copy : bool
+    copy :
       If true, copies the temporary file to final location after closing
 
-    Returns
-    -------
-    None
     """
 
     if self.closed:
@@ -441,12 +437,12 @@ class dist_base( ABC ):
 
   #-----------------------------------------------------------------------------
   @abstractmethod
-  def finalize( self ):
+  def finalize( self ) -> str|None:
     """Finalizes the distribution file before being closed
 
     Returns
     -------
-    record_hash : None | str
+    record_hash :
       sha256 hash of the record
 
     Note

@@ -227,10 +227,8 @@ class dist_binary_wheel( dist_zip ):
 
     platlib = self.named_dirs['platlib']
 
-    for file, hash, size in self.records:
+    for file, (hash, size) in self.records.items():
       # check files added to purelib and platlib.
-      file = PurePosixPath(file)
-
       try:
         top_level.add(pkg_name(subdir(purelib, file).parts[0]))
         continue
@@ -287,9 +285,9 @@ class dist_binary_wheel( dist_zip ):
 
     # the record file itself is listed in records, but the hash of the record
     # file cannot be included in the file.
-    _records = self.records + [ (self.record_path, '', ''), ]
+    _records = self.records|{self.record_path: ('', '')}
 
-    for file, hash, size in _records:
+    for file, (hash, size) in _records.items():
       hash = f'sha256={hash}' if hash else ''
       record_csv.writerow([os.fspath(file), hash, size])
 
