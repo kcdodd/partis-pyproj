@@ -23,7 +23,7 @@ jobs:
   tests:
     # adapted from: https://github.com/nedbat/coveragepy/blob/master/.github/workflows/coverage.yml
     name: "os: ${{ matrix.os }}, python: ${{ matrix.python-version }}"
-    runs-on: "${{ matrix.os }}-${{ matrix.os-version || 'latest' }}"
+    runs-on: "${{ matrix.os }}-latest"
     env:
       MATRIX_ID: "${{ matrix.os }}-${{ matrix.python-version }}"
     timeout-minutes: 30
@@ -31,9 +31,9 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-22.04
-          - macos-13
-          - windows-2019
+          - ubuntu
+          - macos
+          - windows
 
         python-version:
           - "3.8"
