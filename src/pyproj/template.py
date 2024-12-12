@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+from copy import copy
 from pathlib import Path
 from collections.abc import (
   Sequence,
@@ -87,11 +88,15 @@ class Namespace(Mapping):
   Parameters
   ----------
   data:
-    Mapping for names to values
+    Mapping for names to values. Note that changes to the namespace will also
+    change the data. Making a shallow copy of the namespace also make a shallow
+    copy of the data.
   root:
     If given, absolute path to project root, used to resolve relative paths and ensure
     any derived paths are within this parent directory.
   """
+  __slots__ = ['data', 'root']
+
   #-----------------------------------------------------------------------------
   def __init__(self, data: Mapping, *, root: Path = None):
     self.data = data
@@ -112,6 +117,14 @@ class Namespace(Mapping):
   #-----------------------------------------------------------------------------
   def __getitem__(self, key):
     return self.resolve(key)
+
+  #-----------------------------------------------------------------------------
+  def __copy__(self):
+    cls = type(self)
+    obj = cls.__new__(cls)
+    obj.data = copy(self.data)
+    obj.root = self.root
+    return obj
 
   #-----------------------------------------------------------------------------
   def resolve(self, key):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 import os
+import sys
+import sysconfig
 import re
 from copy import copy
 import shutil
@@ -54,6 +56,7 @@ class Builder:
 
     self.pyproj = pyproj
     self.root = root
+    # isolate (shallow) changes to targets
     self.targets = [copy(v) for v in targets]
     self.clean_dirs = [False]*len(self.targets)
     self.logger = logger
@@ -64,7 +67,8 @@ class Builder:
       'pyproj': pyproj.pyproj,
       'config_settings': pyproj.config_settings,
       'targets': targets,
-      'env': os.environ},
+      'env': os.environ,
+      'sysconfig': sysconfig.get_config_vars()},
       root=root)
 
   #-----------------------------------------------------------------------------
@@ -87,7 +91,8 @@ class Builder:
         self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
         continue
 
-      namespace = self.namespace
+      # each target isolated (shallow) changes to namespace
+      namespace = copy(self.namespace)
 
       # check paths
       for k in ['work_dir', 'src_dir', 'build_dir', 'prefix']:
@@ -152,8 +157,24 @@ class Builder:
 
         for k,v in options.items():
           v = template_substitute(v, namespace)
+          # update target
           options[k] = v
+          # update
           _options[k] = v
+
+      with validating(key = f"tool.pyproj.targets[{i}].env"):
+        # original target options remain until evaluated
+        env = target.env
+
+        # top-level options updated in order of appearance
+        # copy of environment dict, each target isolated changes
+        _env = copy(namespace['env'])
+        namespace['env'] = _env
+
+        for k,v in env.items():
+          v = template_substitute(v, namespace)
+          env[k] = v
+          _env[k] = v
 
       for attr in ['setup_args', 'compile_args', 'install_args']:
         with validating(key = f"tool.pyproj.targets[{i}].{attr}"):
@@ -177,7 +198,8 @@ class Builder:
       runner = ProcessRunner(
         logger=self.logger,
         log_dir=log_dir,
-        target_name=f"target_{i:02d}")
+        target_name=f"target_{i:02d}",
+        env=_env)
 
       self.logger.info('\n'.join([
         f"targets[{i}]:",
@@ -185,9 +207,11 @@ class Builder:
         f"  src_dir: {src_dir}",
         f"  build_dir: {build_dir}",
         f"  prefix: {prefix}",
-        "  options:\n" + '\n'.join([
+        f"  log_dir: {log_dir}",
+        "  options: " + ('\n' if target.options else 'none') + '\n'.join([
           f"    {k}: {v}" for k,v in target.options.items()]),
-        f"  log_dir: {log_dir}"]))
+        "  env: " + ('\n' if target.env else 'default') + '\n'.join([
+          f"    {k}: {v}" for k,v in target.env.items()])]))
 
       cwd = os.getcwd()
 
@@ -230,15 +254,17 @@ class ProcessRunner:
   def __init__(self,
       logger,
       log_dir: Path,
-      target_name: str):
+      target_name: str,
+      env: dict):
 
     self.logger = logger
     self.log_dir = log_dir
     self.target_name = target_name
     self.commands = {}
+    self.env = env
 
   #-----------------------------------------------------------------------------
-  def run(self, args: list):
+  def run(self, args: list, env: dict = None):
     if len(args) == 0:
       raise ValueError(f"Command for {self.target_name} is empty.")
 
@@ -258,11 +284,12 @@ class ProcessRunner:
     cmd_hist.append(args)
 
     run_name = re.sub(r'[^\w]+', "_", cmd_name)
+    run_id = f"{self.target_name}.{run_name}.{cmd_idx:02d}"
 
-    stdout_file = self.log_dir/f"{self.target_name}.{run_name}.{cmd_idx:02d}.log"
+    stdout_file = self.log_dir/f"{run_id}.log"
 
     try:
-      self.logger.info("Running command: "+' '.join(args))
+      self.logger.info(f"Running {run_id!r}: "+' '.join(args))
 
       with open(stdout_file, 'wb') as fp:
         subprocess.run(
@@ -270,7 +297,8 @@ class ProcessRunner:
           shell=False,
           stdout=fp,
           stderr=subprocess.STDOUT,
-          check=True)
+          check=True,
+          env=self.env)
 
     except subprocess.CalledProcessError as e:
 

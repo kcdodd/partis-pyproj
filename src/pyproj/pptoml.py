@@ -260,8 +260,10 @@ class pyproj_build_target(valid_dict):
     ('compile', 'enabled')]
   default = {
     'enabled': valid(True, marker_evaluated),
+    # NOTE: default builder from backward compatibility
     'entry': valid('partis.pyproj.builder:meson', norm_entry_point_ref),
     'options': dict,
+    'env': dict,
     # NOTE: paths should start as POSIX, but transformed to current OS
     'work_dir': valid('.', PurePosixPath, Path),
     'src_dir': valid('.', PurePosixPath, Path),

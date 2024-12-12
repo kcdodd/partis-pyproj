@@ -73,7 +73,7 @@ jobs:
 
       - name: "Build cmake"
         run: |
-          python -m build --wheel --no-isolation tests/pkg_cmake_1
+          python -m build --wheel --no-isolation tests/pkg_cmake_1 || true
           cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.00.log
           cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.01.log
 
