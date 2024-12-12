@@ -63,16 +63,21 @@ jobs:
         run: |
           set -xe
           python -m pip install -r pkgaux/test_requirements.txt
+          python -m pip install .
 
       - name: "Build meson"
         run: |
           set -xe
-          python -m build tests/pkg_meson_1
+          python -m build --no-isolation tests/pkg_meson_1
+          cat tests/pkg_meson_1/build/logs/target_00.meson_exe.00.log
+          cat tests/pkg_meson_1/build/logs/target_00.meson_exe.01.log
 
       - name: "Build cmake"
         run: |
           set -xe
-          python -m build tests/pkg_cmake_1
+          python -m build --no-isolation tests/pkg_cmake_1
+          cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.00.log
+          cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.01.log
 
       - name: "Test session"
         run: nox -s prepare test-${{ matrix.python-version }}

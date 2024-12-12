@@ -140,7 +140,7 @@ class Builder:
           if dir == self.root:
             raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
 
-          mkdir(dir, parents = True, exist_ok = True)
+          mkdir(dir, parents=True, exist_ok=True)
 
       with validating(key = f"tool.pyproj.targets[{i}].options"):
         # original target options remain until evaluated
@@ -172,8 +172,7 @@ class Builder:
 
       log_dir = self.root/'build'/'logs'
 
-      if not log_dir.exists():
-        mkdir(log_dir, parents=True)
+      mkdir(log_dir, parents=True, exist_ok=True)
 
       runner = ProcessRunner(
         logger=self.logger,
