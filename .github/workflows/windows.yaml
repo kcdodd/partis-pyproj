@@ -67,15 +67,23 @@ jobs:
 
       - name: "Build meson"
         run: |
-          python -m build --wheel --no-isolation tests/pkg_meson_1
+          python -m build --wheel --no-isolation tests/pkg_meson_1 || true
+          echo "---------------------------------------------------------------"
           cat tests/pkg_meson_1/build/logs/target_00.meson_exe.00.log
+          echo "---------------------------------------------------------------"
           cat tests/pkg_meson_1/build/logs/target_00.meson_exe.01.log
+          echo "---------------------------------------------------------------"
+          cat tests/pkg_meson_1/build/meson/build.ninja
 
       - name: "Build cmake"
         run: |
           python -m build --wheel --no-isolation tests/pkg_cmake_1 || true
+          echo "---------------------------------------------------------------"
           cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.00.log
+          echo "---------------------------------------------------------------"
           cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.01.log
+          echo "---------------------------------------------------------------"
+          cat tests/pkg_cmake_1/build/tmp/build.ninja
 
       - name: "Test session"
         run: nox -s prepare test-${{ matrix.python-version }}
