@@ -26,6 +26,7 @@ jobs:
     runs-on: "${{ matrix.os }}-latest"
     env:
       MATRIX_ID: "${{ matrix.os }}-${{ matrix.python-version }}"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -47,12 +48,12 @@ jobs:
 
     steps:
       - name: "Check out the repo"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
 
       - name: "Set up Python"
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@v5
         with:
           python-version: "${{ matrix.python-version }}"
           allow-prereleases: true
@@ -67,7 +68,7 @@ jobs:
         run: nox -s prepare test-${{ matrix.python-version }}
 
       - name: "Upload coverage data"
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ env.MATRIX_ID }}
           path: tmp/.coverage.*
@@ -80,12 +81,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Check out the repo"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          
+
       - name: Set up Python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -96,7 +97,7 @@ jobs:
           python -m pip install -r pkgaux/base_requirements.txt
 
       - name: "Download coverage data"
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@v4
         with:
           pattern: coverage-*
           merge-multiple: true
@@ -107,7 +108,7 @@ jobs:
           nox -s report
 
       - name: "Upload HTML report"
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: html_report
           path: reports/htmlcov

@@ -21,8 +21,8 @@ from partis.pyproj import (
   dist_binary_wheel )
 
 # currently unknown issues with compiling cython extensions on windows combinations
-SKIP_MESON = os.name == 'nt' and sys.version_info < (3, 12)
-SKIP_CMAKE = SKIP_MESON
+SKIP_MESON = False
+SKIP_CMAKE = False
 
 #===============================================================================
 def uninstall( name, ignore_errors = False ):

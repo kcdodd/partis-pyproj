@@ -1,0 +1,73 @@
+name: "Tests"
+
+on:
+  push:
+    branches:
+      - fix/windows
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    # adapted from: https://github.com/nedbat/coveragepy/blob/master/.github/workflows/coverage.yml
+    name: "os: ${{ matrix.os }}, python: ${{ matrix.python-version }}"
+    runs-on: "${{ matrix.os }}-latest"
+    env:
+      MATRIX_ID: "${{ matrix.os }}-${{ matrix.python-version }}"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows
+
+        python-version:
+          - "3.9"
+
+    steps:
+      - name: "Check out the repo"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python-version }}"
+          allow-prereleases: true
+
+      - name: "Show environment"
+        run: |
+          set -xe
+          python -VV
+          python -m site
+          env
+
+      - name: "Install dependencies"
+        run: |
+          set -xe
+          python -m pip install -r pkgaux/test_requirements.txt
+
+      - name: "Build meson"
+        run: |
+          set -xe
+          python -m build tests/tests/pkg_meson_1
+
+      - name: "Build cmake"
+        run: |
+          set -xe
+          python -m build tests/tests/pkg_cmake_1
+
+      - name: "Test session"
+        run: nox -s prepare test-${{ matrix.python-version }}
+
