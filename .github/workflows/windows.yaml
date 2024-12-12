@@ -84,4 +84,5 @@ jobs:
           echo "---------------------------------------------------------------"
           cat tests/pkg_cmake_1/build/tmp/build.ninja
 
-
+      - name: "Test session"
+        run: nox -s prepare test-${{ matrix.python-version }}
