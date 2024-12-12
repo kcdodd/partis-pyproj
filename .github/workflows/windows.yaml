@@ -56,9 +56,7 @@ jobs:
           echo "---------------------------------------------------------------"
           python -m site
           echo "---------------------------------------------------------------"
-          python -m sysconfig
-          echo "---------------------------------------------------------------"
-          python -c "import pathlib, sysconfig; print(pathlib.Path(sysconfig.get_config_h_filename()).read_text())"
+          python -c "import sysconfig; print('\n'.join([f'{k}: {v}' for k,v in sysconfig.get_config_vars().items()]))"
 
       - name: "Install dependencies"
         run: |
