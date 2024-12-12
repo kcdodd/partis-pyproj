@@ -20,14 +20,8 @@ from partis.pyproj import (
   dist_source_targz,
   dist_binary_wheel )
 
-<<<<<<< HEAD
-# currently unknown issues with compiling cython extensions on windows combinations
-SKIP_MESON = False
-SKIP_CMAKE = False
-=======
 SKIP_MESON = False
 SKIP_CMAKE = SKIP_MESON
->>>>>>> master
 
 #===============================================================================
 def uninstall( name, ignore_errors = False ):
