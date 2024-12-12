@@ -104,10 +104,15 @@ class Builder:
           # ensure no escaped symbolic links
           abs_path = abs_path.resolve()
 
-          if not subdir(self.root, abs_path, check = False):
+          if not subdir(self.root, abs_path, check=False):
             raise FileOutsideRootError(
               f"Must be within project root directory:"
-              f"\n  file = \"{abs_path}\"\n  root = \"{self.root}\"")
+              f"file = \"{abs_path}\",  root = \"{self.root}\"")
+
+          if k in ('build_dir', 'prefix') and subdir(abs_path, self.root, check=False):
+            raise ValidPathError(
+              f"'{k}' cannot be project root directory:"
+              f"file = \"{abs_path}\",  root = \"{self.root}\"")
 
           target[k] = abs_path
           namespace[k] = abs_path
@@ -133,14 +138,10 @@ class Builder:
           f"'build_dir' is not empty, please remove manually."
           f" If this was intended, set 'build_clean = false': {build_dir}")
 
+      # create output directories
       for k in ['build_dir', 'prefix']:
         with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-          dir = target[k]
-
-          if dir == self.root:
-            raise ValidPathError(f"'{k}' cannot be root directory: {dir}")
-
-          mkdir(dir, parents = True, exist_ok = True)
+          mkdir(target[k], parents = True, exist_ok = True)
 
       with validating(key = f"tool.pyproj.targets[{i}].options"):
         # original target options remain until evaluated

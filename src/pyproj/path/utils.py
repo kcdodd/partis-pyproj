@@ -24,7 +24,7 @@ def mkdir(
   if exist_ok and path.exists():
     return
 
-  path.mkdir(mode=mode, parents=True)
+  path.mkdir(mode=mode, parents=parents)
 
 #===============================================================================
 def _concretize(comps: list[str]) -> list[str]|None:
