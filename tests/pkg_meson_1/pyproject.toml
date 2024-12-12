@@ -41,6 +41,7 @@ compile_args = [
 
 prefix = 'build'
 build_dir = '${root}/build/meson'
+build_clean = false
 
 [tool.pyproj.targets.options]
 opt_a = true
