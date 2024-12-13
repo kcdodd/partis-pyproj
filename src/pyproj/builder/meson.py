@@ -1,15 +1,6 @@
 from __future__ import annotations
 import os
-import os.path as osp
-import tempfile
 import shutil
-import subprocess
-
-from ..validate import (
-  validating,
-  ValidationError,
-  ValidPathError,
-  FileOutsideRootError )
 
 #===============================================================================
 def meson_option_arg(k, v):
@@ -51,10 +42,10 @@ def meson(
   """
 
   if not shutil.which('meson'):
-    raise ValueError(f"The 'meson' program not found.")
+    raise ValueError("The 'meson' program not found.")
 
   if not shutil.which('ninja'):
-    raise ValueError(f"The 'ninja' program not found.")
+    raise ValueError("The 'ninja' program not found.")
 
   os.environ['MESON_FORCE_BACKTRACE'] = '1'
 

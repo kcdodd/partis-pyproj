@@ -3,10 +3,7 @@ import os
 from collections.abc import Callable
 from pathlib import (
   Path,
-  PurePath,
   PurePosixPath)
-import io
-import stat
 from logging import (
   getLogger,
   Logger)
@@ -14,13 +11,9 @@ import re
 from abc import(
   ABC,
   abstractmethod )
-
 from ..norms import (
   hash_sha256 )
-
 from ..validate import (
-  ValidationError,
-  FileOutsideRootError,
   validating )
 
 #===============================================================================

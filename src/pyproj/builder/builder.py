@@ -20,7 +20,6 @@ from ..validate import (
 from ..load_module import EntryPoint
 
 from ..path import (
-  mkdir,
   subdir,
   resolve)
 
@@ -86,11 +85,7 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_targets(self):
-    print(f"{self.root=}")
-
     for i, target in enumerate(self.targets):
-      # print(f"target[{i}]:\n" + '\n'.join([f"  {k}: {v!r}" for k,v in target.items()]))
-
       if not target.enabled:
         self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
         continue
@@ -101,7 +96,6 @@ class Builder:
       # check paths
       for k in ('work_dir', 'src_dir', 'build_dir', 'prefix'):
         with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-
           rel_path = target[k]
           rel_path = template_substitute(rel_path, namespace)
 
@@ -152,8 +146,7 @@ class Builder:
       # create output directories
       for k in ['build_dir', 'prefix']:
         with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-          print(f"{k}: {target[k].exists()=}")
-          mkdir(target[k], parents=True, exist_ok=True)
+          target[k].mkdir(parents=True, exist_ok=True)
 
       with validating(key = f"tool.pyproj.targets[{i}].options"):
         # original target options remain until evaluated

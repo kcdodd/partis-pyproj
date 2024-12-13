@@ -35,7 +35,6 @@ copy = [
 [[tool.pyproj.targets]]
 entry = 'partis.pyproj.builder:cmake'
 prefix = 'build'
-build_clean = false
 
 [tool.pyproj.targets.options]
 opt_a = true

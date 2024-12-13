@@ -1,36 +1,19 @@
 from __future__ import annotations
 import os
-import os.path as osp
 import io
-import warnings
-import stat
 import csv
-
-import tempfile
-import shutil
-
 from pathlib import (
-  Path,
-  PurePath,
   PurePosixPath)
-
 from ..norms import (
-  norm_path,
-  norm_data,
   hash_sha256,
   email_encode_items )
-
 from ..pep import (
-  norm_dist_name,
   norm_dist_build,
   norm_dist_compat,
   compress_dist_compat,
   norm_dist_filename )
-
 from ..pkginfo import PkgInfo
-
 from .dist_zip import dist_zip
-
 from ..path import (
   subdir,
   PathError )

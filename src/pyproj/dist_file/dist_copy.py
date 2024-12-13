@@ -1,29 +1,16 @@
 from __future__ import annotations
 import os
-import os.path as osp
 import glob
-import pathlib
 from pathlib import (
-  Path,
-  PurePath,
-  PurePosixPath)
-
+  Path)
 import logging
-
 from ..validate import (
-  ValidationError,
   FileOutsideRootError,
   validating )
-
-from ..norms import (
-  norm_path )
-
 from ..path import (
-  PathMatcher,
   PathFilter,
   subdir,
   combine_ignore_patterns,
-  contains,
   resolve)
 
 # #===============================================================================

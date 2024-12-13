@@ -1,27 +1,9 @@
 from __future__ import annotations
-import os
-import os.path as osp
-import io
-import warnings
-import stat
-
-import shutil
-
 from pathlib import (
-  Path,
-  PurePath,
   PurePosixPath)
-
-from ..norms import (
-  norm_path,
-  norm_data,
-  norm_mode )
-
 from ..pep import (
   norm_dist_filename )
-
 from ..pkginfo import PkgInfo
-
 from .dist_base import dist_base
 from .dist_targz import dist_targz
 
