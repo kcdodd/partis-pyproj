@@ -38,8 +38,13 @@ def mkdir(
     print(f">> {path.is_file()=}")
     print(f">> {path.is_dir()=}")
     print(f">> {path.is_symlink()=}")
+
+    if path.is_symlink():
+      print(f"{path.readlink()=}")
+
     print(f">> {path._accessor.mkdir}")
     try:
+      print(f">> {path.lstat()=}")
       print(f">> {path.stat()=}")
     except FileNotFoundError:
       print(">> path.stat()=None")
