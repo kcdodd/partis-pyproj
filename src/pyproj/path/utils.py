@@ -20,7 +20,7 @@ def mkdir(
     exist_ok: bool = False):
   r"""Backport of :meth:`Path.mkdir` mishandled exist_ok on windows
   """
-
+  print(f"mkdir({path}, {mode=}, {parents=}, {exist_ok=})")
   # if exist_ok and path.exists():
   #   if not path.is_dir():
   #     raise PathError(f"Path not a directory: {path}")
@@ -30,7 +30,7 @@ def mkdir(
   try:
     path.mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
   except Exception as e:
-    print(f"{e=}")
+    print(f"{type(e)}, {e=}, {getattr(e, 'filename', None)}, {isinstance(e, FileExistsError)}, {isinstance(e, OSError)}")
     raise
 
 

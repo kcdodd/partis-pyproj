@@ -113,7 +113,7 @@ class Builder:
           # ensure no escaped symbolic links
           abs_path = abs_path.resolve()
 
-          print(f">> {abs_path=}")
+          print(f">> {os.fspath(abs_path)=}")
           print(f">> {abs_path.parts=}")
           print(f">> {abs_path.exists()=}")
           print(f">> {abs_path.is_file()=}")
