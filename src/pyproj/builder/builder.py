@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import os.path as osp
 import sys
 import sysconfig
 import re
@@ -111,9 +112,10 @@ class Builder:
           print(f"{k}: {abs_path=}")
 
           # ensure no escaped symbolic links
-          abs_path = abs_path.resolve()
+          # abs_path = abs_path.resolve()
+          abs_path = type(abs_path)(osp.realpath(abs_path))
 
-          # print(f">> {os.fspath(abs_path)=}")
+          print(f">> {os.fspath(abs_path)=}")
           # print(f">> {abs_path.parts=}")
           # print(f">> {abs_path.exists()=}")
           # print(f">> {abs_path.is_file()=}")
