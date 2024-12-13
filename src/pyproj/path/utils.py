@@ -3,7 +3,8 @@ import sys
 from os import (
   mkdir as os_mkdir,
   curdir,
-  pardir)
+  pardir,
+  fspath)
 from pathlib import (
   Path,
   PurePath)
@@ -31,7 +32,18 @@ def mkdir(
     path.mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
   except Exception as e:
     print(f"{type(e)}, {e=}, {getattr(e, 'filename', None)}, {isinstance(e, FileExistsError)}, {isinstance(e, OSError)}")
-    raise
+    print(f">> {fspath(path)=}")
+    print(f">> {path.parts=}")
+    print(f">> {path.exists()=}")
+    print(f">> {path.is_file()=}")
+    print(f">> {path.is_dir()=}")
+    print(f">> {path._accessor.mkdir}")
+    try:
+      print(f">> {path.stat()=}")
+    except FileNotFoundError:
+      print(">> path.stat()=None")
+
+    raise e
 
 
 #===============================================================================
