@@ -118,9 +118,9 @@ class Builder:
           print(f">> {abs_path.is_file()=}")
           print(f">> {abs_path.is_dir()=}")
           try:
-            print(f">> {abs_path.stat(follow_symlinks=False)=}")
+            print(f">> {abs_path.stat()=}")
           except FileNotFoundError:
-            print(">> abs_path.stat(follow_symlinks=False)=None")
+            print(">> abs_path.stat()=None")
 
           if not subdir(self.root, abs_path, check=False):
             raise FileOutsideRootError(
