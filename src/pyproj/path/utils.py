@@ -37,6 +37,7 @@ def mkdir(
     print(f">> {path.exists()=}")
     print(f">> {path.is_file()=}")
     print(f">> {path.is_dir()=}")
+    print(f">> {path.is_symlink()=}")
     print(f">> {path._accessor.mkdir}")
     try:
       print(f">> {path.stat()=}")
