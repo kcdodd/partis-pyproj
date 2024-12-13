@@ -22,6 +22,9 @@ def mkdir(
   """
 
   if exist_ok and path.exists():
+    if not path.is_dir():
+      raise PathError(f"Path not a directory: {path}")
+
     return
 
   path.mkdir(mode=mode, parents=parents)

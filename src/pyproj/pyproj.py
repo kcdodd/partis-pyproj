@@ -3,7 +3,9 @@ import os
 import os.path as osp
 import sys
 import shutil
-import logging
+from logging import (
+  getLogger,
+  Logger)
 import tempfile
 from copy import copy, deepcopy
 from collections.abc import (
@@ -78,19 +80,19 @@ class PyProjBase:
 
   Parameters
   ----------
-  root : str | pathlib.Path
+  root :
     Path to the root project directory containing 'pyproject.toml'.
-  logger : logging.Logger
+  logger :
     Parent logger to use when processing project.
 
   """
   #-----------------------------------------------------------------------------
   def __init__( self, *,
-    root,
-    config_settings = None,
-    logger = None ):
+    root: Path,
+    config_settings: dict|None = None,
+    logger: Logger|None = None ):
 
-    self.logger = logger or logging.getLogger( __name__ )
+    self.logger = logger or getLogger( __name__ )
 
     self.root = Path(root).resolve()
 

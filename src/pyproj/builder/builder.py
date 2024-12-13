@@ -137,6 +137,9 @@ class Builder:
         if not src_dir.exists():
           raise ValidPathError(f"Source directory not found: {src_dir}")
 
+        if not src_dir.is_dir():
+          raise ValidPathError(f"Source directory not a directory: {src_dir}")
+
       with validating(key = f"tool.pyproj.targets[{i}]"):
         if subdir(build_dir, prefix, check=False):
           raise ValidPathError(
