@@ -21,13 +21,18 @@ def mkdir(
   r"""Backport of :meth:`Path.mkdir` mishandled exist_ok on windows
   """
 
-  if exist_ok and path.exists():
-    if not path.is_dir():
-      raise PathError(f"Path not a directory: {path}")
+  # if exist_ok and path.exists():
+  #   if not path.is_dir():
+  #     raise PathError(f"Path not a directory: {path}")
 
-    return
+  #   return
 
-  path.mkdir(mode=mode, parents=parents)
+  try:
+    path.mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
+  except Exception as e:
+    print(f"{e=}")
+    raise
+
 
 #===============================================================================
 def _concretize(comps: list[str]) -> list[str]|None:

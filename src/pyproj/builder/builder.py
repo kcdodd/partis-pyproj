@@ -114,6 +114,7 @@ class Builder:
           abs_path = abs_path.resolve()
 
           print(f">> {abs_path=}")
+          print(f">> {abs_path.parts=}")
           print(f">> {abs_path.exists()=}")
           print(f">> {abs_path.is_file()=}")
           print(f">> {abs_path.is_dir()=}")
