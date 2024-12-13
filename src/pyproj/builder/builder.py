@@ -84,6 +84,8 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_targets(self):
+    print(f"{self.root=}")
+
     for i, target in enumerate(self.targets):
       # print(f"target[{i}]:\n" + '\n'.join([f"  {k}: {v!r}" for k,v in target.items()]))
 
@@ -106,7 +108,7 @@ class Builder:
           else:
             abs_path = self.root/rel_path
 
-          print(f"{abs_path=}")
+          print(f"{k}: {abs_path=}")
 
           # ensure no escaped symbolic links
           abs_path = abs_path.resolve()
