@@ -3,7 +3,9 @@ import os
 import os.path as osp
 import sys
 import shutil
-import logging
+from logging import (
+  getLogger,
+  Logger)
 import tempfile
 from copy import copy, deepcopy
 from collections.abc import (
@@ -28,7 +30,6 @@ except ImportError:
 from .pkginfo import (
   PkgInfoReq,
   PkgInfo )
-
 from .validate import (
   ValidationWarning,
   ValidationError,
@@ -39,17 +40,16 @@ from .validate import (
   valid,
   restrict,
   mapget )
-
 from .norms import (
   scalar_list,
   norm_bool,
   norm_path_to_os,
   norm_path )
-
 from .pep import (
   purelib_compat_tags,
   platlib_compat_tags )
-
+from .path import (
+  resolve)
 from .load_module import (
   EntryPointError,
   EntryPoint,
@@ -78,21 +78,21 @@ class PyProjBase:
 
   Parameters
   ----------
-  root : str | pathlib.Path
+  root :
     Path to the root project directory containing 'pyproject.toml'.
-  logger : logging.Logger
+  logger :
     Parent logger to use when processing project.
 
   """
   #-----------------------------------------------------------------------------
   def __init__( self, *,
-    root,
-    config_settings = None,
-    logger = None ):
+    root: Path,
+    config_settings: dict|None = None,
+    logger: Logger|None = None ):
 
-    self.logger = logger or logging.getLogger( __name__ )
+    self.logger = logger or getLogger( __name__ )
 
-    self.root = Path(root).resolve()
+    self.root = resolve(Path(root))
 
     self.pptoml_file = self.root / 'pyproject.toml'
 

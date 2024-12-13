@@ -19,7 +19,6 @@ from partis.pyproj import (
   dist_source_targz,
   dist_source_dummy,
   dist_binary_wheel )
-from partis.pyproj.path import mkdir
 
 #===============================================================================
 def test_dist_base():
@@ -256,7 +255,7 @@ def test_dist_binary_wheel():
     pkg_dir = tmpdir/'src'/'my_package'
     out_dir = tmpdir/'build'
 
-    mkdir(pkg_dir, parents=True)
+    pkg_dir.mkdir(parents=True)
 
     with open( pkg_dir/'module.py' , 'w' ) as fp:
       fp.write("print('hello')")

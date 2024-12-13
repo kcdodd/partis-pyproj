@@ -1,5 +1,8 @@
 from __future__ import annotations
 import os
+import os.path as osp
+import sys
+import sysconfig
 import re
 from copy import copy
 import shutil
@@ -17,8 +20,8 @@ from ..validate import (
 from ..load_module import EntryPoint
 
 from ..path import (
-  mkdir,
-  subdir )
+  subdir,
+  resolve)
 
 from ..template import (
   template_substitute,
@@ -50,10 +53,11 @@ class Builder:
     targets: pyproj_targets,
     logger: Logger):
 
-    root = Path(root).resolve()
+    root = resolve(Path(root))
 
     self.pyproj = pyproj
     self.root = root
+    # isolate (shallow) changes to targets
     self.targets = [copy(v) for v in targets]
     self.clean_dirs = [False]*len(self.targets)
     self.logger = logger
@@ -64,7 +68,8 @@ class Builder:
       'pyproj': pyproj.pyproj,
       'config_settings': pyproj.config_settings,
       'targets': targets,
-      'env': os.environ},
+      'env': os.environ,
+      'config_vars': sysconfig.get_config_vars()},
       root=root)
 
   #-----------------------------------------------------------------------------
@@ -81,18 +86,16 @@ class Builder:
   #-----------------------------------------------------------------------------
   def build_targets(self):
     for i, target in enumerate(self.targets):
-      # print(f"target[{i}]:\n" + '\n'.join([f"  {k}: {v!r}" for k,v in target.items()]))
-
       if not target.enabled:
         self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
         continue
 
-      namespace = self.namespace
+      # each target isolated (shallow) changes to namespace
+      namespace = copy(self.namespace)
 
       # check paths
-      for k in ['work_dir', 'src_dir', 'build_dir', 'prefix']:
+      for k in ('work_dir', 'src_dir', 'build_dir', 'prefix'):
         with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-
           rel_path = target[k]
           rel_path = template_substitute(rel_path, namespace)
 
@@ -101,8 +104,7 @@ class Builder:
           else:
             abs_path = self.root/rel_path
 
-          # ensure no escaped symbolic links
-          abs_path = abs_path.resolve()
+          abs_path = resolve(abs_path)
 
           if not subdir(self.root, abs_path, check=False):
             raise FileOutsideRootError(
@@ -126,8 +128,11 @@ class Builder:
         if not src_dir.exists():
           raise ValidPathError(f"Source directory not found: {src_dir}")
 
+        if not src_dir.is_dir():
+          raise ValidPathError(f"Source directory not a directory: {src_dir}")
+
       with validating(key = f"tool.pyproj.targets[{i}]"):
-        if subdir(build_dir, prefix, check = False):
+        if subdir(build_dir, prefix, check=False):
           raise ValidPathError(
             f"'prefix' cannot be inside 'build_dir', which will be cleaned: {build_dir} > {prefix}")
 
@@ -141,7 +146,7 @@ class Builder:
       # create output directories
       for k in ['build_dir', 'prefix']:
         with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-          mkdir(target[k], parents = True, exist_ok = True)
+          target[k].mkdir(parents=True, exist_ok=True)
 
       with validating(key = f"tool.pyproj.targets[{i}].options"):
         # original target options remain until evaluated
@@ -153,8 +158,24 @@ class Builder:
 
         for k,v in options.items():
           v = template_substitute(v, namespace)
+          # update target
           options[k] = v
+          # update
           _options[k] = v
+
+      with validating(key = f"tool.pyproj.targets[{i}].env"):
+        # original target options remain until evaluated
+        env = target.env
+
+        # top-level options updated in order of appearance
+        # copy of environment dict, each target isolated changes
+        _env = copy(namespace['env'])
+        namespace['env'] = _env
+
+        for k,v in env.items():
+          v = template_substitute(v, namespace)
+          env[k] = v
+          _env[k] = v
 
       for attr in ['setup_args', 'compile_args', 'install_args']:
         with validating(key = f"tool.pyproj.targets[{i}].{attr}"):
@@ -173,13 +194,13 @@ class Builder:
 
       log_dir = self.root/'build'/'logs'
 
-      if not log_dir.exists():
-        mkdir(log_dir, parents=True)
+      log_dir.mkdir(parents=True, exist_ok=True)
 
       runner = ProcessRunner(
         logger=self.logger,
         log_dir=log_dir,
-        target_name=f"target_{i:02d}")
+        target_name=f"target_{i:02d}",
+        env=_env)
 
       self.logger.info('\n'.join([
         f"targets[{i}]:",
@@ -187,9 +208,11 @@ class Builder:
         f"  src_dir: {src_dir}",
         f"  build_dir: {build_dir}",
         f"  prefix: {prefix}",
-        "  options:\n" + '\n'.join([
+        f"  log_dir: {log_dir}",
+        "  options: " + ('\n' if target.options else 'none') + '\n'.join([
           f"    {k}: {v}" for k,v in target.options.items()]),
-        f"  log_dir: {log_dir}"]))
+        "  env: " + ('\n' if target.env else 'default') + '\n'.join([
+          f"    {k}: {v}" for k,v in target.env.items()])]))
 
       cwd = os.getcwd()
 
@@ -232,15 +255,17 @@ class ProcessRunner:
   def __init__(self,
       logger,
       log_dir: Path,
-      target_name: str):
+      target_name: str,
+      env: dict):
 
     self.logger = logger
     self.log_dir = log_dir
     self.target_name = target_name
     self.commands = {}
+    self.env = env
 
   #-----------------------------------------------------------------------------
-  def run(self, args: list):
+  def run(self, args: list, env: dict = None):
     if len(args) == 0:
       raise ValueError(f"Command for {self.target_name} is empty.")
 
@@ -251,7 +276,7 @@ class ProcessRunner:
       raise ValueError(
         f"Executable does not exist or has in-sufficient permissions: {cmd_exec}")
 
-    cmd_exec_src = Path(cmd_exec_src).resolve()
+    cmd_exec_src = resolve(Path(cmd_exec_src))
     cmd_name = cmd_exec_src.name
     args = [str(cmd_exec_src)]+args[1:]
 
@@ -260,11 +285,12 @@ class ProcessRunner:
     cmd_hist.append(args)
 
     run_name = re.sub(r'[^\w]+', "_", cmd_name)
+    run_id = f"{self.target_name}.{run_name}.{cmd_idx:02d}"
 
-    stdout_file = self.log_dir/f"{self.target_name}.{run_name}.{cmd_idx:02d}.log"
+    stdout_file = self.log_dir/f"{run_id}.log"
 
     try:
-      self.logger.info("Running command: "+' '.join(args))
+      self.logger.info(f"Running {run_id!r}: "+' '.join(args))
 
       with open(stdout_file, 'wb') as fp:
         subprocess.run(
@@ -272,7 +298,8 @@ class ProcessRunner:
           shell=False,
           stdout=fp,
           stderr=subprocess.STDOUT,
-          check=True)
+          check=True,
+          env=self.env)
 
     except subprocess.CalledProcessError as e:
 

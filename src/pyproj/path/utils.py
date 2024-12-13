@@ -1,9 +1,11 @@
 from __future__ import annotations
 import sys
 from os import (
-  mkdir as os_mkdir,
   curdir,
-  pardir)
+  pardir,
+  fspath)
+from os.path import (
+  realpath)
 from pathlib import (
   Path,
   PurePath)
@@ -13,18 +15,10 @@ class PathError(ValueError):
   pass
 
 #===============================================================================
-def mkdir(
-    path: Path,
-    mode: int = 0o777,
-    parents: bool = False,
-    exist_ok: bool = False):
-  r"""Backport of :meth:`Path.mkdir` mishandled exist_ok on windows
+def resolve(path: Path):
+  r"""Backport of latest Path.resolve behavior
   """
-
-  if exist_ok and path.exists():
-    return
-
-  path.mkdir(mode=mode, parents=parents)
+  return type(path)(realpath(fspath(path)))
 
 #===============================================================================
 def _concretize(comps: list[str]) -> list[str]|None:

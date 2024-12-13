@@ -1,0 +1,88 @@
+name: "Tests"
+
+on:
+  push:
+    branches:
+      - fix/windows
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    # adapted from: https://github.com/nedbat/coveragepy/blob/master/.github/workflows/coverage.yml
+    name: "os: ${{ matrix.os }}, python: ${{ matrix.python-version }}"
+    runs-on: "${{ matrix.os }}-latest"
+    env:
+      MATRIX_ID: "${{ matrix.os }}-${{ matrix.python-version }}"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows
+
+        python-version:
+          - "3.9"
+          # - "3.12"
+
+    steps:
+      - name: "Check out the repo"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python-version }}"
+          allow-prereleases: true
+
+      - name: "Show environment"
+        run: |
+          set -xe
+          env
+          echo "---------------------------------------------------------------"
+          python -VV
+          echo "---------------------------------------------------------------"
+          python -m site
+          echo "---------------------------------------------------------------"
+          python -c "import sysconfig; print('\n'.join([f'{k}: {v}' for k,v in sysconfig.get_config_vars().items()]))"
+
+      - name: "Install dependencies"
+        run: |
+          set -xe
+          python -m pip install -r pkgaux/test_requirements.txt
+          python -m pip install .
+
+      # - name: "Build meson"
+      #   run: |
+      #     python -m build --wheel --no-isolation tests/pkg_meson_1 || true
+      #     echo "---------------------------------------------------------------"
+      #     cat tests/pkg_meson_1/build/logs/target_00.meson_exe.00.log
+      #     echo "---------------------------------------------------------------"
+      #     cat tests/pkg_meson_1/build/logs/target_00.meson_exe.01.log
+      #     echo "---------------------------------------------------------------"
+      #     cat tests/pkg_meson_1/build/meson/build.ninja
+
+      # - name: "Build cmake"
+      #   run: |
+      #     python -m build --wheel --no-isolation tests/pkg_cmake_1 || true
+      #     echo "---------------------------------------------------------------"
+      #     cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.00.log
+      #     echo "---------------------------------------------------------------"
+      #     cat tests/pkg_cmake_1/build/logs/target_00.cmake_exe.01.log
+      #     echo "---------------------------------------------------------------"
+      #     cat tests/pkg_cmake_1/build/tmp/build.ninja
+
+      - name: "Test session"
+        run: nox -s prepare test-${{ matrix.python-version }}

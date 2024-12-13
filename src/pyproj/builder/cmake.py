@@ -1,15 +1,5 @@
 from __future__ import annotations
-import os
-import os.path as osp
-import tempfile
 import shutil
-import subprocess
-
-from ..validate import (
-  validating,
-  ValidationError,
-  ValidPathError,
-  FileOutsideRootError )
 
 #===============================================================================
 def cmake_option_arg(k, v):
@@ -54,10 +44,10 @@ def cmake(
   """
 
   if not shutil.which('cmake'):
-    raise ValueError(f"The 'cmake' program not found.")
+    raise ValueError("The 'cmake' program not found.")
 
   if not shutil.which('ninja'):
-    raise ValueError(f"The 'ninja' program not found.")
+    raise ValueError("The 'ninja' program not found.")
 
   # TODO: ensure any paths in setup_args are normalized
   if not build_clean:

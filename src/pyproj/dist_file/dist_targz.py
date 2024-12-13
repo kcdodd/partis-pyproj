@@ -1,26 +1,16 @@
 from __future__ import annotations
 import os
-import os.path as osp
 from pathlib import (
-  Path,
-  PurePath,
-  PurePosixPath)
+  Path)
 import io
-import warnings
-import stat
-
 import tempfile
 import shutil
 import tarfile
-
 from .dist_base import dist_base
-
 from ..norms import (
   norm_path,
   norm_data,
   norm_mode )
-from ..path import (
-  mkdir)
 
 #===============================================================================
 class dist_targz( dist_base ):
@@ -123,7 +113,7 @@ class dist_targz( dist_base ):
       # NOTE: the missing_ok parameter was not added until py38
       self.outpath.unlink()
 
-    mkdir(self.outdir, parents = True, exist_ok = True )
+    self.outdir.mkdir(parents = True, exist_ok = True)
     shutil.copyfile( self._tmp_path, self.outpath )
 
   #-----------------------------------------------------------------------------

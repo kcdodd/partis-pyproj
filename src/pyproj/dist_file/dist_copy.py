@@ -1,29 +1,17 @@
 from __future__ import annotations
 import os
-import os.path as osp
 import glob
-import pathlib
 from pathlib import (
-  Path,
-  PurePath,
-  PurePosixPath)
-
+  Path)
 import logging
-
 from ..validate import (
-  ValidationError,
   FileOutsideRootError,
   validating )
-
-from ..norms import (
-  norm_path )
-
 from ..path import (
-  PathMatcher,
   PathFilter,
   subdir,
   combine_ignore_patterns,
-  contains )
+  resolve)
 
 # #===============================================================================
 # def rematch_replace(rematch, replace, name):
@@ -130,7 +118,7 @@ def dist_copy(*,
           logger.debug( f'ignoring: {src}' )
           continue
 
-        src_abs = src.resolve()
+        src_abs = resolve(src)
 
         if root and not subdir(root, src_abs, check = False):
           raise FileOutsideRootError(

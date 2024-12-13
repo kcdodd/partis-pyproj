@@ -4,6 +4,10 @@ import os.path as osp
 import sys
 import shutil
 import logging
+from logging import (
+  basicConfig,
+  getLogger,
+  Logger)
 import tempfile
 import re
 
@@ -27,16 +31,16 @@ from . import (
 
 #===============================================================================
 def backend_init(
-  root = '.',
-  config_settings = None,
-  logger = None ):
+  root: str|Path = '',
+  config_settings: dict|None = None,
+  logger: Logger|None = None ):
   """Called to inialialize the backend upon a call to one of the hooks
 
   Parameters
   ----------
-  root : str | pathlib.Path
+  root :
     Directory containing 'pyproject.toml'
-  logger : :class:`logging.Logger`
+  logger :
     Logger to use
 
   Returns
@@ -44,28 +48,30 @@ def backend_init(
   PyProjBase
   """
 
-  logger = logger or logging.getLogger( __name__ )
+  # NOTE: this is mainly used for debugging, since front-ends don't seem to have
+  # an option to set logging level for the backend.
+  root_logger = getLogger()
+
+  if not root_logger.handlers:
+    basicConfig(
+      level = logging.INFO,
+      format = "{message}",
+      style = "{" )
+
+  root = Path(root)
+  logger = logger or getLogger( __name__ )
 
   pyproj = PyProjBase(
     root = root,
     config_settings = config_settings,
     logger = logger )
 
-  # NOTE: this is mainly used for debugging, since front-ends don't seem to have
-  # an option to set logging level for the backend.
-  root = logging.getLogger()
-  if not root.handlers:
-    logging.basicConfig(
-      level = logging.INFO,
-      format = "{message}",
-      style = "{" )
-
   return pyproj
 
 
 #-----------------------------------------------------------------------------
 def get_requires_for_build_sdist(
-  config_settings = None ):
+  config_settings: dict|None = None ):
   """
   Note
   ----
@@ -84,7 +90,7 @@ def get_requires_for_build_sdist(
 #-----------------------------------------------------------------------------
 def build_sdist(
   dist_directory,
-  config_settings = None ):
+  config_settings: dict|None = None ):
   """
   Note
   ----
@@ -115,7 +121,7 @@ def build_sdist(
 
 #-----------------------------------------------------------------------------
 def get_requires_for_build_wheel(
-  config_settings = None ):
+  config_settings: dict|None = None ):
   """
   Note
   ----
@@ -154,7 +160,7 @@ def get_requires_for_build_wheel(
 #-----------------------------------------------------------------------------
 def prepare_metadata_for_build_wheel(
   metadata_directory,
-  config_settings = None ):
+  config_settings: dict|None = None ):
   """
   Note
   ----
@@ -189,7 +195,7 @@ def prepare_metadata_for_build_wheel(
 #-----------------------------------------------------------------------------
 def build_wheel(
   wheel_directory,
-  config_settings = None,
+  config_settings: dict|None = None,
   metadata_directory = None ):
   """
   Note

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+from copy import copy
 from pathlib import Path
 from collections.abc import (
   Sequence,
@@ -10,7 +11,8 @@ from .validate import (
   ValidationError,
   FileOutsideRootError)
 from .path import (
-  subdir)
+  subdir,
+  resolve)
 
 namespace_sep = re.compile(r"[\.\[\]]")
 
@@ -87,11 +89,15 @@ class Namespace(Mapping):
   Parameters
   ----------
   data:
-    Mapping for names to values
+    Mapping for names to values. Note that changes to the namespace will also
+    change the data. Making a shallow copy of the namespace also make a shallow
+    copy of the data.
   root:
     If given, absolute path to project root, used to resolve relative paths and ensure
     any derived paths are within this parent directory.
   """
+  __slots__ = ['data', 'root']
+
   #-----------------------------------------------------------------------------
   def __init__(self, data: Mapping, *, root: Path = None):
     self.data = data
@@ -111,10 +117,6 @@ class Namespace(Mapping):
 
   #-----------------------------------------------------------------------------
   def __getitem__(self, key):
-    return self.resolve(key)
-
-  #-----------------------------------------------------------------------------
-  def resolve(self, key):
     raw_segments = key.split('/')
     segments = []
 
@@ -146,7 +148,7 @@ class Namespace(Mapping):
 
       if isinstance(root, Path):
         # NOTE: ignored if root is a pure path
-        out = out.resolve()
+        out = resolve(out)
 
       if not subdir(root, out, check = False):
         raise FileOutsideRootError(
@@ -154,6 +156,14 @@ class Namespace(Mapping):
           f"\n  file = \"{out}\"\n  root = \"{root}\"")
 
     return out
+
+  #-----------------------------------------------------------------------------
+  def __copy__(self):
+    cls = type(self)
+    obj = cls.__new__(cls)
+    obj.data = copy(self.data)
+    obj.root = self.root
+    return obj
 
   #-----------------------------------------------------------------------------
   def lookup(self, name):

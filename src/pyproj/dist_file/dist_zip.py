@@ -1,26 +1,15 @@
 from __future__ import annotations
 import os
-import os.path as osp
 from pathlib import (
-  Path,
-  PurePath,
-  PurePosixPath)
-import io
-import warnings
-import stat
-
+  Path)
 import tempfile
 import shutil
 import zipfile
-
 from .dist_base import dist_base
-
 from ..norms import (
   norm_path,
   norm_data,
-  norm_mode,
   norm_zip_external_attr )
-from ..path import mkdir
 
 #===============================================================================
 class dist_zip( dist_base ):
@@ -120,7 +109,7 @@ class dist_zip( dist_base ):
       # NOTE: the missing_ok parameter was not added until py38
       self.outpath.unlink()
 
-    mkdir(self.outdir, parents = True, exist_ok = True )
+    self.outdir.mkdir(parents = True, exist_ok = True )
     shutil.copyfile( self._tmp_path, self.outpath )
 
   #-----------------------------------------------------------------------------
