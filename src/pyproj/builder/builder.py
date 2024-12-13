@@ -68,7 +68,7 @@ class Builder:
       'config_settings': pyproj.config_settings,
       'targets': targets,
       'env': os.environ,
-      'sysconfig': sysconfig.get_config_vars()},
+      'config_vars': sysconfig.get_config_vars()},
       root=root)
 
   #-----------------------------------------------------------------------------
@@ -95,7 +95,7 @@ class Builder:
       namespace = copy(self.namespace)
 
       # check paths
-      for k in ['work_dir', 'src_dir', 'build_dir', 'prefix']:
+      for k in ('work_dir', 'src_dir', 'build_dir', 'prefix'):
         with validating(key = f"tool.pyproj.targets[{i}].{k}"):
 
           rel_path = target[k]
@@ -106,8 +106,12 @@ class Builder:
           else:
             abs_path = self.root/rel_path
 
+          print(f"{abs_path=}")
+
           # ensure no escaped symbolic links
           abs_path = abs_path.resolve()
+
+          print(f"-> {abs_path=}")
 
           if not subdir(self.root, abs_path, check=False):
             raise FileOutsideRootError(
@@ -132,7 +136,7 @@ class Builder:
           raise ValidPathError(f"Source directory not found: {src_dir}")
 
       with validating(key = f"tool.pyproj.targets[{i}]"):
-        if subdir(build_dir, prefix, check = False):
+        if subdir(build_dir, prefix, check=False):
           raise ValidPathError(
             f"'prefix' cannot be inside 'build_dir', which will be cleaned: {build_dir} > {prefix}")
 
@@ -146,7 +150,8 @@ class Builder:
       # create output directories
       for k in ['build_dir', 'prefix']:
         with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-          mkdir(target[k], parents = True, exist_ok = True)
+          print(f"{k}: {target[k].exists()=}")
+          mkdir(target[k], parents=True, exist_ok=True)
 
       with validating(key = f"tool.pyproj.targets[{i}].options"):
         # original target options remain until evaluated
