@@ -5,6 +5,8 @@ from os import (
   curdir,
   pardir,
   fspath)
+from os.path import (
+  realpath)
 from pathlib import (
   Path,
   PurePath)
@@ -14,6 +16,12 @@ class PathError(ValueError):
   pass
 
 #===============================================================================
+def resolve(path: Path):
+  r"""Backport of latest Path.resolve behavior
+  """
+  return type(path)(realpath(path))
+
+#===============================================================================
 def mkdir(
     path: Path,
     mode: int = 0o777,
@@ -21,36 +29,8 @@ def mkdir(
     exist_ok: bool = False):
   r"""Backport of :meth:`Path.mkdir` mishandled exist_ok on windows
   """
-  print(f"mkdir({path}, {mode=}, {parents=}, {exist_ok=})")
-  # if exist_ok and path.exists():
-  #   if not path.is_dir():
-  #     raise PathError(f"Path not a directory: {path}")
 
-  #   return
-
-  try:
-    path.mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
-  except Exception as e:
-    print(f"{type(e)}, {e=}, {getattr(e, 'filename', None)}, {isinstance(e, FileExistsError)}, {isinstance(e, OSError)}")
-    print(f">> {fspath(path)=}")
-    print(f">> {path.parts=}")
-    print(f">> {path.exists()=}")
-    print(f">> {path.is_file()=}")
-    print(f">> {path.is_dir()=}")
-    print(f">> {path.is_symlink()=}")
-
-    if path.is_symlink():
-      print(f"{path.readlink()=}")
-
-    print(f">> {path._accessor.mkdir}")
-    try:
-      print(f">> {path.lstat()=}")
-      print(f">> {path.stat()=}")
-    except FileNotFoundError:
-      print(">> path.stat()=None")
-
-    raise e
-
+  path.mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
 
 #===============================================================================
 def _concretize(comps: list[str]) -> list[str]|None:

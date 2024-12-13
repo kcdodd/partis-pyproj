@@ -1,7 +1,8 @@
 from .utils import (
   PathError,
   mkdir,
-  subdir )
+  subdir,
+  resolve)
 
 from .pattern import (
   PathPatternError,

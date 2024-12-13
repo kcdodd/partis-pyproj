@@ -21,7 +21,8 @@ from ..load_module import EntryPoint
 
 from ..path import (
   mkdir,
-  subdir )
+  subdir,
+  resolve)
 
 from ..template import (
   template_substitute,
@@ -53,7 +54,7 @@ class Builder:
     targets: pyproj_targets,
     logger: Logger):
 
-    root = Path(root).resolve()
+    root = resolve(Path(root))
 
     self.pyproj = pyproj
     self.root = root
@@ -109,21 +110,7 @@ class Builder:
           else:
             abs_path = self.root/rel_path
 
-          print(f"{k}: {abs_path=}")
-
-          # ensure no escaped symbolic links
-          # abs_path = abs_path.resolve()
-          abs_path = type(abs_path)(osp.realpath(abs_path))
-
-          print(f">> {os.fspath(abs_path)=}")
-          # print(f">> {abs_path.parts=}")
-          # print(f">> {abs_path.exists()=}")
-          # print(f">> {abs_path.is_file()=}")
-          # print(f">> {abs_path.is_dir()=}")
-          # try:
-          #   print(f">> {abs_path.stat()=}")
-          # except FileNotFoundError:
-          #   print(">> abs_path.stat()=None")
+          abs_path = resolve(abs_path)
 
           if not subdir(self.root, abs_path, check=False):
             raise FileOutsideRootError(
@@ -214,7 +201,7 @@ class Builder:
 
       log_dir = self.root/'build'/'logs'
 
-      mkdir(log_dir, parents=True, exist_ok=True)
+      log_dir.mkdir(parents=True, exist_ok=True)
 
       runner = ProcessRunner(
         logger=self.logger,
@@ -296,7 +283,7 @@ class ProcessRunner:
       raise ValueError(
         f"Executable does not exist or has in-sufficient permissions: {cmd_exec}")
 
-    cmd_exec_src = Path(cmd_exec_src).resolve()
+    cmd_exec_src = resolve(Path(cmd_exec_src))
     cmd_name = cmd_exec_src.name
     args = [str(cmd_exec_src)]+args[1:]
 

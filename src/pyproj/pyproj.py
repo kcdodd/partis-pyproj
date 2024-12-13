@@ -30,7 +30,6 @@ except ImportError:
 from .pkginfo import (
   PkgInfoReq,
   PkgInfo )
-
 from .validate import (
   ValidationWarning,
   ValidationError,
@@ -41,17 +40,16 @@ from .validate import (
   valid,
   restrict,
   mapget )
-
 from .norms import (
   scalar_list,
   norm_bool,
   norm_path_to_os,
   norm_path )
-
 from .pep import (
   purelib_compat_tags,
   platlib_compat_tags )
-
+from .path import (
+  resolve)
 from .load_module import (
   EntryPointError,
   EntryPoint,
@@ -94,7 +92,7 @@ class PyProjBase:
 
     self.logger = logger or getLogger( __name__ )
 
-    self.root = Path(root).resolve()
+    self.root = resolve(Path(root))
 
     self.pptoml_file = self.root / 'pyproject.toml'
 

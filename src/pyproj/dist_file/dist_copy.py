@@ -23,7 +23,8 @@ from ..path import (
   PathFilter,
   subdir,
   combine_ignore_patterns,
-  contains )
+  contains,
+  resolve)
 
 # #===============================================================================
 # def rematch_replace(rematch, replace, name):
@@ -130,7 +131,7 @@ def dist_copy(*,
           logger.debug( f'ignoring: {src}' )
           continue
 
-        src_abs = src.resolve()
+        src_abs = resolve(src)
 
         if root and not subdir(root, src_abs, check = False):
           raise FileOutsideRootError(

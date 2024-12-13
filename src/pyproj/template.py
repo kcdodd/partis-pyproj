@@ -11,7 +11,8 @@ from .validate import (
   ValidationError,
   FileOutsideRootError)
 from .path import (
-  subdir)
+  subdir,
+  resolve)
 
 namespace_sep = re.compile(r"[\.\[\]]")
 
@@ -116,18 +117,6 @@ class Namespace(Mapping):
 
   #-----------------------------------------------------------------------------
   def __getitem__(self, key):
-    return self.resolve(key)
-
-  #-----------------------------------------------------------------------------
-  def __copy__(self):
-    cls = type(self)
-    obj = cls.__new__(cls)
-    obj.data = copy(self.data)
-    obj.root = self.root
-    return obj
-
-  #-----------------------------------------------------------------------------
-  def resolve(self, key):
     raw_segments = key.split('/')
     segments = []
 
@@ -159,7 +148,7 @@ class Namespace(Mapping):
 
       if isinstance(root, Path):
         # NOTE: ignored if root is a pure path
-        out = out.resolve()
+        out = resolve(out)
 
       if not subdir(root, out, check = False):
         raise FileOutsideRootError(
@@ -167,6 +156,14 @@ class Namespace(Mapping):
           f"\n  file = \"{out}\"\n  root = \"{root}\"")
 
     return out
+
+  #-----------------------------------------------------------------------------
+  def __copy__(self):
+    cls = type(self)
+    obj = cls.__new__(cls)
+    obj.data = copy(self.data)
+    obj.root = self.root
+    return obj
 
   #-----------------------------------------------------------------------------
   def lookup(self, name):
