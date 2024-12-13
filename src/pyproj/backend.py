@@ -60,7 +60,6 @@ def backend_init(
 
   root = Path(root)
   logger = logger or getLogger( __name__ )
-  print(f"backend_init({root})")
 
   pyproj = PyProjBase(
     root = root,

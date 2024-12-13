@@ -113,7 +113,14 @@ class Builder:
           # ensure no escaped symbolic links
           abs_path = abs_path.resolve()
 
-          print(f"-> {abs_path=}")
+          print(f">> {abs_path=}")
+          print(f">> {abs_path.exists()=}")
+          print(f">> {abs_path.is_file()=}")
+          print(f">> {abs_path.is_dir()=}")
+          try:
+            print(f">> {abs_path.stat(follow_symlinks=False)=}")
+          except FileNotFoundError:
+            print(">> abs_path.stat(follow_symlinks=False)=None")
 
           if not subdir(self.root, abs_path, check=False):
             raise FileOutsideRootError(
