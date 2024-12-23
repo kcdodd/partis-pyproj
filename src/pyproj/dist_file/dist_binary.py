@@ -1,22 +1,31 @@
 from __future__ import annotations
 import os
 import io
+import re
 import csv
+import shutil
+import json
+from subprocess import check_output
 from pathlib import (
+  Path,
   PurePosixPath)
 from ..norms import (
+  norm_path,
+  norm_data,
   hash_sha256,
-  email_encode_items )
+  email_encode_items)
 from ..pep import (
   norm_dist_build,
   norm_dist_compat,
   compress_dist_compat,
-  norm_dist_filename )
+  norm_dist_filename,
+  CompatibilityTags)
 from ..pkginfo import PkgInfo
 from .dist_zip import dist_zip
 from ..path import (
   subdir,
-  PathError )
+  PathError,
+  git_tracked_mtime)
 
 #===============================================================================
 def pkg_name(dir):
@@ -24,6 +33,17 @@ def pkg_name(dir):
     return dir[:-3]
 
   return dir
+
+#===============================================================================
+def module_name_from_path(path):
+  if path.name.startswitch('__init__'):
+    parts = path.parent.parts
+
+  else:
+    parts = path.parts
+    name = parts[-1]
+    name = name.partition('-')
+
 
 #===============================================================================
 class dist_binary_wheel( dist_zip ):
@@ -162,10 +182,27 @@ class dist_binary_wheel( dist_zip ):
         **{ k : self.data_path.joinpath(k) for k in self.data_paths } } )
 
   #-----------------------------------------------------------------------------
-  def finalize( self ):
+  def finalize(self, metadata_directory: str|None = None):
 
     if self.record_hash:
       return self.record_hash
+
+    if metadata_directory is not None:
+      print(f"{metadata_directory=}")
+      # pep-517: MUST be identical to the directory created by
+      # prepare_metadata_for_build_wheel, including any unrecognized files it
+      # created.
+
+      # check for unrecognized files and copy into dist_info
+      print(f"{metadata_directory=}")
+      dist_info = self.named_dirs['dist_info']
+
+      for file in Path(metadata_directory).iterdir():
+        print(f"  {file=}")
+        _file = dist_info/file.relative_to(metadata_directory).as_posix()
+
+        if not self.exists(_file):
+          self.copyfile(file, _file)
 
     self.check_top_level()
 
@@ -280,3 +317,252 @@ class dist_binary_wheel( dist_zip ):
     hash, size = hash_sha256(content)
 
     return content, hash
+
+
+#===============================================================================
+class dist_binary_editable( dist_binary_wheel ):
+  """Builds a file-system based distribution as part of an editable installs
+
+  Parameters
+  ----------
+  root:
+    Editable project root with pyproject.toml
+  incremental:
+    Setup editable install for incremental rebuilds (re-runs targets upon changes)
+  pptoml_checksum:
+  whl_root:
+    fake wheel directory prepared by `build_editable`
+  """
+  root: Path
+  pptoml_checksum: tuple[str, int]
+  whl_root: Path
+
+  #-----------------------------------------------------------------------------
+  def __init__( self, *,
+    root: Path,
+    incremental: bool,
+    pptoml_checksum: tuple[str, int],
+    whl_root: Path,
+    pkg_info: PkgInfo,
+    build: str = '',
+    compat: list[tuple[str,str,str]|CompatibilityTags]|None = None,
+    outdir = None,
+    tmpdir = None,
+    logger = None,
+    gen_name = None ):
+
+    super().__init__(
+      pkg_info = pkg_info,
+      build = build,
+      compat = compat,
+      outdir = outdir,
+      tmpdir = tmpdir,
+      logger = logger,
+      gen_name = gen_name)
+
+    self.named_dirs['purelib'] = PurePosixPath('lib')
+    self.named_dirs['platlib'] = PurePosixPath('lib')
+
+    self.root = root
+    self.incremental = incremental
+    self.pptoml_checksum = pptoml_checksum
+    self.whl_root = whl_root
+
+    if not (root/'.git').exists():
+      raise NotImplementedError(
+        f"Editable installs are only supported from a source repository: {self.root}")
+
+  #-----------------------------------------------------------------------------
+  def finalize(self, metadata_directory: str|None = None): # pragma: no cover
+    dist = dist_binary_wheel(
+      pkg_info = self.pkg_info,
+      build = self.build,
+      compat = self.compat,
+      outdir = self.outdir,
+      tmpdir = self.tmpdir,
+      logger = self.logger,
+      gen_name = self.gen_name)
+
+    root = self.root
+    whl_root = self.whl_root
+    # path to "generator" (partis.pyproj)
+    gen_root = Path(__file__).parent.parent
+    purelib = dist.named_dirs['purelib']
+    lib = self.named_dirs['purelib']
+    pkg_name = norm_dist_filename(self.pkg_info.name_normed)
+    pth_file = pkg_name+'.pth'
+
+    if self.incremental:
+      commit, tracked_files = git_tracked_mtime()
+      tracked_file = whl_root/'tracked.csv'
+
+      tracked_file.write_text('\n'.join([
+        commit,
+        *[f"{mtime}, {size}, {file}"
+          for mtime, size, file  in tracked_files]]))
+
+      watched = [
+        subdir(lib, file, check=False)
+        for file, (hash, size) in self.records.items()]
+
+      watched = set([
+        file.parts[0]
+        for file in watched
+        if file])
+
+
+      check_module_name = pkg_name + '_incremental'
+      check_file_out = check_module_name+'.py'
+      check_file_in = gen_root/'_incremental.py'
+      check_content = check_file_in.read_text()
+
+      header, _, footer = check_content.partition("#@template@")
+
+      check_content = '\n'.join([
+        header,
+        f"PKG_NAME = '{self.pkg_info.name_normed}'",
+        f"SRC_ROOT = Path('{self.root}')",
+        f"WHL_ROOT = Path('{whl_root}')",
+        f"GEN_ROOT = Path('{gen_root}')",
+        f"PPTOML_CHECKSUM = {self.pptoml_checksum!r}",
+        f"WATCHED = {watched!r}",
+        footer])
+
+      pth_content = '\n'.join([
+        str(whl_root/lib),
+        f"import {check_module_name}; {check_module_name}.incremental()"])
+
+
+      with dist:
+        dist.write(purelib/pth_file, pth_content.encode('utf-8'))
+        dist.write(purelib/check_file_out, check_content.encode('utf-8'))
+        record_hash = dist.finalize(metadata_directory)
+
+    else:
+      pth_content = str(whl_root/lib)
+
+      with dist:
+        dist.write(purelib/pth_file, pth_content.encode('utf-8'))
+        record_hash = dist.finalize(metadata_directory)
+
+    return record_hash
+
+  #-----------------------------------------------------------------------------
+  def create_distfile( self ):
+    _dir = self.whl_root
+
+    if _dir.exists():
+      if not _dir.is_dir():
+        raise PathError(
+          f"Output directory exists but is not a directory: {_dir}")
+
+      # NOTE: the directory name should be sufficiently mangled by wheel spec
+      # that its unlikely this directory is mistakenly pointing to the wrong place
+      shutil.rmtree(_dir)
+
+    _dir.mkdir(parents=True)
+
+  #-----------------------------------------------------------------------------
+  def close_distfile( self ):
+    pass
+
+  #-----------------------------------------------------------------------------
+  def copy_distfile( self ):
+    # TODO: could make a directory somewhere else, and then symlink it to its
+    # final location (that will be added to search paths) during copy_distfile
+
+    pass
+
+  #-----------------------------------------------------------------------------
+  def remove_distfile( self ):
+    pass
+
+  #-----------------------------------------------------------------------------
+  def makedirs( self,
+    dst: PurePosixPath,
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True ):
+
+    _dir = self.whl_root
+    _dst = _dir/Path(norm_path(os.fspath(dst)))
+
+    if _dst.exists():
+      if not exist_ok:
+        raise PathError(f"Build file already has entry: {_dst}")
+
+    else:
+      _dst.mkdir(parents=True)
+
+  #-----------------------------------------------------------------------------
+  def copyfile( self,
+    src: Path,
+    dst: PurePosixPath,
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True ):
+
+    src = Path(src)
+    _dir = self.whl_root
+    _dst = _dir/Path(norm_path(os.fspath(dst)))
+
+    if not src.exists():
+      raise PathError(f"Source file not found: {src}")
+
+    if not exist_ok and self.exists( dst ):
+      raise PathError(f"Build file already has entry: {dst}")
+
+    if not _dst.parent.exists():
+      _dst.parent.mkdir(parents=True)
+
+    self.logger.debug( f'copyfile {src}' )
+
+    if mode is None:
+      mode = src.stat().st_mode
+
+    # TODO: set mode on link?
+    # only top-level files will be represented using pth files in the actual wheel
+    _dst.symlink_to(src.resolve())
+
+    if record:
+      self.record(
+        dst = dst,
+        data = str(_dst).encode('utf-8'))
+
+    return dst
+
+  #-----------------------------------------------------------------------------
+  def write( self,
+    dst,
+    data,
+    mode = None,
+    record = True ):
+
+    self.assert_open()
+
+    dst = norm_path(os.fspath(dst))
+    _dir = self.whl_root
+    _dst = _dir/Path(norm_path(os.fspath(dst)))
+
+    if not _dst.parent.exists():
+      _dst.parent.mkdir(parents=True)
+
+    data = norm_data( data )
+
+    # TODO: set mode on file?
+    _dst.write_bytes(data)
+
+    if record:
+      self.record(
+        dst = dst,
+        data = data )
+
+  #-----------------------------------------------------------------------------
+  def exists( self,
+    dst ):
+
+    self.assert_open()
+
+    _dir = self.whl_root
+    _dst = _dir/Path(norm_path(os.fspath(dst)))
+    return _dst.exists()

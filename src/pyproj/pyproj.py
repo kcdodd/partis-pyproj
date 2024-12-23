@@ -22,10 +22,10 @@ from pathlib import (
   PurePosixPath)
 
 try:
-  from importlib.metadata import metadata
+  import importlib.metadata as metadata
 
 except ImportError:
-  from importlib_metadata import metadata
+  import importlib_metadata as metadata  # noqa: F401
 
 from .pkginfo import (
   PkgInfoReq,
@@ -44,7 +44,8 @@ from .norms import (
   scalar_list,
   norm_bool,
   norm_path_to_os,
-  norm_path )
+  norm_path,
+  hash_sha256)
 from .pep import (
   purelib_compat_tags,
   platlib_compat_tags )
@@ -60,8 +61,11 @@ from .legacy import legacy_setup_content
 
 from .pptoml import (
   pptoml,
+  project,
   # NOTE: deprecated
-  pyproj_meson )
+  pyproj,
+  pyproj_meson,
+  pyproj_targets)
 
 from .builder import (
   Builder )
@@ -84,20 +88,32 @@ class PyProjBase:
     Parent logger to use when processing project.
 
   """
+
+  root: Path
+  logger: Logger
+  editable: bool
+  pptoml_file: Path
+  pptoml_checksum: tuple[str, int]
+  commit: str
+  env_pkgs: list[str]
+
   #-----------------------------------------------------------------------------
   def __init__( self, *,
     root: Path,
     config_settings: dict|None = None,
-    logger: Logger|None = None ):
-
-    self.logger = logger or getLogger( __name__ )
+    logger: Logger|None = None,
+    editable: bool = False):
 
     self.root = resolve(Path(root))
+    self.logger = logger or getLogger( __name__ )
+    self.editable = editable
 
     self.pptoml_file = self.root / 'pyproject.toml'
 
     with open( self.pptoml_file, 'rb' ) as fp:
       src = fp.read()
+      self.pptoml_checksum = hash_sha256(src)
+
       src = src.decode( 'utf-8', errors = 'replace' )
       self._pptoml = tomli.loads( src )
 
@@ -173,6 +189,19 @@ class PyProjBase:
     # Update logger once package info is created
     self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )
 
+    # check if building from git repo
+    commit = ''
+
+    if (root/'.git').is_dir():
+      commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+
+    self.commit = commit
+
+    # inspect/record the environment for installed packages
+    self.env_pkgs = sorted(set([
+      f"{pkg.name}=={pkg.version}"
+      for pkg in metadata.Distribution.discover()]))
+
   #-----------------------------------------------------------------------------
   @property
   def pptoml(self):
@@ -203,7 +232,7 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def targets(self):
+  def targets(self) -> pyproj_targets:
     """
     """
     return self._pptoml.tool.pyproj.targets
@@ -368,7 +397,7 @@ class PyProjBase:
           legacy_setup_content( self, dist )
 
   #-----------------------------------------------------------------------------
-  def dist_binary_prep( self ):
+  def dist_binary_prep( self, incremental: bool = False ):
     """Prepares project files for a binary distribution
     """
 
@@ -376,7 +405,8 @@ class PyProjBase:
       pyproj = self,
       root = self.root,
       targets = self.targets,
-      logger = self.logger.getChild("targets"))
+      logger = self.logger.getChild("targets"),
+      editable = self.editable)
 
     with builder:
       builder.build_targets()

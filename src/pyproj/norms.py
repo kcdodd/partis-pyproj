@@ -131,7 +131,7 @@ def norm_data(data: str|bytes|IOBase) -> bytes:
   return data
 
 #===============================================================================
-def norm_path( path ):
+def norm_path( path ) -> pathlib.PurePosixPath:
   """Normalizes a file path for writing into a distribution archive
 
   Note
@@ -274,16 +274,8 @@ def norm_zip_external_attr( mode = None ):
   return xattr
 
 #===============================================================================
-def b64_nopad( data ):
+def b64_nopad(data: bytes) -> str:
   """Encodes hash as urlsafe base64 encoding with no trailing '=' (:pep:`427`)
-
-  Parameters
-  ----------
-  data : bytes
-
-  Returns
-  -------
-  str
 
   See Also
   --------
@@ -292,7 +284,7 @@ def b64_nopad( data ):
   return urlsafe_b64encode( data ).decode("ascii").rstrip("=")
 
 #===============================================================================
-def hash_sha256(stream: BytesIO):
+def hash_sha256(stream: BytesIO|bytes) -> tuple[str, int]:
   """Computes SHA-256 hash
 
   Parameters
@@ -301,8 +293,7 @@ def hash_sha256(stream: BytesIO):
 
   Returns
   -------
-  str, int
-    urlsafe base64 encoded hash, and size (in bytes) of the hashed data
+  urlsafe base64 encoded hash, and size (in bytes) of the hashed data
 
   See Also
   --------

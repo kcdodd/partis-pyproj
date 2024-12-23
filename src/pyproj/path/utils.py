@@ -1,9 +1,12 @@
 from __future__ import annotations
-import sys
+from subprocess import check_output
 from os import (
   curdir,
   pardir,
-  fspath)
+  fspath,
+  stat as os_stat,
+  getcwd,
+  chdir)
 from os.path import (
   realpath)
 from pathlib import (
@@ -92,3 +95,30 @@ def subdir(start: PurePath, path: PurePath, check: bool = True) -> PurePath|None
     return None
 
   return type(path)(*_rpath)
+
+#===============================================================================
+def file_size_mtime(file: str) -> tuple[int,int,str]:
+  st = os_stat(file)
+  return int(st.st_mtime), st.st_size, file
+
+#===============================================================================
+def git_tracked_mtime(root: Path|None = None) -> tuple[str, list[tuple[int,int,str]]]:
+  if root is None:
+    return _git_tracked_mtime()
+
+  cwd = getcwd()
+
+  try:
+    chdir(root)
+    return _git_tracked_mtime()
+  finally:
+    chdir(cwd)
+
+#===============================================================================
+def _git_tracked_mtime() -> tuple[str, list[tuple[int,int,str]]]:
+
+  commit = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+  # get listing of files to poll (tracked and non-ignored untracked files)
+  files = check_output(['git', 'ls-files', '--exclude-standard', '-c', '-o']).decode('utf-8').splitlines()
+
+  return commit, list(map(file_size_mtime, files))

@@ -74,6 +74,7 @@ from .dist_file import (
   dist_source_dummy,
   dist_source_targz,
   dist_binary_wheel,
+  dist_binary_editable,
   FileOutsideRootError,
   dist_iter,
   dist_copy )

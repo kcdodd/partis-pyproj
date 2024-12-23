@@ -23,17 +23,21 @@ from collections.abc import (
 from . import (
   valid_keys,
   mapget,
+  hash_sha256,
   dist_build,
   PkgInfoReq,
   PyProjBase,
+  dist_source_targz,
   dist_binary_wheel,
-  dist_source_targz )
+  dist_binary_editable)
 
 #===============================================================================
 def backend_init(
   root: str|Path = '',
   config_settings: dict|None = None,
-  logger: Logger|None = None ):
+  logger: Logger|None = None,
+  editable: bool = False,
+  init_logging: bool = True):
   """Called to inialialize the backend upon a call to one of the hooks
 
   Parameters
@@ -42,6 +46,8 @@ def backend_init(
     Directory containing 'pyproject.toml'
   logger :
     Logger to use
+  editable:
+    True if creating an editable installation
 
   Returns
   -------
@@ -52,7 +58,7 @@ def backend_init(
   # an option to set logging level for the backend.
   root_logger = getLogger()
 
-  if not root_logger.handlers:
+  if init_logging and not root_logger.handlers:
     basicConfig(
       level = logging.INFO,
       format = "{message}",
@@ -64,7 +70,8 @@ def backend_init(
   pyproj = PyProjBase(
     root = root,
     config_settings = config_settings,
-    logger = logger )
+    logger = logger,
+    editable = editable)
 
   return pyproj
 
@@ -86,6 +93,53 @@ def get_requires_for_build_sdist(
   """
 
   return list()
+
+#-----------------------------------------------------------------------------
+def get_requires_for_build_wheel(
+  config_settings: dict|None = None,
+  _editable: bool = False):
+  """
+  Note
+  ----
+  This hook MUST return an additional list of strings containing
+  PEP 508 dependency specifications, above and beyond those specified in the
+  pyproject.toml file, to be installed when calling the build_wheel or
+  prepare_metadata_for_build_wheel hooks.
+
+  Note
+  ----
+  pip appears to not process environment markers for deps returned
+  by get_requires_for_build_*, and may falsly report
+  ``ERROR: Some build dependencies...conflict with the backend dependencies...``
+
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-wheel
+  """
+  print(f"get_requires_for_build_wheel({config_settings=})")
+
+  pyproj = backend_init(
+    config_settings = config_settings,
+    editable = _editable)
+
+  # filter out any dependencies already listed in the 'build-system'.
+  # NOTE: pip appears to not process environment markers for deps returned
+  # by get_requires_for_build_*, and may falsly report
+  # > ERROR: Some build dependencies...conflict with the backend dependencies...
+  build_requires = pyproj.build_requires - set([
+    PkgInfoReq(r)
+    for r in mapget( pyproj.pptoml, 'build-system.requires', list() ) ])
+
+  reqs = [ str(r) for r in build_requires ]
+
+  pyproj.logger.info(f'get_requires_for_build_wheel: {reqs}')
+
+  return reqs
+
+#-----------------------------------------------------------------------------
+def get_requires_for_build_editable(config_settings=None):
+  print(f"get_requires_for_build_editable({config_settings=})")
+  return get_requires_for_build_wheel(config_settings, _editable=True)
 
 #-----------------------------------------------------------------------------
 def build_sdist(
@@ -120,47 +174,10 @@ def build_sdist(
   return dist.outname
 
 #-----------------------------------------------------------------------------
-def get_requires_for_build_wheel(
-  config_settings: dict|None = None ):
-  """
-  Note
-  ----
-  This hook MUST return an additional list of strings containing
-  PEP 508 dependency specifications, above and beyond those specified in the
-  pyproject.toml file, to be installed when calling the build_wheel or
-  prepare_metadata_for_build_wheel hooks.
-
-  Note
-  ----
-  pip appears to not process environment markers for deps returned
-  by get_requires_for_build_*, and may falsly report
-  ``ERROR: Some build dependencies...conflict with the backend dependencies...``
-
-  See Also
-  --------
-  * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-wheel
-  """
-
-  pyproj = backend_init(config_settings = config_settings)
-
-  # filter out any dependencies already listed in the 'build-system'.
-  # NOTE: pip appears to not process environment markers for deps returned
-  # by get_requires_for_build_*, and may falsly report
-  # > ERROR: Some build dependencies...conflict with the backend dependencies...
-  build_requires = pyproj.build_requires - set([
-    PkgInfoReq(r)
-    for r in mapget( pyproj.pptoml, 'build-system.requires', list() ) ])
-
-  reqs = [ str(r) for r in build_requires ]
-
-  pyproj.logger.info(f'get_requires_for_build_wheel: {reqs}')
-
-  return reqs
-
-#-----------------------------------------------------------------------------
 def prepare_metadata_for_build_wheel(
   metadata_directory,
-  config_settings: dict|None = None ):
+  config_settings: dict|None = None,
+  _editable: bool = False):
   """
   Note
   ----
@@ -173,7 +190,9 @@ def prepare_metadata_for_build_wheel(
   * https://www.python.org/dev/peps/pep-0517/#prepare-metadata-for-build-wheel
   """
 
-  pyproj = backend_init(config_settings = config_settings)
+  pyproj = backend_init(
+    config_settings = config_settings,
+    editable = _editable)
 
   # TODO: abstract 'wheel metadata' from needing to actually make a dummy wheel file
   with dist_binary_wheel(
@@ -191,6 +210,16 @@ def prepare_metadata_for_build_wheel(
   # NOTE: dist_info_path is a POSIX path, need to convert to OS path first
   # PIP assums the return value is a string
   return os.fspath(Path(dist.dist_info_path))
+
+#-----------------------------------------------------------------------------
+def prepare_metadata_for_build_editable(
+  metadata_directory,
+  config_settings = None ):
+
+  return prepare_metadata_for_build_wheel(
+    metadata_directory,
+    config_settings,
+    _editable = True)
 
 #-----------------------------------------------------------------------------
 def build_wheel(
@@ -226,7 +255,9 @@ def build_wheel(
     logger = pyproj.logger ) as dist:
 
     pyproj.dist_binary_copy(
-      dist = dist )
+      dist = dist)
+
+    record_hash = dist.finalize(metadata_directory)
 
   pyproj.logger.info(
     f"Top level packages {dist.top_level}")
@@ -234,18 +265,51 @@ def build_wheel(
   return dist.outname
 
 #-----------------------------------------------------------------------------
-# def prepare_metadata_for_build_editable(
-#   metadata_directory,
-#   config_settings = None ):
-#   pass
+def build_editable(
+  wheel_directory,
+  config_settings = None,
+  metadata_directory = None ):
 
+  pyproj = backend_init(
+    config_settings = config_settings,
+    editable = True)
 
-#-----------------------------------------------------------------------------
-# def build_editable(
-#   wheel_directory,
-#   config_settings = None,
-#   metadata_directory = None ):
-#   pass
+  # hash the path of root source directory
+  src_hash = hash_sha256(str(pyproj.root).encode('utf-8'))[0]
+  whl_root = Path(tempfile.gettempdir())/'partis_pyproj_editables'/src_hash
+
+  if whl_root.exists():
+    shutil.rmtree(whl_root)
+
+  whl_root.mkdir(0o700, parents=True)
+
+  pyproj.dist_prep()
+
+  pyproj.dist_binary_prep()
+
+  with dist_binary_editable(
+    root = pyproj.root,
+    # enable incremental rebuilds if there are any targets
+    incremental = len(pyproj.targets) > 0,
+    pptoml_checksum = pyproj.pptoml_checksum,
+    whl_root = whl_root,
+    pkg_info = pyproj.pkg_info,
+    build = dist_build(
+      pyproj.binary.get('build_number', None),
+      pyproj.binary.get('build_suffix', None) ),
+    compat = pyproj.binary.compat_tags,
+    outdir = wheel_directory,
+    logger = pyproj.logger ) as dist:
+
+    pyproj.dist_binary_copy(
+      dist = dist )
+
+    record_hash = dist.finalize(metadata_directory)
+
+  pyproj.logger.info(
+    f"Top level packages {dist.top_level}")
+
+  return dist.outname
 
 #===============================================================================
 class UnsupportedOperation( Exception ):

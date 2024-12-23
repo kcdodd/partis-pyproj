@@ -51,12 +51,14 @@ class Builder:
     pyproj,
     root: str | Path,
     targets: pyproj_targets,
-    logger: Logger):
+    logger: Logger,
+    editable: bool):
 
     root = resolve(Path(root))
 
     self.pyproj = pyproj
     self.root = root
+    self.editable = editable
     # isolate (shallow) changes to targets
     self.targets = [copy(v) for v in targets]
     self.clean_dirs = [False]*len(self.targets)
@@ -85,6 +87,9 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_targets(self):
+    status_content = self.pyproj.commit + '\n' + '\n'.join(self.pyproj.env_pkgs)
+    status_files = set()
+
     for i, target in enumerate(self.targets):
       if not target.enabled:
         self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
@@ -136,17 +141,32 @@ class Builder:
           raise ValidPathError(
             f"'prefix' cannot be inside 'build_dir', which will be cleaned: {build_dir} > {prefix}")
 
+      status_file = build_dir/'.pyproj_status'
       build_dirty = build_dir.exists() and any(build_dir.iterdir())
 
-      if target.build_clean and build_dirty:
-        raise ValidPathError(
-          f"'build_dir' is not empty, please remove manually."
-          f" If this was intended, set 'build_clean = false': {build_dir}")
+      if status_file not in status_files:
+        status_files.add(status_file)
+
+        if build_dirty and status_file.is_file():
+          _status_content = status_file.read_text()
+
+          if status_content != _status_content:
+            self.logger.info(
+              f"Change in environment detected, cleaning previous build_dir: {build_dir}")
+
+            shutil.rmtree(build_dir)
+            build_dirty = False
+
+        if not self.editable and target.build_clean and build_dirty:
+          raise ValidPathError(
+            f"'build_dir' is not empty, please remove manually."
+            f" If this was intended, set 'build_clean = false': {build_dir}")
+
+        status_file.parent.mkdir(parents=True, exist_ok=True)
+        status_file.write_text(status_content)
 
       # create output directories
-      for k in ['build_dir', 'prefix']:
-        with validating(key = f"tool.pyproj.targets[{i}].{k}"):
-          target[k].mkdir(parents=True, exist_ok=True)
+      target.prefix.mkdir(parents=True, exist_ok=True)
 
       with validating(key = f"tool.pyproj.targets[{i}].options"):
         # original target options remain until evaluated
@@ -245,7 +265,7 @@ class Builder:
 
       build_dir = target.build_dir
 
-      if build_dir is not None and build_dir.exists() and target.build_clean:
+      if build_dir is not None and build_dir.exists() and target.build_clean and not self.editable:
         self.logger.info(f"Removing build dir: {build_dir}")
         shutil.rmtree(build_dir)
 

@@ -39,21 +39,21 @@ class dist_base( ABC ):
 
   Attributes
   ----------
-  outpath : Path
+  outpath :
     Path to final output file location
-  named_dirs : dict[str, PurePosixPath]
+  named_dirs :
     Mapping of specially named directories within the distribution
-  opened : bool
+  opened :
     Build temporary file has been opened for writing
-  finalized : bool
+  finalized :
     Build temporary file has been finalized.
-  closed : bool
+  closed :
     Build temporary file has been closed
-  copied : bool
+  copied :
     Build temporary has been copied to ``outpath`` location
-  records : dict[PurePosixPath, tuple[str, int]]
+  records :
     Recorded mapping of path to hash, and size (bytes) of files added to distribution
-  record_hash : None | str
+  record_hash :
     Final hash value of the record after being finalized
 
     .. note::
@@ -61,6 +61,16 @@ class dist_base( ABC ):
       Not all distribution implementations will create a hash of the record
 
   """
+
+  outpath : Path
+  named_dirs : dict[str, PurePosixPath]
+  opened : bool
+  finalized : bool
+  closed : bool
+  copied : bool
+  records : dict[PurePosixPath, tuple[str, int]]
+  record_hash : str|None
+
   #-----------------------------------------------------------------------------
   def __init__( self,
     outname: str,

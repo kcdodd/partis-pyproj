@@ -199,6 +199,9 @@ class PathFilter:
     if patterns is None:
       patterns = []
 
+    if isinstance(patterns, (str,PathMatcher)):
+      patterns = [patterns]
+
     self.patterns = [
       p if isinstance(p, PathMatcher) else PathMatcher(p)
       for p in patterns ]

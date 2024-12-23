@@ -1,7 +1,8 @@
 from .utils import (
   PathError,
   subdir,
-  resolve)
+  resolve,
+  git_tracked_mtime)
 
 from .pattern import (
   PathPatternError,

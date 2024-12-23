@@ -9,7 +9,8 @@ from .dist_source import (
   dist_source_dummy )
 
 from .dist_binary import (
-  dist_binary_wheel )
+  dist_binary_wheel,
+  dist_binary_editable)
 
 from .dist_copy import (
   FileOutsideRootError,
