@@ -336,6 +336,7 @@ class dist_binary_editable( dist_binary_wheel ):
   root: Path
   pptoml_checksum: tuple[str, int]
   whl_root: Path
+  purelib_src: list[Path]
 
   #-----------------------------------------------------------------------------
   def __init__( self, *,
@@ -360,13 +361,14 @@ class dist_binary_editable( dist_binary_wheel ):
       logger = logger,
       gen_name = gen_name)
 
-    self.named_dirs['purelib'] = PurePosixPath('lib')
-    self.named_dirs['platlib'] = PurePosixPath('lib')
+    # self.named_dirs['purelib'] = PurePosixPath('lib')
+    # self.named_dirs['platlib'] = PurePosixPath('lib')
 
     self.root = root
     self.incremental = incremental
     self.pptoml_checksum = pptoml_checksum
     self.whl_root = whl_root
+    self.purelib_src = []
 
     if not (root/'.git').exists():
       raise NotImplementedError(
@@ -388,22 +390,49 @@ class dist_binary_editable( dist_binary_wheel ):
     # path to "generator" (partis.pyproj)
     gen_root = Path(__file__).parent.parent
     purelib = dist.named_dirs['purelib']
-    lib = self.named_dirs['purelib']
+
+    _purelib = self.named_dirs['purelib']
+    _platlib = self.named_dirs['platlib']
+    # _lib = whl_root/'lib'
+    # _lib.mkdir(exist_ok=True)
+
+    whl_purelib = whl_root/_purelib
+    whl_platlib = whl_root/_platlib
+
+    # for file in whl_purelib.iterdir():
+    #   (_lib/file.relative_to(whl_purelib)).symlink_to(file)
+
+    # for file in whl_platlib.iterdir():
+    #   _file = _lib/file.relative_to(whl_platlib)
+    #   _file.symlink_to(file)
+
+
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pth_file = pkg_name+'.pth'
 
     if self.incremental:
       commit, tracked_files = git_tracked_mtime()
       tracked_file = whl_root/'tracked.csv'
-
       tracked_file.write_text('\n'.join([
         commit,
         *[f"{mtime}, {size}, {file}"
           for mtime, size, file  in tracked_files]]))
 
-      watched = [
-        subdir(lib, file, check=False)
+      # *changes* to purelib source files won't trigger incremental build
+      purelib_src_file = whl_root/'purelib_src.txt'
+      purelib_src_file.write_text('\n'.join([
+        str(file)
+        for file in self.purelib_src]))
+
+      purlib_files = [
+        subdir(_purelib, file, check=False)
         for file, (hash, size) in self.records.items()]
+
+      platlib_files = [
+        subdir(_platlib, file, check=False)
+        for file, (hash, size) in self.records.items()]
+
+      watched = purlib_files + platlib_files
 
       watched = set([
         file.parts[0]
@@ -429,7 +458,9 @@ class dist_binary_editable( dist_binary_wheel ):
         footer])
 
       pth_content = '\n'.join([
-        str(whl_root/lib),
+        # str(_lib),
+        str(whl_purelib),
+        str(whl_platlib),
         f"import {check_module_name}; {check_module_name}.incremental()"])
 
 
@@ -503,6 +534,15 @@ class dist_binary_editable( dist_binary_wheel ):
     record: bool = True ):
 
     src = Path(src)
+    src = src.resolve()
+
+    if subdir(self.named_dirs['purelib'], dst, check=False) is not None:
+      self.purelib_src.append(src.relative_to(self.root))
+
+    if subdir(self.named_dirs['platlib'], dst, check=False) is not None:
+      # TODO: figure out why import doesn't work with separate purelib/platlib
+      dst = self.named_dirs['purelib']/dst.relative_to(self.named_dirs['platlib'])
+
     _dir = self.whl_root
     _dst = _dir/Path(norm_path(os.fspath(dst)))
 
@@ -521,8 +561,7 @@ class dist_binary_editable( dist_binary_wheel ):
       mode = src.stat().st_mode
 
     # TODO: set mode on link?
-    # only top-level files will be represented using pth files in the actual wheel
-    _dst.symlink_to(src.resolve())
+    _dst.symlink_to(src)
 
     if record:
       self.record(

@@ -275,10 +275,13 @@ def build_editable(
     editable = True)
 
   # hash the path of root source directory
-  src_hash = hash_sha256(str(pyproj.root).encode('utf-8'))[0]
-  whl_root = Path(tempfile.gettempdir())/'partis_pyproj_editables'/src_hash
+  # src_hash = hash_sha256(str(pyproj.root).encode('utf-8'))[0]
+  # whl_root = Path(tempfile.gettempdir())/'partis_pyproj_editables'/src_hash
+  # TODO: add option for desired editable virtual wheel location
+  whl_root = pyproj.root/'build'/'.editable_wheel'
 
   if whl_root.exists():
+    # TODO: add status file to avoid accidentally deleting the wrong directory
     shutil.rmtree(whl_root)
 
   whl_root.mkdir(0o700, parents=True)

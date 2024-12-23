@@ -1,4 +1,4 @@
-"""This is a template file
+"""This file supports incremental building for editable installs
 
 Must define:
 """
@@ -37,6 +37,7 @@ INSTALLED: bool = False
 # environment variable used to enable incremental build
 ENV_NAME: str = 'PYPROJ_INCREMENTAL'
 TRACKED_FILE = WHL_ROOT/'tracked.csv'
+PURELIB_SRC_FILE = WHL_ROOT/'purelib_src.txt'
 
 #===============================================================================
 def incremental():
@@ -73,7 +74,7 @@ def incremental():
   if finder is None:
     finder = NoIncrementalFinder()
 
-  sys.meta_path.insert(0, finder)
+  # sys.meta_path.insert(0, finder)
 
 #===============================================================================
 def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
@@ -81,6 +82,7 @@ def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
   next tracked files
   """
 
+  purelib_src = set(PURELIB_SRC_FILE.read_text().splitlines())
   tracked = TRACKED_FILE.read_text().splitlines()
   commit = tracked[0]
   tracked_files = []
@@ -98,7 +100,7 @@ def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
   _commit, _tracked_files = git_tracked_mtime(SRC_ROOT)
 
   tracked_diff = list(set(tracked_files)^set(_tracked_files))
-  files_diff = sorted(set([v[-1] for v in tracked_diff]))
+  files_diff = sorted(set([v[-1] for v in tracked_diff]) - purelib_src)
   changed = not (commit == _commit and not files_diff)
 
   return changed, files_diff, _commit, _tracked_files
@@ -152,6 +154,8 @@ class NoIncrementalFinder(PathFinder):
 
   #-----------------------------------------------------------------------------
   def find_spec(self, fullname, path, target=None):
+    print(f"find_spec({fullname=}, {path=})")
+
     if path is not None or self.checked:
       return None
 
@@ -161,6 +165,7 @@ class NoIncrementalFinder(PathFinder):
     if not watched:
       return None
 
+    print(f"{fullname=}")
     self.checked = True
     changed, files_diff, commit, tracked_files = check_tracked()
 
@@ -173,6 +178,9 @@ class NoIncrementalFinder(PathFinder):
 class IncrementalFinder(NoIncrementalFinder):
   #-----------------------------------------------------------------------------
   def find_spec(self, fullname, path, target=None):
+
+    print(f"find_spec({fullname=}, {path=})")
+
     if path is not None or self.checked:
       return None
 
