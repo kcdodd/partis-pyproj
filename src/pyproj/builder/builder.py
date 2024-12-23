@@ -87,7 +87,15 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_targets(self):
-    status_content = self.pyproj.commit + '\n' + '\n'.join(self.pyproj.env_pkgs)
+    status_content = '\n'.join([
+      f"HEAD={self.pyproj.commit}",
+      sys.implementation.name,
+      sys.version,
+      str(sys.api_version),
+      sys.platform,
+      repr(sys.path),
+      '\n'.join(self.pyproj.env_pkgs)])
+
     status_files = set()
 
     for i, target in enumerate(self.targets):

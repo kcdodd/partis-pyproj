@@ -98,7 +98,7 @@ def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
   _commit, _tracked_files = git_tracked_mtime(SRC_ROOT)
 
   tracked_diff = list(set(tracked_files)^set(_tracked_files))
-  files_diff = [v[-1] for v in tracked_diff]
+  files_diff = sorted(set([v[-1] for v in tracked_diff]))
   changed = not (commit == _commit and not files_diff)
 
   return changed, files_diff, _commit, _tracked_files
@@ -216,18 +216,18 @@ class IncrementalFinder(NoIncrementalFinder):
       if (_host, _pid, _mtime) == (host, pid, mtime):
         # this process obtained lock
         try:
-          print(
-            "-------------------------------------------------------------------"
-            + f"Editable '{PKG_NAME}' incremental build {_revision}:"
-            + f"  changed ({len(files_diff)} files): " + ', '.join(f"'{v}'" for v in files_diff[:5])
-            + f" repository: '{SRC_ROOT}'")
+          print('\n'.join([
+            "-------------------------------------------------------------------",
+            f"Editable '{PKG_NAME}' triggered incremental build {_revision}:",
+            f"  changed ({len(files_diff)} files): " + ', '.join(f"'{v}'" for v in files_diff[:5]),
+            f"  source: '{SRC_ROOT}'"]))
 
-          # self.build_incremental(logger)
+          build_incremental()
 
           # update revision once completed
           revfile.write_text(str(_revision))
           update_tracked(commit, tracked_files)
-          print("-------------------------------------------------------------------")
+          print("done.\n-------------------------------------------------------------------")
 
         finally:
           lockfile.unlink()
