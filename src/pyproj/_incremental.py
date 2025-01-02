@@ -4,8 +4,12 @@ Must define:
 """
 from __future__ import annotations
 from pathlib import Path
+from os import (
+  stat as os_stat,
+  getcwd,
+  chdir)
 from logging import getLogger
-from subprocess import check_output
+from subprocess import check_output, check_call
 import sys
 import os
 import warnings
@@ -13,7 +17,6 @@ import platform
 import time
 import json
 from importlib.machinery import PathFinder
-from partis.pyproj.path import git_tracked_mtime
 
 # name of editable package
 PKG_NAME: str = ''
@@ -47,18 +50,6 @@ def incremental():
 
   INSTALLED = True
 
-  if not (WHL_ROOT.exists() and WHL_ROOT.is_dir()):
-    warnings.warn(
-      f"Editable '{PKG_NAME}' staging directory not found: {WHL_ROOT}")
-
-    return
-
-  if not (SRC_ROOT.exists() and SRC_ROOT.is_dir()):
-    warnings.warn(
-      f"Editable '{PKG_NAME}' source directory not found: {SRC_ROOT}")
-
-    return
-
   pkgs = os.environ.get(ENV_NAME)
   finder = None
 
@@ -74,75 +65,7 @@ def incremental():
   if finder is None:
     finder = NoIncrementalFinder()
 
-  # sys.meta_path.insert(0, finder)
-
-#===============================================================================
-def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
-  """Check for changes to tracked files, returning lists of changed files and
-  next tracked files
-  """
-
-  purelib_src = set(PURELIB_SRC_FILE.read_text().splitlines())
-  tracked = TRACKED_FILE.read_text().splitlines()
-  commit = tracked[0]
-  tracked_files = []
-
-  for line in tracked[1:]:
-    parts = [v.strip() for v in line.split(',', maxsplit=2)]
-
-    if len(parts) != 3:
-      raise ValueError(f"Tracked file appears corrupt: {line}")
-
-    mtime, size, file  = parts
-    stat = (int(mtime), int(size), file)
-    tracked_files.append(stat)
-
-  _commit, _tracked_files = git_tracked_mtime(SRC_ROOT)
-
-  tracked_diff = list(set(tracked_files)^set(_tracked_files))
-  files_diff = sorted(set([v[-1] for v in tracked_diff]) - purelib_src)
-  changed = not (commit == _commit and not files_diff)
-
-  return changed, files_diff, _commit, _tracked_files
-
-#===============================================================================
-def update_tracked(commit: str, tracked_files: list[tuple[int,int,str]]):
-  """Write list of tracked files back to file
-  """
-  TRACKED_FILE.write_text('\n'.join([
-    commit,
-    *[f"{mtime}, {size}, {file}"
-      for mtime, size, file,  in tracked_files]]))
-
-#===============================================================================
-def build_incremental():
-  logger = getLogger(__name__)
-
-  try:
-    import partis.pyproj as gen_mod
-    from partis.pyproj.backend import backend_init
-
-    _gen_root = Path(gen_mod.__file__).parent
-
-    if _gen_root != GEN_ROOT:
-      warnings.warn(
-        f"Editable '{PKG_NAME}' generator location has changed, incremental build may not work correctly: '{GEN_ROOT}' -> '{_gen_root}'")
-
-    pyproj = backend_init(
-      root = SRC_ROOT,
-      config_settings = CONFIG_SETTINGS,
-      editable = True,
-      logger = logger,
-      init_logging = False)
-
-    if pyproj.pptoml_checksum != PPTOML_CHECKSUM:
-      logger.warning(
-        f"Editable '{PKG_NAME}' source pyproject.toml has changed, incremental build may not work correctly.")
-
-    pyproj.dist_binary_prep(incremental = True)
-
-  except Exception as e:
-    warnings.warn(f"Editable '{PKG_NAME}' check failed, incremental build may not work correctly.")
+  sys.meta_path.insert(0, finder)
 
 #===============================================================================
 class NoIncrementalFinder(PathFinder):
@@ -154,7 +77,7 @@ class NoIncrementalFinder(PathFinder):
 
   #-----------------------------------------------------------------------------
   def find_spec(self, fullname, path, target=None):
-    print(f"find_spec({fullname=}, {path=})")
+    # print(f"find_spec({fullname=}, {path=})")
 
     if path is not None or self.checked:
       return None
@@ -179,7 +102,7 @@ class IncrementalFinder(NoIncrementalFinder):
   #-----------------------------------------------------------------------------
   def find_spec(self, fullname, path, target=None):
 
-    print(f"find_spec({fullname=}, {path=})")
+    # print(f"find_spec({fullname=}, {path=})")
 
     if path is not None or self.checked:
       return None
@@ -192,6 +115,8 @@ class IncrementalFinder(NoIncrementalFinder):
 
     self.checked = True
     changed, files_diff, commit, tracked_files = check_tracked()
+
+    print(f"{fullname=}, {changed=}")
 
     # print('watched_diff:\n  '+'\n  '.join([str(v) for v in watched_diff]))
 
@@ -230,7 +155,9 @@ class IncrementalFinder(NoIncrementalFinder):
             f"  changed ({len(files_diff)} files): " + ', '.join(f"'{v}'" for v in files_diff[:5]),
             f"  source: '{SRC_ROOT}'"]))
 
-          build_incremental()
+          # build_incremental()
+          venv_py = str(WHL_ROOT.parent/'.editable_venv'/'bin'/'python')
+          check_call([venv_py, __file__])
 
           # update revision once completed
           revfile.write_text(str(_revision))
@@ -258,3 +185,119 @@ class IncrementalFinder(NoIncrementalFinder):
   def invalidate_caches(self):
     super().invalidate_caches()
 
+
+#===============================================================================
+def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
+  """Check for changes to tracked files, returning lists of changed files and
+  next tracked files
+  """
+
+  if not WHL_ROOT.is_dir():
+    raise FileNotFoundError(
+      f"Editable '{PKG_NAME}' staging directory not found: {WHL_ROOT}")
+
+  if not SRC_ROOT.is_dir():
+    raise FileNotFoundError(
+      f"Editable '{PKG_NAME}' source directory not found: {SRC_ROOT}")
+
+  purelib_src = set(PURELIB_SRC_FILE.read_text().splitlines())
+  tracked = TRACKED_FILE.read_text().splitlines()
+  commit = tracked[0]
+  tracked_files = []
+
+  for line in tracked[1:]:
+    parts = [v.strip() for v in line.split(',', maxsplit=2)]
+
+    if len(parts) != 3:
+      raise ValueError(f"Tracked file appears corrupt: {line}")
+
+    mtime, size, file  = parts
+    stat = (int(mtime), int(size), file)
+    tracked_files.append(stat)
+
+  _commit, _tracked_files = git_tracked_mtime(SRC_ROOT)
+
+  tracked_diff = list(set(tracked_files)^set(_tracked_files))
+  print('\n'.join([str(v) for v in tracked_diff]))
+  # ignore changes to pure-python files
+  files_diff = sorted(set([v[-1] for v in tracked_diff]) - purelib_src)
+  changed = not (commit == _commit and not files_diff)
+
+  return changed, files_diff, _commit, _tracked_files
+
+#===============================================================================
+def update_tracked(commit: str, tracked_files: list[tuple[int,int,str]]):
+  """Write list of tracked files back to file
+  """
+  TRACKED_FILE.write_text('\n'.join([
+    commit,
+    *[f"{mtime}, {size}, {file}"
+      for mtime, size, file,  in tracked_files]]))
+
+#===============================================================================
+def file_size_mtime(file: str) -> tuple[int,int,str]:
+  """Gets mtime and size of file, or zero if file does not exist
+  """
+  try:
+    st = os_stat(file)
+    return int(st.st_mtime), st.st_size, file
+  except FileNotFoundError:
+    ...
+
+  return 0, 0, file
+
+#===============================================================================
+def git_tracked_mtime(root: Path|None = None) -> tuple[str, list[tuple[int,int,str]]]:
+  if root is None:
+    return _git_tracked_mtime()
+
+  cwd = getcwd()
+
+  try:
+    chdir(root)
+    return _git_tracked_mtime()
+  finally:
+    chdir(cwd)
+
+#===============================================================================
+def _git_tracked_mtime() -> tuple[str, list[tuple[int,int,str]]]:
+
+  commit = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+  # get listing of files to poll (tracked and non-ignored untracked files)
+  files = check_output(['git', 'ls-files', '--exclude-standard', '-c', '-o']).decode('utf-8').splitlines()
+
+  return commit, list(map(file_size_mtime, files))
+
+#===============================================================================
+def build_incremental():
+  logger = getLogger(__name__)
+
+  try:
+    import partis.pyproj as gen_mod
+    from partis.pyproj.backend import backend_init
+
+    _gen_root = Path(gen_mod.__file__).parent
+
+    if _gen_root != GEN_ROOT:
+      warnings.warn(
+        f"Editable '{PKG_NAME}' generator location has changed, incremental build may not work correctly: '{GEN_ROOT}' -> '{_gen_root}'")
+
+    pyproj = backend_init(
+      root = SRC_ROOT,
+      config_settings = CONFIG_SETTINGS,
+      editable = True,
+      logger = logger,
+      init_logging = False)
+
+    if pyproj.pptoml_checksum != PPTOML_CHECKSUM:
+      logger.warning(
+        f"Editable '{PKG_NAME}' source pyproject.toml has changed, incremental build may be inconsistent.")
+
+    pyproj.dist_binary_prep(incremental = True)
+
+  except Exception as e:
+    warnings.warn(f"Editable '{PKG_NAME}' build failed, incremental build may not work correctly: {e}")
+
+#===============================================================================
+if __name__ == '__main__':
+  build_incremental()

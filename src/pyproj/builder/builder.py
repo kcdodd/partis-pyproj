@@ -9,6 +9,7 @@ import shutil
 import subprocess
 from logging import Logger
 from pathlib import Path
+from difflib import Differ
 
 from ..file import tail
 from ..validate import (
@@ -89,12 +90,12 @@ class Builder:
   def build_targets(self):
     status_content = '\n'.join([
       f"HEAD={self.pyproj.commit}",
-      sys.implementation.name,
-      sys.version,
-      str(sys.api_version),
-      sys.platform,
-      repr(sys.path),
-      '\n'.join(self.pyproj.env_pkgs)])
+      f"PPTOML_CHECKSUM={self.pyproj.pptoml_checksum}",
+      f"PYTHON={sys.implementation.name}, {sys.version}, api={str(sys.api_version)}",
+      f"PLATFORM={sys.platform}",
+      # must depend on sys.path, since that is where build dependencies are configured
+      "SYSPATH=\n  " + '\n  '.join(sys.path),
+      "PACKAGES=\n  " + '\n  '.join(self.pyproj.env_pkgs)])
 
     status_files = set()
 
@@ -151,21 +152,35 @@ class Builder:
 
       status_file = build_dir/'.pyproj_status'
       build_dirty = build_dir.exists() and any(build_dir.iterdir())
+      build_clean = not self.editable and target.build_clean
 
       if status_file not in status_files:
         status_files.add(status_file)
 
         if build_dirty and status_file.is_file():
-          _status_content = status_file.read_text()
 
-          if status_content != _status_content:
+          if build_clean:
             self.logger.info(
-              f"Change in environment detected, cleaning previous build_dir: {build_dir}")
+              f"Cleaning previous build_dir: {build_dir}")
 
             shutil.rmtree(build_dir)
             build_dirty = False
 
-        if not self.editable and target.build_clean and build_dirty:
+          elif status_content != (_status_content := status_file.read_text()):
+            diff = Differ().compare(
+              _status_content.splitlines(),
+              status_content.splitlines())
+
+            diff = [v.rstrip() for v in diff if v[0] != ' ']
+
+            self.logger.info(
+              f"Change in environment detected, cleaning previous build_dir: {build_dir}\n"
+              + '\n'.join(diff))
+
+            shutil.rmtree(build_dir)
+            build_dirty = False
+
+        if build_clean and build_dirty:
           raise ValidPathError(
             f"'build_dir' is not empty, please remove manually."
             f" If this was intended, set 'build_clean = false': {build_dir}")
@@ -267,15 +282,16 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_clean(self):
-    for i, (target, clean) in enumerate(zip(self.targets, self.clean_dirs)):
-      if not clean:
-        continue
+    ...
+    # for i, (target, clean) in enumerate(zip(self.targets, self.clean_dirs)):
+    #   if not clean:
+    #     continue
 
-      build_dir = target.build_dir
+    #   build_dir = target.build_dir
 
-      if build_dir is not None and build_dir.exists() and target.build_clean and not self.editable:
-        self.logger.info(f"Removing build dir: {build_dir}")
-        shutil.rmtree(build_dir)
+    #   if build_dir is not None and build_dir.exists() and target.build_clean and not self.editable:
+    #     self.logger.info(f"Removing build dir: {build_dir}")
+    #     shutil.rmtree(build_dir)
 
 #===============================================================================
 class ProcessRunner:

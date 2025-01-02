@@ -2,6 +2,8 @@ from __future__ import annotations
 import os
 import os.path as osp
 import sys
+import json
+from subprocess import check_output, check_call
 import shutil
 import logging
 from logging import (
@@ -139,7 +141,11 @@ def get_requires_for_build_wheel(
 #-----------------------------------------------------------------------------
 def get_requires_for_build_editable(config_settings=None):
   print(f"get_requires_for_build_editable({config_settings=})")
-  return get_requires_for_build_wheel(config_settings, _editable=True)
+  deps = get_requires_for_build_wheel(config_settings, _editable=True)
+
+  # add so incremental virtualenv can be created
+  deps += ['pip', 'virtualenv ~= 20.28.0']
+  return deps
 
 #-----------------------------------------------------------------------------
 def build_sdist(
@@ -279,6 +285,7 @@ def build_editable(
   # whl_root = Path(tempfile.gettempdir())/'partis_pyproj_editables'/src_hash
   # TODO: add option for desired editable virtual wheel location
   whl_root = pyproj.root/'build'/'.editable_wheel'
+  venv_dir = pyproj.root/'build'/'.editable_venv'
 
   if whl_root.exists():
     # TODO: add status file to avoid accidentally deleting the wrong directory
@@ -286,28 +293,62 @@ def build_editable(
 
   whl_root.mkdir(0o700, parents=True)
 
-  pyproj.dist_prep()
+  venv_bin = venv_dir/'bin'
+  venv_py = str(venv_bin/'python')
 
-  pyproj.dist_binary_prep()
+  incremental = len(pyproj.targets) > 0
+  _PATH = os.environ['PATH']
+  _sys_path = list(sys.path)
 
-  with dist_binary_editable(
-    root = pyproj.root,
-    # enable incremental rebuilds if there are any targets
-    incremental = len(pyproj.targets) > 0,
-    pptoml_checksum = pyproj.pptoml_checksum,
-    whl_root = whl_root,
-    pkg_info = pyproj.pkg_info,
-    build = dist_build(
-      pyproj.binary.get('build_number', None),
-      pyproj.binary.get('build_suffix', None) ),
-    compat = pyproj.binary.compat_tags,
-    outdir = wheel_directory,
-    logger = pyproj.logger ) as dist:
+  if incremental:
+    # NOTE: this should clone the current build environment packages to reproduce
+    # during incremental builds
+    # add virtualenv after, otherwise dist_binary will delete it
+    requirements = check_output(['python', '-m', 'pip', 'freeze'])
+    requirements_file = whl_root/'requirements.txt'
+    requirements_file.write_bytes(requirements)
 
-    pyproj.dist_binary_copy(
-      dist = dist )
+    check_call(['virtualenv', str(venv_dir)])
+    check_call([venv_py, '-m', 'pip', 'install', '--force-reinstall', '-r', str(requirements_file)])
 
-    record_hash = dist.finalize(metadata_directory)
+    os.environ['PATH'] = str(venv_bin) + os.pathsep + _PATH
+
+    res = check_output([
+      venv_py,
+      '-c',
+      "import sys; import json; sys.stdout.write(json.dumps(sys.path))"])
+
+    sys_path = json.loads(res.decode('utf-8', errors = 'ignore'))
+    # sys.path[:] = sys_path
+
+  try:
+    pyproj.dist_prep()
+
+    pyproj.dist_binary_prep()
+
+    with dist_binary_editable(
+      root = pyproj.root,
+      # enable incremental rebuilds if there are any targets
+      incremental = incremental,
+      pptoml_checksum = pyproj.pptoml_checksum,
+      whl_root = whl_root,
+      pkg_info = pyproj.pkg_info,
+      build = dist_build(
+        pyproj.binary.get('build_number', None),
+        pyproj.binary.get('build_suffix', None) ),
+      compat = pyproj.binary.compat_tags,
+      outdir = wheel_directory,
+      logger = pyproj.logger ) as dist:
+
+      pyproj.dist_binary_copy(
+        dist = dist )
+
+      record_hash = dist.finalize(metadata_directory)
+
+  finally:
+    os.environ['PATH'] = _PATH
+    sys.path[:] = _sys_path
+
 
   pyproj.logger.info(
     f"Top level packages {dist.top_level}")

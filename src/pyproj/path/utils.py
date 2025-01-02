@@ -98,8 +98,15 @@ def subdir(start: PurePath, path: PurePath, check: bool = True) -> PurePath|None
 
 #===============================================================================
 def file_size_mtime(file: str) -> tuple[int,int,str]:
-  st = os_stat(file)
-  return int(st.st_mtime), st.st_size, file
+  """Gets mtime and size of file, or zero if file does not exist
+  """
+  try:
+    st = os_stat(file)
+    return int(st.st_mtime), st.st_size, file
+  except FileNotFoundError:
+    ...
+
+  return 0, 0, file
 
 #===============================================================================
 def git_tracked_mtime(root: Path|None = None) -> tuple[str, list[tuple[int,int,str]]]:

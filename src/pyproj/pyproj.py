@@ -231,6 +231,9 @@ class PyProjBase:
     return self._config_settings
 
   #-----------------------------------------------------------------------------
+  config = config_settings
+
+  #-----------------------------------------------------------------------------
   @property
   def targets(self) -> pyproj_targets:
     """

@@ -363,6 +363,7 @@ class dist_binary_editable( dist_binary_wheel ):
 
     # self.named_dirs['purelib'] = PurePosixPath('lib')
     # self.named_dirs['platlib'] = PurePosixPath('lib')
+    self.named_dirs['lib'] = self.named_dirs['purelib'].parent/'lib'
 
     self.root = root
     self.incremental = incremental
@@ -391,20 +392,8 @@ class dist_binary_editable( dist_binary_wheel ):
     gen_root = Path(__file__).parent.parent
     purelib = dist.named_dirs['purelib']
 
-    _purelib = self.named_dirs['purelib']
-    _platlib = self.named_dirs['platlib']
-    # _lib = whl_root/'lib'
-    # _lib.mkdir(exist_ok=True)
-
-    whl_purelib = whl_root/_purelib
-    whl_platlib = whl_root/_platlib
-
-    # for file in whl_purelib.iterdir():
-    #   (_lib/file.relative_to(whl_purelib)).symlink_to(file)
-
-    # for file in whl_platlib.iterdir():
-    #   _file = _lib/file.relative_to(whl_platlib)
-    #   _file.symlink_to(file)
+    lib = self.named_dirs['lib']
+    whl_lib = whl_root/lib
 
 
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
@@ -424,19 +413,13 @@ class dist_binary_editable( dist_binary_wheel ):
         str(file)
         for file in self.purelib_src]))
 
-      purlib_files = [
-        subdir(_purelib, file, check=False)
+      lib_files = [
+        subdir(lib, file, check=False)
         for file, (hash, size) in self.records.items()]
-
-      platlib_files = [
-        subdir(_platlib, file, check=False)
-        for file, (hash, size) in self.records.items()]
-
-      watched = purlib_files + platlib_files
 
       watched = set([
         file.parts[0]
-        for file in watched
+        for file in lib_files
         if file])
 
 
@@ -458,9 +441,7 @@ class dist_binary_editable( dist_binary_wheel ):
         footer])
 
       pth_content = '\n'.join([
-        # str(_lib),
-        str(whl_purelib),
-        str(whl_platlib),
+        str(whl_lib),
         f"import {check_module_name}; {check_module_name}.incremental()"])
 
 
@@ -470,7 +451,7 @@ class dist_binary_editable( dist_binary_wheel ):
         record_hash = dist.finalize(metadata_directory)
 
     else:
-      pth_content = str(whl_root/lib)
+      pth_content = str(whl_lib)
 
       with dist:
         dist.write(purelib/pth_file, pth_content.encode('utf-8'))
@@ -508,22 +489,22 @@ class dist_binary_editable( dist_binary_wheel ):
   def remove_distfile( self ):
     pass
 
-  #-----------------------------------------------------------------------------
-  def makedirs( self,
-    dst: PurePosixPath,
-    mode: int|None = None,
-    exist_ok: bool = False,
-    record: bool = True ):
+  # #-----------------------------------------------------------------------------
+  # def makedirs( self,
+  #   dst: PurePosixPath,
+  #   mode: int|None = None,
+  #   exist_ok: bool = False,
+  #   record: bool = True ):
 
-    _dir = self.whl_root
-    _dst = _dir/Path(norm_path(os.fspath(dst)))
+  #   _dir = self.whl_root
+  #   _dst = _dir/Path(norm_path(os.fspath(dst)))
 
-    if _dst.exists():
-      if not exist_ok:
-        raise PathError(f"Build file already has entry: {_dst}")
+  #   if _dst.exists():
+  #     if not exist_ok:
+  #       raise PathError(f"Build file already has entry: {_dst}")
 
-    else:
-      _dst.mkdir(parents=True)
+  #   else:
+  #     _dst.mkdir(parents=True)
 
   #-----------------------------------------------------------------------------
   def copyfile( self,
@@ -536,12 +517,14 @@ class dist_binary_editable( dist_binary_wheel ):
     src = Path(src)
     src = src.resolve()
 
-    if subdir(self.named_dirs['purelib'], dst, check=False) is not None:
+    if (lib_dst := subdir(self.named_dirs['purelib'], dst, check=False)) is not None:
+      # Track the files that would have gone to purelib (ignore for incremental build)
       self.purelib_src.append(src.relative_to(self.root))
+      dst = self.named_dirs['lib']/lib_dst
 
-    if subdir(self.named_dirs['platlib'], dst, check=False) is not None:
-      # TODO: figure out why import doesn't work with separate purelib/platlib
-      dst = self.named_dirs['purelib']/dst.relative_to(self.named_dirs['platlib'])
+    if (lib_dst := subdir(self.named_dirs['platlib'], dst, check=False)) is not None:
+      # TODO: import doesn't work with separate purelib/platlib
+      dst = self.named_dirs['lib']/lib_dst
 
     _dir = self.whl_root
     _dst = _dir/Path(norm_path(os.fspath(dst)))
@@ -555,7 +538,7 @@ class dist_binary_editable( dist_binary_wheel ):
     if not _dst.parent.exists():
       _dst.parent.mkdir(parents=True)
 
-    self.logger.debug( f'copyfile {src}' )
+    self.logger.debug(f'copyfile {src}')
 
     if mode is None:
       mode = src.stat().st_mode
