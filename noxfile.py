@@ -166,7 +166,7 @@ def report(session):
   session.env['COVERAGE_RCFILE'] = str(pptoml_file)
 
   # NOTE: avoid error when theres nothing to combine
-  session.run('coverage', 'combine', success_codes=[0, 1])
+  session.run('coverage', 'combine', '--debug=dataio', success_codes=[0, 1])
   session.run('coverage', 'report')
 
   session.run('coverage', 'json', '-o', str(reports_dir/'coverage.json'))
