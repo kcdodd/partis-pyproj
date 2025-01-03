@@ -202,6 +202,10 @@ class PyProjBase:
     return self._config_settings
 
   #-----------------------------------------------------------------------------
+  # alias for backward compatibility
+  config = config_settings
+
+  #-----------------------------------------------------------------------------
   @property
   def targets(self):
     """
@@ -218,6 +222,9 @@ class PyProjBase:
       These are no longer restricted to meson, but this attribute kept for backward
       compatability.
 
+      Inplace changes to the returned object are not propagated back to the target
+      configuration.
+
     """
     targets = self._pptoml.tool.pyproj.targets
 
@@ -227,6 +234,7 @@ class PyProjBase:
     meson = dict(targets[0])
     meson.pop('entry')
     meson.pop('work_dir')
+    meson.pop('env')
     meson['compile'] = meson.pop('enabled')
     return pyproj_meson(meson)
 
