@@ -71,12 +71,12 @@ class Template:
         return '$'
 
       if m.group('unterminated') is not None:
-        raise TemplateError(f"Unterminated template substitution: {m.group()}")
+        raise TemplateError(f"Unterminated template substitution {m.group()!r}: {self.template!r}")
 
       name = m.group('braced').strip()
 
       if not _idpattern.fullmatch(name):
-        raise TemplateError(f"Invalid template substitution: {name}")
+        raise TemplateError(f"Invalid template substitution {name!r}: {self.template!r}")
 
       return str(namespace[name])
 
@@ -96,12 +96,13 @@ class Namespace(Mapping):
     If given, absolute path to project root, used to resolve relative paths and ensure
     any derived paths are within this parent directory.
   """
-  __slots__ = ['data', 'root']
+  __slots__ = ['data', 'root', 'tmpdir']
 
   #-----------------------------------------------------------------------------
-  def __init__(self, data: Mapping, *, root: Path = None):
+  def __init__(self, data: Mapping, *, root: Path = None, tmpdir: Path|None = None):
     self.data = data
     self.root = root
+    self.tmpdir = tmpdir
 
   #-----------------------------------------------------------------------------
   def __iter__(self):
@@ -150,7 +151,10 @@ class Namespace(Mapping):
         # NOTE: ignored if root is a pure path
         out = resolve(out)
 
-      if not subdir(root, out, check = False):
+      if self.tmpdir and subdir(self.tmpdir, out, check = False):
+        ...
+
+      elif not subdir(root, out, check = False):
         raise FileOutsideRootError(
           f"Must be within project root directory:"
           f"\n  file = \"{out}\"\n  root = \"{root}\"")
@@ -163,6 +167,7 @@ class Namespace(Mapping):
     obj = cls.__new__(cls)
     obj.data = copy(self.data)
     obj.root = self.root
+    obj.tmpdir = self.tmpdir
     return obj
 
   #-----------------------------------------------------------------------------
@@ -210,9 +215,10 @@ def template_substitute(
     return cls(Template(value).substitute(namespace))
 
   if isinstance(value, Path):
-    return cls(*(
-      Template(v).substitute(namespace)
-      for v in value.parts))
+    return cls(Template(str(value)).substitute(namespace))
+    # return cls(*(
+    #   Template(v).substitute(namespace)
+    #   for v in value.parts))
 
   if isinstance(value, Mapping):
     return cls({

@@ -153,7 +153,7 @@ def test_as_list():
   assert as_list({'a': 'b'}) == [{'a': 'b'}]
 
 #===============================================================================
-@mark.skip(reason="sometimes very, very slow")
+# @mark.skip(reason="sometimes very, very slow")
 def test_gen_norm_printable():
   regex = gen_nonprintable()
   ns, test = _gen_nonprintable()

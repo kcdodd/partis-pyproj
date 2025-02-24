@@ -185,6 +185,9 @@ class EntryPoint:
           logger = self.logger,
           **kwargs )
 
+    except ValidationError:
+      raise
+
     except Exception as e:
       raise EntryPointError(f"failed to run '{self.entry}'") from e
 

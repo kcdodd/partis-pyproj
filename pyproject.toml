@@ -26,7 +26,7 @@
 
 [project]
 name = "partis-pyproj"
-version = "0.1.6"
+version = "0.1.7"
 description = "Minimal set of Python project utilities (PEP-517/621)"
 maintainers = [
   { name = "Nanohmics Inc.", email = "software.support@nanohmics.com" } ]
@@ -45,7 +45,8 @@ classifiers = [
 requires-python = ">= 3.8"
 dependencies = [
   "packaging >= 24.2",
-  "tomli >= 2.0.1" ]
+  "tomli >= 2.0.1",
+  "requests >= 2.32.3"]
 
 #===============================================================================
 [project.optional-dependencies]

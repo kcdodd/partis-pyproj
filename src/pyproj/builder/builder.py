@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 import os.path as osp
-import sys
+import tempfile
 import sysconfig
 import re
 from copy import copy
@@ -61,6 +61,7 @@ class Builder:
     self.targets = [copy(v) for v in targets]
     self.clean_dirs = [False]*len(self.targets)
     self.logger = logger
+    self.tmpdir = Path(tempfile.mkdtemp(prefix=f"build-{pyproj.project.name}-"))
     self.namespace = Namespace({
       'root': root,
       'pptoml': pyproj.pptoml,
@@ -69,8 +70,10 @@ class Builder:
       'config_settings': pyproj.config_settings,
       'targets': targets,
       'env': os.environ,
+      'tmpdir': self.tmpdir,
       'config_vars': sysconfig.get_config_vars()},
-      root=root)
+      root=root,
+      tmpdir=self.tmpdir)
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
@@ -85,10 +88,36 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_targets(self):
+    exclusive = {
+      target.exclusive: None
+      for target in self.targets
+      if target.exclusive}
+
+    if exclusive:
+      for i, target in enumerate(self.targets):
+        if not (group := target.exclusive):
+          continue
+
+        cur = exclusive[group]
+
+        if target.enabled:
+          if cur is None:
+            exclusive[group] = i
+
+
+      missing = [group for group, idx in exclusive.items() if idx is None]
+
+      if missing:
+        raise ValidationError(f"Exclusive group {missing} does not have an enabled target")
+
     for i, target in enumerate(self.targets):
       if not target.enabled:
         self.logger.info(f"Skipping targets[{i}], disabled for environment markers")
         continue
+
+      if (group := target.exclusive) and (group_idx := exclusive.get(group)) != i:
+        self.logger.warning(
+          f"Skipping targets[{i}], exclusive group {group!r} already satisfied by targets[{group_idx}]")
 
       # each target isolated (shallow) changes to namespace
       namespace = copy(self.namespace)
@@ -106,9 +135,9 @@ class Builder:
 
           abs_path = resolve(abs_path)
 
-          if not subdir(self.root, abs_path, check=False):
+          if not (subdir(self.root, abs_path, check=False) or subdir(self.tmpdir, abs_path, check=False)):
             raise FileOutsideRootError(
-              f"Must be within project root directory:"
+              f"Must be within project root directory or tmpdir:"
               f"file = \"{abs_path}\",  root = \"{self.root}\"")
 
           if k in ('build_dir', 'prefix') and subdir(abs_path, self.root, check=False):
@@ -249,6 +278,8 @@ class Builder:
         self.logger.info(f"Removing build dir: {build_dir}")
         shutil.rmtree(build_dir)
 
+    shutil.rmtree(self.tmpdir)
+
 #===============================================================================
 class ProcessRunner:
   #-----------------------------------------------------------------------------
@@ -273,7 +304,7 @@ class ProcessRunner:
     cmd_exec_src = shutil.which(cmd_exec)
 
     if cmd_exec_src is None:
-      raise ValueError(
+      raise ValidationError(
         f"Executable does not exist or has in-sufficient permissions: {cmd_exec}")
 
     cmd_exec_src = resolve(Path(cmd_exec_src))

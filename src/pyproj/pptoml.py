@@ -49,7 +49,7 @@ from .pep import (
   norm_entry_point_ref,
   norm_dist_keyword,
   norm_dist_classifier,
-  norm_dist_url )
+  norm_dist_url)
 
 #===============================================================================
 class dynamic(valid_list):
@@ -260,6 +260,7 @@ class pyproj_build_target(valid_dict):
     ('compile', 'enabled')]
   default = {
     'enabled': valid(True, marker_evaluated),
+    'exclusive': valid('', norm_printable),
     # NOTE: default builder from backward compatibility
     'entry': valid('partis.pyproj.builder:meson', norm_entry_point_ref),
     'options': dict,
