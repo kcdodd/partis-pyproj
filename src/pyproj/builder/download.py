@@ -1,4 +1,6 @@
 from __future__ import annotations
+import stat
+import re
 from pathlib import Path
 import hashlib
 from urllib.parse import urlsplit
@@ -12,6 +14,8 @@ from ..validate import (
   ValidationError)
 from ..norms import b64_nopad, nonempty_str
 
+# replace runs of non-alphanumeric, dot, dash, or underscore
+_filename_subs = re.compile(r'[^a-z0-9\.\-\_]+', re.I)
 
 #===============================================================================
 def download(
@@ -34,8 +38,9 @@ def download(
   chunk_size = int(options.get('chunk_size', 2**16))
 
   url = options.get('url')
+  executable = options.get('executable')
 
-  if url is None:
+  if not url:
     raise ValidationError(
       "Download 'url' required")
 
@@ -54,7 +59,10 @@ def download(
   cache_file = _cached_download(url, checksum)
   out_file = build_dir/filename
 
-  if not cache_file.exists():
+  if cache_file.exists():
+    logger.info(f"Using cache file: {cache_file}")
+
+  else:
     tmp_file = cache_file.with_name(cache_file.name+'.tmp')
 
     if checksum:
@@ -72,8 +80,11 @@ def download(
       hash = None
 
     size = 0
+    last_size = 0
 
     try:
+      logger.info(f"- downloading: {url} -> {tmp_file}")
+
       with requests.get(url, stream=True) as req, tmp_file.open('wb') as fp:
         for chunk in req.iter_content(chunk_size=chunk_size):
           if chunk:
@@ -82,6 +93,12 @@ def download(
 
             if hash:
               hash.update(chunk)
+
+            if size - last_size > 50e6:
+              logger.info(f"- {size/1e6:,.1f} MB")
+              last_size = size
+
+      logger.info(f"- complete {size/1e6:,.1f} MB")
 
       if hash:
         digest = hash.digest()
@@ -93,8 +110,10 @@ def download(
         else:
           digest = digest.hex()
 
+        checksum_ok = checksum == digest
+        logger.info(f"- checksum{' (OK)' if checksum_ok else ''}: {alg}={digest}")
 
-        if checksum != digest:
+        if not checksum_ok:
           raise ValidationError(f"Download checksum did not match: {digest} != {checksum}")
 
     except Exception:
@@ -109,6 +128,7 @@ def download(
   out_file.symlink_to(cache_file)
 
   if extract:
+    logger.info(f"- extracting: {cache_file} -> {build_dir}")
     with tarfile.open(cache_file, 'r:*') as fp:
       fp.extractall(
         path=build_dir,
@@ -116,15 +136,27 @@ def download(
         numeric_owner=False,
         filter='tar')
 
+  if executable:
+    logger.info("- setting executable permission")
+    out_file.chmod(out_file.stat().st_mode|stat.S_IXUSR)
+
 #===============================================================================
 def _cached_download(url: str, checksum: str) -> Path:
   if not checksum:
     checksum = '0'
 
   cache_dir = Path(tempfile.gettempdir())/'partis-pyproj-downloads'
-  url_dir = cache_dir/b64_nopad(url.encode('utf-8'))
+  name = url.split('/')[-1]
+  _url = url
+
+  if name != _url:
+    _url = _url.removesuffix('/'+name)
+
+  url_dir = cache_dir/_filename_subs.sub('_', _url)
+  url_filename = _filename_subs.sub('_', name)
+
   url_dir.mkdir(exist_ok=True, parents=True)
-  file = url_dir/b64_nopad(checksum.encode('utf-8'))
+  file = url_dir/url_filename
   info_file = file.with_name(file.name+'.info')
   info_file.write_text(f"{url}\n{checksum}")
   return file

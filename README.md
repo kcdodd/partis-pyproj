@@ -252,6 +252,7 @@ setup_args: array{STRING}    # 3-stage build
 compile_args: array{STRING}  # 3-stage build
 install_args: array{STRING}  # 3-stage build
 options: table{STRING|BOOL}? # options passed to builder from pyproject.toml
+env: table{STRING|STRING}?   # environment variables to set
 build_clean: BOOL?           # control cleanup (ie for development builds)
 enabled: (BOOL|MARKER)?      # environment marker
 ```
@@ -261,11 +262,28 @@ There are several entry points available as-is:
 - `partis.pyproj.builder:meson` - Support for [Meson Build system](https://mesonbuild.com/)  with the 'extra' ``partis-pyproj[meson]``
 - `partis.pyproj.builder:cmake` - Support for [CMake](https://cmake.org/) with the 'extra' ``partis-pyproj[cmake]``
 - `partis.pyproj.builder:process` - Support for running arbitrary command line executable
+- `partis.pyproj.builder:download` - Support for downloading a file to `build_dir`
+
+
+Options for `partis.pyproj.builder:download`:
+
+```
+[tool.pyproj.targets.options]
+url: URL
+checksum: ALG=HEX     # expected checksum
+filename: STRING?     # rename in build_dir, defaults to mangled version of url
+extract: BOOL?        # extract/decompress as a tar file
+executable: BOOL?     # set execute permission
+```
+
+Checksum `ALG` can be `sha256`, `md5`, or another algorithm in [hashlib](https://docs.python.org/3/library/hashlib.html)
+
+**Example**
 
 In this example, the source directory must contain appropriate `meson.build` files,
 since the 'pyproject.toml' configuration only provides a way of running
 ``meson setup`` and ``meson compile``.
-For example:
+
 
 ```toml
 # pyproject.toml

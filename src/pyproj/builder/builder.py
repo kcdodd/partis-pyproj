@@ -73,7 +73,8 @@ class Builder:
       'tmpdir': self.tmpdir,
       'config_vars': sysconfig.get_config_vars()},
       root=root,
-      tmpdir=self.tmpdir)
+      # better way for builders to whitelist templated directories?
+      dirs=[self.tmpdir, Path(tempfile.gettempdir())/'partis-pyproj-downloads'])
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
@@ -307,7 +308,8 @@ class ProcessRunner:
       raise ValidationError(
         f"Executable does not exist or has in-sufficient permissions: {cmd_exec}")
 
-    cmd_exec_src = resolve(Path(cmd_exec_src))
+    # cmd_exec_src = resolve(Path(cmd_exec_src))
+    cmd_exec_src = Path(cmd_exec_src)
     cmd_name = cmd_exec_src.name
     args = [str(cmd_exec_src)]+args[1:]
 

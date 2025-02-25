@@ -95,14 +95,21 @@ class Namespace(Mapping):
   root:
     If given, absolute path to project root, used to resolve relative paths and ensure
     any derived paths are within this parent directory.
+  dirs:
+    Additional white-listed directories to allow paths
   """
-  __slots__ = ['data', 'root', 'tmpdir']
+  __slots__ = ['data', 'root', 'dirs']
 
   #-----------------------------------------------------------------------------
-  def __init__(self, data: Mapping, *, root: Path = None, tmpdir: Path|None = None):
+  def __init__(self, data: Mapping, *, root: Path = None, dirs: list[Path]|None = None):
+    if dirs is None:
+      dirs = []
+    elif isinstance(dirs, Path):
+      dirs = [dirs]
+
     self.data = data
     self.root = root
-    self.tmpdir = tmpdir
+    self.dirs = dirs
 
   #-----------------------------------------------------------------------------
   def __iter__(self):
@@ -151,7 +158,7 @@ class Namespace(Mapping):
         # NOTE: ignored if root is a pure path
         out = resolve(out)
 
-      if self.tmpdir and subdir(self.tmpdir, out, check = False):
+      if any(subdir(v, out, check = False) for v in self.dirs):
         ...
 
       elif not subdir(root, out, check = False):
@@ -167,7 +174,7 @@ class Namespace(Mapping):
     obj = cls.__new__(cls)
     obj.data = copy(self.data)
     obj.root = self.root
-    obj.tmpdir = self.tmpdir
+    obj.dirs = self.dirs
     return obj
 
   #-----------------------------------------------------------------------------
