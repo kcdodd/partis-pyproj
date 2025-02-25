@@ -24,7 +24,7 @@ from .validate import (
   mapget )
 
 #===============================================================================
-class EntryPointError(ValueError):
+class EntryPointError(ValidationError):
   pass
 
 #===============================================================================
@@ -177,19 +177,18 @@ class EntryPoint:
 
     cwd = os.getcwd()
 
-    try:
-
-      with validating( file = f"{self.name} -> {self.entry}" ):
+    with validating( file = f"{self.name} -> {self.entry}" ):
+      try:
         self.func(
           self.pyproj,
           logger = self.logger,
-          **kwargs )
+          **kwargs)
 
-    except ValidationError:
-      raise
+      except ValidationError:
+        raise
 
-    except Exception as e:
-      raise EntryPointError(f"failed to run '{self.entry}'") from e
+      except Exception as e:
+        raise EntryPointError(f"failed to run '{self.entry}'") from e
 
-    finally:
-      os.chdir(cwd)
+      finally:
+        os.chdir(cwd)
