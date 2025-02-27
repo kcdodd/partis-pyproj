@@ -350,7 +350,7 @@ Python [Template string](https://docs.python.org/3/library/string.html#template-
 - `$$` is an escape; it is replaced with a single `$`.
 - `${identifier}` names a substitution placeholder matching a mapping key of "identifier".
 
-However, `$identifier` (without braces) is not supported, instead allowing more expressive substitutions.
+However, `$identifier` (without braces) is *not supported*, but this restriction allows more expressive substitutions.
 
 ```
 substitution: "${" (variable|literal|SEP)+ "}"
@@ -359,16 +359,30 @@ SEP: "/"
 literal: "'" CHAR+ "'"
 IDENTIFIER: < python identifier >
 INTEGER: < integer >
-CHAR: < ascii letter, number (not leading), or underscore >
+CHAR: < ascii alpha-numeric, dot ".", dash "-", underscore "_" >
 ```
 
-Variable names can reference most of the content of the original 'pyproject.toml',
-as well as values already substituted in the build target or earlier targets.
+Top-level template variable identifiers can reference the content of the original 'pyproject.toml', config. settings, environment variables, and values already substituted in the build target or earlier targets.
 If the substitution contains any separators the result is interpreted as a path, converted to platform-specific filesystem format, and resolved to project directory.
+The template namespace contains the following keys:
 
-**Example**
+- `root`: Absolute path to project root directory
+- `tmpdir`: A temporary directory created and shared by all build targets.
+  This directory is removed before the distribution is created, so any needed files must be copied back to a location within the project tree by one of the targets
+  (eg. the "install" step of 3-stage builds with a `prefix` within the project).
+- `pptoml`: Top-level of parsed `pyproject.toml`
+- `project`: The `project` section, including `name`, `version`, etc.
+- `pyproj`: The `tool.pyproj` section.
+- `config_settings`: A mapping from the `config_settings` passed to backend per PEP-517
+  after defaults applied from `tool.pyproj.config` (described below).
+- `targets`': List from `tool.pyproj.targets`, updated as targets are processed.
+- `work_dir`, `src_dir`, `build_dir`, `prefix`: Per-target values (if processed before the substitution)
+- `env`: Defaults to `os.environ`, or per-target value from `tool.pyproj.targets.env`
+  (if processed before the substitution).
+- `options`: Per-target value from `tool.pyproj.targets.options` (if processed before the substitution)
 
-The value of `options.some_option` in the example below would be substituted with a filesystem equivalent path for `{root}/build/something/my_pkg/xyz/abc.so`:
+Template substitutions are processed (once) in the *order in which they appear* from the `pyproject.toml`, no static analysis is performed. It is up to the developer to put them in the needed order if one template references a value resulting from another template.
+In the example below, the value of `options.some_option` would be substituted with a filesystem equivalent path for `{root}/build/something/my_pkg/xyz/abc.so`:
 
 
 ```toml
@@ -389,14 +403,14 @@ location according to a local installation scheme
 these can be specified within sub-tables.
 Available install scheme keys, and **example** corresponding install locations, are:
 
-- `purelib` ("pure" library Python path): ``{prefix}/lib/python{X}.{Y}/site-packages/``
-- `platlib` (platform specific Python path): ``{prefix}/lib{platform}/python{X}.{Y}/site-packages/``
+- `purelib` ("pure" library Python path): ``{venv}/lib/python{X}.{Y}/site-packages/``
+- `platlib` (platform specific Python path): ``{venv}/lib{platform}/python{X}.{Y}/site-packages/``
   Both `purelib` and `platlib` install to the base 'site-packages'
   directory, so any files copied to these paths should be placed within a
   desired top-level package directory.
 
-- `headers` (INCLUDE search paths): ``{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/``
-- `scripts` (executable search path): ``{prefix}/bin/``
+- `headers` (INCLUDE search paths): ``{venv}/include/{site}/python{X}.{Y}{abiflags}/{distname}/``
+- `scripts` (executable search path): ``{venv}/bin/``
   Even though any files added to the `scripts` path will be installed to
   the `bin` directory, there is often an issue with the 'execute' permission
   being set correctly by the installer (e.g. `pip`).
@@ -404,7 +418,7 @@ Available install scheme keys, and **example** corresponding install locations, 
   use the ``[project.scripts]`` section to add an entry point that will then
   run the desired executable as a sub-process.
 
-- `data` (generic data path): ``{prefix}/``
+- `data` (generic data path): ``{venv}/``
 
 ```toml
 # pyproject.toml
