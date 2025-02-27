@@ -1,5 +1,7 @@
 from __future__ import annotations
 import sys
+import os
+import platform
 import stat
 import re
 from pathlib import Path
@@ -64,7 +66,13 @@ def download(
     logger.info(f"Using cache file: {cache_file}")
 
   else:
-    tmp_file = cache_file.with_name(cache_file.name+'.tmp')
+    # name unique to host/process as countermeasure for race condition
+    hostname = re.sub(r'[^a-zA-Z0-9]+', '_', str(platform.node()))
+    tmp_name = f"{cache_file.name}-{hostname}-{os.getpid():06d}.tmp"
+    tmp_file = cache_file.with_name(tmp_name)
+
+    if tmp_file.exists():
+      tmp_file.unlink()
 
     if checksum:
       checksum = checksum.lower()
@@ -157,14 +165,25 @@ def _cached_download(url: str, checksum: str) -> Path:
   name = url.split('/')[-1]
   _url = url
 
+  # hash of url + checksum used to prevent filename collision after url is sanitized
+  h = hashlib.sha256()
+  h.update(url.encode('utf-8') + checksum.encode('utf-8'))
+  # keep only 4 bytes (8 hex characters) worth of the hash
+  short = h.digest()[:4].hex()
+
   if name != _url:
+    # possible for url without a path segment?
     _url = _url.removesuffix('/'+name)
 
-  url_dir = cache_dir/_filename_subs.sub('_', _url)
-  url_filename = _filename_subs.sub('_', name)
+  url_dirname = _filename_subs.sub('_', _url)
+  url_filename = f"{short}-" + _filename_subs.sub('_', name)
 
+  url_dir = cache_dir/url_dirname
   url_dir.mkdir(exist_ok=True, parents=True)
+
   file = url_dir/url_filename
+
   info_file = file.with_name(file.name+'.info')
   info_file.write_text(f"{url}\n{checksum}")
+
   return file
