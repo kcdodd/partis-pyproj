@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 import stat
 import re
 from pathlib import Path
@@ -130,11 +131,18 @@ def download(
   if extract:
     logger.info(f"- extracting: {cache_file} -> {build_dir}")
     with tarfile.open(cache_file, 'r:*') as fp:
-      fp.extractall(
-        path=build_dir,
-        members=None,
-        numeric_owner=False,
-        filter='tar')
+      if sys.version_info >= (3, 12):
+        # 'filter' argument added, controls behavior of extract
+        fp.extractall(
+          path=build_dir,
+          members=None,
+          numeric_owner=False,
+          filter='tar')
+      else:
+        fp.extractall(
+          path=build_dir,
+          members=None,
+          numeric_owner=False)
 
   if executable:
     logger.info("- setting executable permission")
