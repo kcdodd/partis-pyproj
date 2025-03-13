@@ -70,9 +70,9 @@ def cmake(
 
   compile_args = [
     'cmake',
-    *compile_args,
     '--build',
-    str(build_dir) ]
+    str(build_dir),
+    *compile_args]
 
   install_args = [
     'cmake',

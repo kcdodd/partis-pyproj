@@ -235,6 +235,7 @@ class PyProjBase:
     meson.pop('entry')
     meson.pop('work_dir')
     meson.pop('env')
+    meson.pop('exclusive')
     meson['compile'] = meson.pop('enabled')
     return pyproj_meson(meson)
 

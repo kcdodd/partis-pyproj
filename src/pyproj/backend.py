@@ -1,8 +1,6 @@
 from __future__ import annotations
 import os
-import os.path as osp
-import sys
-import shutil
+from copy import copy
 import logging
 from logging import (
   basicConfig,
@@ -22,6 +20,7 @@ from collections.abc import (
 
 from . import (
   valid_keys,
+  ValidationError,
   mapget,
   dist_build,
   PkgInfoReq,
@@ -34,7 +33,7 @@ def backend_init(
   root: str|Path = '',
   config_settings: dict|None = None,
   logger: Logger|None = None ):
-  """Called to inialialize the backend upon a call to one of the hooks
+  """Called to initialize the backend upon a call to one of the hooks
 
   Parameters
   ----------
@@ -210,26 +209,30 @@ def build_wheel(
   * https://www.python.org/dev/peps/pep-0517/#build-wheel
   """
 
-  pyproj = backend_init(config_settings = config_settings)
+  try:
+    pyproj = backend_init(config_settings = config_settings)
 
-  pyproj.dist_prep()
+    pyproj.dist_prep()
+    pyproj.dist_binary_prep()
 
-  pyproj.dist_binary_prep()
+    with dist_binary_wheel(
+      pkg_info = pyproj.pkg_info,
+      build = dist_build(
+        pyproj.binary.get('build_number', None),
+        pyproj.binary.get('build_suffix', None) ),
+      compat = pyproj.binary.compat_tags,
+      outdir = wheel_directory,
+      logger = pyproj.logger ) as dist:
 
-  with dist_binary_wheel(
-    pkg_info = pyproj.pkg_info,
-    build = dist_build(
-      pyproj.binary.get('build_number', None),
-      pyproj.binary.get('build_suffix', None) ),
-    compat = pyproj.binary.compat_tags,
-    outdir = wheel_directory,
-    logger = pyproj.logger ) as dist:
+      pyproj.dist_binary_copy(
+        dist = dist )
 
-    pyproj.dist_binary_copy(
-      dist = dist )
+    pyproj.logger.info(
+      f"Top level packages {dist.top_level}")
 
-  pyproj.logger.info(
-    f"Top level packages {dist.top_level}")
+  except ValidationError as e:
+    known_exception_type = copy(e)
+    raise known_exception_type from None
 
   return dist.outname
 
