@@ -150,7 +150,7 @@ def _check_dependency_groups(groups):
         if _group not in groups:
           raise ValidationError(f"'include-group' must be one of {set(groups)}: got {_group!r}")
 
-        elif _group is group:
+        elif _group == group:
           raise ValidationError(f"'include-group' cannot be recursive: {_group!r}")
 
   return groups
