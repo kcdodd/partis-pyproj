@@ -131,6 +131,49 @@ class optional_dependencies(valid_dict):
   value_valid = valid(optional_dependency_group)
 
 #===============================================================================
+class dependency_group_include(valid_dict):
+  allow_keys = list()
+  default = {
+    'include-group': valid(norm_dist_extra)}
+
+#===============================================================================
+class dependency_group(valid_list):
+  value_valid = union(dependency_group_include, valid(norm_printable, Requirement, str))
+
+#===============================================================================
+def _check_dependency_groups(groups):
+  for group,v in groups.items():
+    for dep in v:
+      if isinstance(dep, Mapping):
+        _group = dep.get('include-group')
+
+        if _group not in groups:
+          raise ValidationError(f"'include-group' must be one of {set(groups)}: got {_group!r}")
+
+        elif _group is group:
+          raise ValidationError(f"'include-group' cannot be recursive: {_group!r}")
+
+  return groups
+
+#===============================================================================
+class dependency_groups(valid_dict):
+  r"""Dependency Groups
+
+  * https://packaging.python.org/en/latest/specifications/dependency-groups/
+
+  .. code-block:: toml
+    :caption: Example Dependency Groups
+
+    [dependency-groups]
+    coverage = ["coverage[toml]"]
+    test = ["pytest>7", {include-group = "coverage"}]
+
+  """
+  key_valid = valid(norm_dist_extra)
+  value_valid = valid(dependency_group)
+  validator = valid(_check_dependency_groups)
+
+#===============================================================================
 class entry_point_group(valid_dict):
   key_valid = valid(norm_entry_point_name)
   value_valid = valid(norm_entry_point_ref)

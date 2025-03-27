@@ -64,7 +64,7 @@ def test_full():
       'requires-python' : ">= 3.6.2",
       'dependencies' : ["numpy"],
       'optional-dependencies' : {
-        'test' : 'pytest' },
+        'test' : ['pytest'] },
       'keywords' : keywords,
       'classifiers' : classifiers,
       'urls' : urls,

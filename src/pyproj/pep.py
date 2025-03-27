@@ -26,6 +26,7 @@ import keyword
 from packaging.tags import sys_tags
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
+from packaging.version import VERSION_PATTERN
 
 from .validate import (
   ValidationError,
@@ -164,12 +165,14 @@ def norm_dist_filename( name ):
   Each component of the filename is escaped by replacing runs of
   non-alphanumeric characters with an underscore '_'
 
+  Addendum - It seems that "local" versions require '+'
+
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0427/#file-name-convention
   """
 
-  return re.sub( r"[^\w\d\.]+", "_", name )
+  return re.sub( r"[^\w\d\.\+]+", "_", name )
 
 #===============================================================================
 def join_dist_filename( parts ):
@@ -639,10 +642,11 @@ pep426_dist_name = re.compile(
   r'^([A-Z0-9]|[A-Z0-9][A-Z0-9._\-]*[A-Z0-9])$',
   re.IGNORECASE )
 
-pep440_version = re.compile(
-  r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*'
-  r'((a|b|rc)(0|[1-9][0-9]*))?'
-  r'(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$' )
+pep440_version = re.compile(VERSION_PATTERN, re.VERBOSE | re.IGNORECASE)
+# pep440_version = re.compile(
+#   r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*'
+#   r'((a|b|rc)(0|[1-9][0-9]*))?'
+#   r'(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$' )
 
 # NOTE: PEP 427 does not specify any constraints on the string following the
 # digits, but given the form it is used in the filenames it really cannot

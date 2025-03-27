@@ -232,7 +232,7 @@ def build_wheel(
 
   except ValidationError as e:
     known_exception_type = copy(e)
-    raise known_exception_type from None
+    raise known_exception_type from e.__cause__
 
   return dist.outname
 

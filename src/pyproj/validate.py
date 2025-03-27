@@ -276,6 +276,10 @@ def validate(val, default, validators):
   if not isinstance(validators, Sequence):
     validators = [validators]
 
+  if not isinstance(validators, (list,tuple)):
+    raise ValidDefinitionError(
+      "Validators must be list or tuple")
+
   for validator in validators:
     if isinstance(validator, type):
       # cast to valid type (if needed)
@@ -755,7 +759,8 @@ class _ValidDictMeta(ABCMeta):
       'deprecate_keys',
       'forbid_keys',
       'default',
-      'proxy_keys')
+      'proxy_keys',
+      'validator')
 
     schema = {}
 
@@ -820,21 +825,24 @@ class _ValidDictMeta(ABCMeta):
     all_keys = tuple(all_keys)
 
     # compose validator with parameterized valid_keys method
-    validator = valid(
-      validator or (lambda v: v),
-      partial(valid_keys,
-        key_valid = key_valid,
-        value_valid = value_valid,
-        item_valid = item_valid,
-        allow_keys = allow_keys,
-        require_keys = require_keys,
-        min_keys = min_keys,
-        wedge_keys = wedge_keys,
-        mutex_keys = mutex_keys,
-        deprecate_keys = deprecate_keys,
-        forbid_keys = forbid_keys,
-        default = default,
-        proxy_keys = proxy_keys))
+    validators = [partial(valid_keys,
+      key_valid = key_valid,
+      value_valid = value_valid,
+      item_valid = item_valid,
+      allow_keys = allow_keys,
+      require_keys = require_keys,
+      min_keys = min_keys,
+      wedge_keys = wedge_keys,
+      mutex_keys = mutex_keys,
+      deprecate_keys = deprecate_keys,
+      forbid_keys = forbid_keys,
+      default = default,
+      proxy_keys = proxy_keys)]
+
+    if validator:
+      validators.append(validator)
+
+    validator = valid(*validators)
 
     namespace['_all_keys'] = all_keys
     namespace['_validator'] = validator
@@ -924,6 +932,9 @@ class valid_dict(Mapping, metaclass = _ValidDictMeta):
 
       elif cls.proxy_key:
         args = [{ cls.proxy_key : v }]
+
+      else:
+        raise ValidationError(f"Expected mapping: got {v!r}")
 
     self._data = dict(*args, **kwargs)
     self._validate()
@@ -1042,19 +1053,23 @@ class valid_list(list):
   #---------------------------------------------------------------------------#
   def __init__( self, vals = None ):
     cls = type(self)
-    self._as_list = cls._as_list or list
-    self.value_valid = valid(
-      cls.value_valid or (lambda v: v))
 
     if vals is None:
       vals = list()
 
-    elif self._as_list:
-      vals = self._as_list(vals)
+    elif cls._as_list:
+      vals = cls._as_list(vals)
 
-    for i,v in enumerate(vals):
-      with validating(key = i):
-        vals[i] = self.value_valid(v)
+    elif not isinstance(vals, Iterable) or isinstance(vals, (str,Mapping)):
+      raise ValidationError(f"Excpected sequence: got {vals!r}")
+
+    else:
+      vals = list(vals)
+
+    if cls.value_valid:
+      for i,v in enumerate(vals):
+        with validating(key = i):
+          vals[i] = cls.value_valid(v)
 
     super().__init__(vals)
     self._validate()
@@ -1072,8 +1087,9 @@ class valid_list(list):
 
   #---------------------------------------------------------------------------#
   def append(self, val ):
-    with validating(key = len(self)):
-      val = self.value_valid(val)
+    if self.value_valid:
+      with validating(key = len(self)):
+        val = self.value_valid(val)
 
     super().append(val)
 
@@ -1081,16 +1097,18 @@ class valid_list(list):
   def extend(self, vals ):
     vals = list(vals)
 
-    for i,v in enumerate(vals):
-      with validating(key = len(self) + i):
-        vals[i] = self.value_valid(v)
+    if self.value_valid:
+      for i,v in enumerate(vals):
+        with validating(key = len(self) + i):
+          vals[i] = self.value_valid(v)
 
     super().extend(vals)
 
   #-----------------------------------------------------------------------------
   def __setitem__( self, key, val ):
-    with validating(key = key):
-      val = self.value_valid(val)
+    if self.value_valid:
+      with validating(key = key):
+        val = self.value_valid(val)
 
     super().__setitem__(key, val)
 
