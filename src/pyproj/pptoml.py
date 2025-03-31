@@ -360,7 +360,7 @@ class include(valid_dict):
   proxy_key = 'glob'
   # TODO: how to normalize patterns?
   default = {
-    'glob': valid(nonempty_str),
+    'glob': valid(r'**', nonempty_str),
     'rematch': valid(r'.*', nonempty_str, re.compile),
     'replace': valid('{0}', nonempty_str)}
 

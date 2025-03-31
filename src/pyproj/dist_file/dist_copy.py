@@ -58,6 +58,7 @@ def dist_iter(*,
         cwd = Path.cwd()
         try:
           # TODO: better way of globing *relative* to src directory
+          # root_dir added in Python 3.10
           os.chdir(src)
           matches = glob.glob(incl_pattern.glob, recursive = True)
         finally:
