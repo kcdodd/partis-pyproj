@@ -65,6 +65,10 @@ name = "Nanohmics Inc."
 email = "software.support@nanohmics.com"
 
 #===============================================================================
+[project.urls]
+homepage = "https://github.com/kcdodd/partis-pyproj/"
+
+#===============================================================================
 # Build and distribution configuration
 #===============================================================================
 [build-system]
