@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import os.path as osp
+import sys
 import tempfile
 import sysconfig
 import re
@@ -29,6 +30,26 @@ from ..template import (
 from ..pptoml import pyproj_targets
 
 ERROR_REC = re.compile(r"error:", re.I)
+
+pyexe = sys.executable
+
+try:
+  pyexe = osp.realpath(pyexe)
+except Exception:
+  ...
+
+# fallback for commonly needed config. variables, but sometimes are not set
+_sysconfig_vars_alt = {
+  'LIBDEST': sysconfig.get_path('stdlib'),
+  'BINLIBDEST': sysconfig.get_path('platstdlib'),
+  'INCLUDEPY': sysconfig.get_path('include'),
+  'EXENAME': pyexe,
+  'BINDIR': osp.dirname(pyexe)}
+
+_sysconfig_vars = _sysconfig_vars_alt|sysconfig.get_config_vars()
+
+for k in _sysconfig_vars:
+  print(f"{k}: {_sysconfig_vars[k]}")
 
 #===============================================================================
 class BuildCommandError(ValidationError):
@@ -71,7 +92,7 @@ class Builder:
       'targets': targets,
       'env': os.environ,
       'tmpdir': self.tmpdir,
-      'config_vars': sysconfig.get_config_vars()},
+      'config_vars': _sysconfig_vars},
       root=root,
       # better way for builders to whitelist templated directories?
       dirs=[self.tmpdir, Path(tempfile.gettempdir())/'partis-pyproj-downloads'])
