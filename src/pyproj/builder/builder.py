@@ -48,9 +48,6 @@ _sysconfig_vars_alt = {
 
 _sysconfig_vars = _sysconfig_vars_alt|sysconfig.get_config_vars()
 
-for k in _sysconfig_vars:
-  print(f"{k}: {_sysconfig_vars[k]}")
-
 #===============================================================================
 class BuildCommandError(ValidationError):
   pass
