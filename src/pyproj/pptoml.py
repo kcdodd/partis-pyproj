@@ -463,4 +463,5 @@ class pptoml(valid_dict):
   default = {
     'project': valid(REQUIRED, project),
     'build-system': valid(REQUIRED, build_system),
+    'dependency-groups': valid(OPTIONAL, dependency_groups),
     'tool': valid(OPTIONAL, tool) }
