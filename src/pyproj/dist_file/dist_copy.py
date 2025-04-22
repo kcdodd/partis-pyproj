@@ -6,6 +6,7 @@ from pathlib import (
 import logging
 from ..validate import (
   FileOutsideRootError,
+  ValidationError,
   validating )
 from ..path import (
   PathFilter,
@@ -35,7 +36,8 @@ from ..path import (
 def dist_iter(*,
   include,
   ignore,
-  root ):
+  root,
+  logger ):
 
   patterns = PathFilter(
     patterns = ignore )
@@ -53,19 +55,32 @@ def dist_iter(*,
 
     if not incl.include:
       yield ( i, src, dst, _ignore_patterns, True )
+
     else:
       for incl_pattern in incl.include:
+        recursive = '**' in incl_pattern.glob
+
         cwd = Path.cwd()
         try:
           # TODO: better way of globing *relative* to src directory
           # root_dir added in Python 3.10
           os.chdir(src)
-          matches = glob.glob(incl_pattern.glob, recursive = True)
+          matches = glob.glob(incl_pattern.glob, recursive = recursive)
         finally:
           os.chdir(cwd)
 
+        matches = [Path(m) for m in matches]
+
+        if recursive:
+          # don't match directories in recursive mode, since copying a parent
+          # directory negates the need to recurse
+          matches = [m for m in matches if not m.is_dir()]
+
+        if not matches:
+          logger.warning(f"Include glob did not match any files: {incl_pattern.glob!r}")
+          continue
+
         for match in matches:
-          match = Path(match)
           parent = match.parent
           src_filename = match.name
 
@@ -83,13 +98,13 @@ def dist_iter(*,
           try:
             dst_filename = incl_pattern.replace.format(*args, **kwargs)
           except (IndexError, KeyError) as e:
-            raise ValueError(
+            raise ValidationError(
               f"Replacement '{incl_pattern.replace}' failed for"
               f" '{incl_pattern.rematch.pattern}':"
               f" {args}, {kwargs}") from None
 
           _src = src/parent/src_filename
-          # re-base the dst path, path relative to src == path relative to dst
+          # re-base the dst path, (path relative to src) == (path relative to dst)
           _dst = dst/dst_parent/dst_filename
 
           yield (i, _src, _dst, _ignore_patterns, False)
@@ -114,14 +129,15 @@ def dist_copy(*,
     for i, src, dst, ignore_patterns, individual in dist_iter(
       include = include,
       ignore = ignore,
-      root = root ):
+      root = root,
+      logger = logger):
 
       with validating(key = i):
 
         dst = base_path.joinpath(dst)
 
         if not individual and ignore_patterns( src.parent, [src.name]):
-          logger.debug( f'ignoring: {src}' )
+          logger.debug( f'- ignoring: {src}' )
           continue
 
         src_abs = resolve(src)

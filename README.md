@@ -60,7 +60,9 @@ formats and behaviors.
 
 * An `include` list is used to filter files or directories to be copied, expanded
   to zero or more matches relative to `src`.
-* `glob` follows the format of [Path.glob](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob), with recursion.
+* `glob` follows the format of [Path.glob](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob).
+  If recursive pattern `**` is used, the glob will *not* match directories,
+  since the resulting `copytree` would end up copying all files in the directory.
 * `rematch` may further discriminate filenames (already matched by `glob`) using [Regular Expression Syntax](https://docs.python.org/3/library/re.html#regular-expression-syntax). Directories are *not* considered by `rematch`.
 * `replace` can  change destination *filenames* using
   [Format String Syntax](https://docs.python.org/3/library/string.html#format-string-syntax), with values supplied by any groups defined in `rematch`.
