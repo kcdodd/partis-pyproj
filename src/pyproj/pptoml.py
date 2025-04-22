@@ -362,7 +362,8 @@ class include(valid_dict):
   default = {
     'glob': valid(r'**', nonempty_str),
     'rematch': valid(r'.*', nonempty_str, re.compile),
-    'replace': valid('{0}', nonempty_str)}
+    'replace': valid('{0}', nonempty_str),
+    'strip': valid(int)}
 
 #===============================================================================
 class include_list(valid_list):

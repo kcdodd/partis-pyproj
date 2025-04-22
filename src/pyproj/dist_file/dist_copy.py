@@ -66,8 +66,11 @@ def dist_iter(*,
 
         for match in matches:
           match = Path(match)
-          basename = match.parent
+          parent = match.parent
           src_filename = match.name
+
+          if incl_pattern.strip:
+            parent = type(parent)(*parent.segments[incl_pattern.strip:])
 
           m = incl_pattern.rematch.fullmatch(src_filename)
           if not m:
@@ -83,9 +86,9 @@ def dist_iter(*,
               f" '{incl_pattern.rematch.pattern}':"
               f" {args}, {kwargs}") from None
 
-          _src = src/basename/src_filename
+          _src = src/parent/src_filename
           # re-base the dst path, path relative to src == path relative to dst
-          _dst = dst/basename/dst_filename
+          _dst = dst/parent/dst_filename
 
           yield (i, _src, _dst, _ignore_patterns, False)
 
