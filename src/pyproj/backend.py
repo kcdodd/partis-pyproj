@@ -53,7 +53,7 @@ def backend_init(
 
   if not root_logger.handlers:
     basicConfig(
-      level = logging.INFO,
+      level = os.environ.get('PARTIS_PYPROJ_LOGLEVEL', 'INFO').upper(),
       format = "{message}",
       style = "{" )
 
