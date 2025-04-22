@@ -20,6 +20,18 @@ from ..norms import b64_nopad, nonempty_str
 # replace runs of non-alphanumeric, dot, dash, or underscore
 _filename_subs = re.compile(r'[^a-z0-9\.\-\_]+', re.I)
 
+try:
+  # prefer user home directory to avoid clashing in global "tmp" directory
+  CACHE_DIR = Path.home()/'.cache'/'partis-pyproj'
+
+except RuntimeError:
+  # use global temporary directory, suffixed by username to try to avoid conficts
+  # between users
+  import getpass
+  username = getpass.getuser()
+  tmp_dir = tempfile.gettempdir()
+  CACHE_DIR = Path(tmp_dir)/f'.cache-partis-pyproj-{username}'
+
 #===============================================================================
 def download(
   pyproj,
@@ -94,7 +106,12 @@ def download(
     try:
       logger.info(f"- downloading: {url} -> {tmp_file}")
 
-      with requests.get(url, stream=True) as req, tmp_file.open('wb') as fp:
+      req = requests.get(url, stream=True)
+
+      if not req.ok:
+        req.raise_for_status()
+
+      with req, tmp_file.open('wb') as fp:
         for chunk in req.iter_content(chunk_size=chunk_size):
           if chunk:
             fp.write(chunk)
@@ -106,6 +123,9 @@ def download(
             if size - last_size > 50e6:
               logger.info(f"- {size/1e6:,.1f} MB")
               last_size = size
+
+      if size == 0:
+        raise ValidationError(f"Downloaded file had zero size: {url}")
 
       logger.info(f"- complete {size/1e6:,.1f} MB")
 
@@ -137,18 +157,24 @@ def download(
   out_file.symlink_to(cache_file)
 
   if extract:
-    logger.info(f"- extracting: {cache_file} -> {build_dir}")
+    out_dir = build_dir
+
+    if isinstance(extract, (str,Path)):
+      out_dir = extract
+
+    logger.info(f"- extracting: {cache_file} -> {out_dir}")
+
     with tarfile.open(cache_file, 'r:*') as fp:
       if sys.version_info >= (3, 12):
         # 'filter' argument added, controls behavior of extract
         fp.extractall(
-          path=build_dir,
+          path=out_dir,
           members=None,
           numeric_owner=False,
           filter='tar')
       else:
         fp.extractall(
-          path=build_dir,
+          path=out_dir,
           members=None,
           numeric_owner=False)
 
@@ -161,7 +187,6 @@ def _cached_download(url: str, checksum: str) -> Path:
   if not checksum:
     checksum = '0'
 
-  cache_dir = Path(tempfile.gettempdir())/'partis-pyproj-downloads'
   name = url.split('/')[-1]
   _url = url
 
@@ -178,7 +203,7 @@ def _cached_download(url: str, checksum: str) -> Path:
   url_dirname = _filename_subs.sub('_', _url)
   url_filename = f"{short}-" + _filename_subs.sub('_', name)
 
-  url_dir = cache_dir/url_dirname
+  url_dir = CACHE_DIR/url_dirname
   url_dir.mkdir(exist_ok=True, parents=True)
 
   file = url_dir/url_filename
