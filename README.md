@@ -55,8 +55,6 @@ formats and behaviors.
 * `dst` is relative, specifically depending on whether it is a source or binary (wheel) distribution and which install scheme is desired (`purelib`, `platlib`, etc.).
 * Destination file paths are constructed from matched source paths roughly equivalent
   to `{scheme}/dst/match.relative_to(src)`.
-* `strip` can remove (up to) the given number of path components from the relative
-  `src` path before computing destination relative to `dst`.
 
 **Include patterns**
 
@@ -67,6 +65,8 @@ formats and behaviors.
 * `replace` can  change destination *filenames* using
   [Format String Syntax](https://docs.python.org/3/library/string.html#format-string-syntax), with values supplied by any groups defined in `rematch`.
   This cannot rename directories.
+* `strip` can remove (up to) the given number of path components from the relative
+  `src` path.
 
 **Ignore patterns**
 

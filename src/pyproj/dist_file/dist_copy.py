@@ -70,7 +70,7 @@ def dist_iter(*,
           src_filename = match.name
 
           if incl_pattern.strip:
-            parent = type(parent)(*parent.segments[incl_pattern.strip:])
+            parent = type(parent)(*parent.parts[incl_pattern.strip:])
 
           m = incl_pattern.rematch.fullmatch(src_filename)
           if not m:
