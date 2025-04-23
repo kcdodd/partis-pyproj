@@ -364,7 +364,7 @@ class PyProjBase:
     with validating( key = 'tool.pyproj.dist.source'):
       dist_copy(
         base_path = dist.named_dirs['root'],
-        include = self.source.copy,
+        copy_items = self.source.copy,
         ignore = self.dist.ignore + self.source.ignore,
         dist = dist,
         root = self.root,
@@ -413,7 +413,7 @@ class PyProjBase:
 
       dist_copy(
         base_path = dist.named_dirs['root'],
-        include = self.binary.copy,
+        copy_items = self.binary.copy,
         ignore = ignore,
         dist = dist,
         root = self.root,
@@ -437,7 +437,7 @@ class PyProjBase:
           with validating( key = k ):
             dist_copy(
               base_path = dist.named_dirs[k],
-              include = _include,
+              copy_items = _include,
               ignore = _ignore,
               dist = dist,
               root = self.root,
