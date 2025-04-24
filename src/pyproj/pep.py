@@ -589,6 +589,8 @@ def norm_entry_point_name( name ):
   See Also
   --------
   * https://packaging.python.org/en/latest/specifications/entry-points/
+  * The name may contain any characters except =, but it cannot start or end with
+    any whitespace character, or start with [
   """
 
   name = norm_printable( name )
@@ -759,9 +761,13 @@ pep_685_extra = re.compile( r'^[a-z0-9]+(-[a-z0-9]+)*$', re.IGNORECASE)
 # Group names must be one or more groups of letters, numbers and underscores,
 # separated by dots
 entry_point_group = re.compile( r'^[A-Z0-9_]+(\.[A-Z0-9_]+)*$', re.IGNORECASE  )
+
+# The name may contain any characters except =, but it cannot start or end with
+# any whitespace character, or start with [
 # For new entry points (names), it is recommended to use only letters, numbers,
 # underscores, dots and dashes
-entry_point_name = re.compile( r'^([A-Z0-9_\.\-]+)?$', re.IGNORECASE  )
+# entry_point_name = re.compile(r'^([A-Z0-9_\.\-]+)?$', re.IGNORECASE)
+entry_point_name = re.compile(r'^([^\[\]\=\s]+)?$', re.IGNORECASE)
 
 #===============================================================================
 py_keyword = re.compile( '^(' + '|'.join(keyword.kwlist) + ')$' )
