@@ -102,9 +102,6 @@ def dist_iter(*,
           else:
             dst_parent = parent
 
-          logger.debug(f"  {parent=}")
-          logger.debug(f"  {dst_parent=}")
-
           # match to regular expression
           m = incl_pattern.rematch.fullmatch(src_filename)
 
