@@ -436,7 +436,9 @@ def test_norm_entry_point_name():
     " a.b.c\n" ]
 
   invalid = [
-    "%$" ]
+    "a=b",
+    "a[b]",
+    "a b"]
 
   for x in valid:
     assert x.strip() == norm_entry_point_name(x)
