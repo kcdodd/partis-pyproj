@@ -1,5 +1,5 @@
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from partis.pyproj.pptoml import pyproj_dist_copy
 from partis.pyproj.dist_file.dist_copy import dist_iter
@@ -35,5 +35,5 @@ def test_dist_iter_strip_and_replace(tmp_path):
     assert len(items) == 1
     _, src_file, dst_file, _, individual = items[0]
     assert src_file == file_path
-    assert dst_file == Path('dest') / 'original.dat'
+    assert dst_file == PurePosixPath('dest') / 'original.dat'
     assert not individual
