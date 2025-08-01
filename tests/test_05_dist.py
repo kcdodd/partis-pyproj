@@ -192,15 +192,25 @@ def test_dist_source():
         dst = sdist.base_path/'src',
         ignore = shutil.ignore_patterns('nothing') )
 
-      with raises( ValueError ):
-        # duplicate
-        sdist.copytree(
-          src = tmpdir/'src',
-          dst = sdist.base_path/'src')
-
       sdist.copyfile(
         src = mod_file,
         dst = sdist.base_path/'src'/'mod.py')
+
+      # NOTE: should not raise error on exact duplicates because the record wouldn't change
+      sdist.copyfile(
+        src = mod_file,
+        dst = sdist.base_path/'src'/'mod.py')
+
+      with open( mod_file, 'w' ) as fp:
+        # change file contents to overwrite with actually different file
+        fp.write("print('goodbye')")
+
+      with raises( ValueError ):
+        # NOTE: should now raise error because the destination is being replaced
+        # with different file contents
+        sdist.copytree(
+          src = tmpdir/'src',
+          dst = sdist.base_path/'src')
 
       with raises( ValueError ):
         # duplicate

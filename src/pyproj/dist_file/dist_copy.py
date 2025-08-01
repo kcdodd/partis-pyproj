@@ -144,8 +144,10 @@ def dist_copy(*,
     return
 
   logger = logger or logging.getLogger( __name__ )
+  # logger.debug(f"copy items = {copy_items}, ignore = {ignore}")
 
-  history: dict[Path, Path] = {}
+  copy_history: set[tuple[Path, Path]] = set()
+  num_copies = len(copy_history)
 
   with validating(key = 'copy'):
 
@@ -164,16 +166,13 @@ def dist_copy(*,
           raise FileOutsideRootError(
             f"Must have common path with root:\n  file = \"{src_abs}\"\n  root = \"{root}\"")
 
-        _src = history.get(dst)
+        copy_history.add((src, dst))
 
-        if _src == src:
+        if len(copy_history) == num_copies:
+          # ignore exactly duplicate copy operations
           continue
 
-        if _src is not None:
-          raise ValidationError(
-            f"Overwriting destination {str(dst)!r} from {str(_src)!r} with {str(src)!r}")
-
-        history[dst] = src
+        num_copies = len(copy_history)
 
         if src.is_dir():
           dist.copytree(
