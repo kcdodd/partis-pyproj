@@ -283,7 +283,9 @@ def validate(val, default, validators):
   for validator in validators:
     if isinstance(validator, type):
       # cast to valid type (if needed)
-      if not isinstance(val, validator):
+      # if not isinstance(val, validator):
+      if type(val) is not validator:
+        # NOTE: exact type check does not allow sub-classes
         try:
           val = validator(val)
         except ValidationError as e:
@@ -593,7 +595,7 @@ def valid_keys(
 
   if proxy_keys:
     for k, k_src in proxy_keys:
-      if k_src in out and out.get(k, None) is None:
+      if k_src in out and out.get(k) is None:
         out = copy_once(out)
         out[k] = out[k_src]
 
@@ -867,6 +869,9 @@ class valid_dict(Mapping, metaclass = _ValidDictMeta):
   proxy_key: None | str
     If initialized with a value that is not a Mapping, this key is assigned the
     value before performing validation.
+  proxy_keys: None | list[tuple[str,str]]
+    Pairs of keys, where the second key is used to get a value when the first key
+    is missing a value.
   key_valid: None | callable
     Validates all keys
   value_valid: None | callable

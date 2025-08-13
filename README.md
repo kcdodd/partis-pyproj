@@ -103,6 +103,12 @@ shorthands where the rest are default. A semi-formal description of this configu
   IGNORE: < https://git-scm.com/docs/gitignore#_pattern_format >
 ```
 
+
+The source distribution will automatically contain `pyproject.toml`, `project.readme.file`,
+and `project.license.file` (if given) even if they are not explicitly listed
+in `tool.pyproj.dist.source.copy`.
+
+
 **Example**
 
 ```toml
@@ -119,8 +125,7 @@ ignore = [
 
 copy = [
   'src',
-  'doc',
-  'pyproject.toml' ]
+  'doc']
 
 [[tool.pyproj.dist.binary.purelib.copy]]
 src = 'src/my_project'

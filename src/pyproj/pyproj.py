@@ -1,31 +1,14 @@
 from __future__ import annotations
-import os
-import os.path as osp
-import sys
-import shutil
 from logging import (
   getLogger,
   Logger)
-import tempfile
-from copy import copy, deepcopy
-from collections.abc import (
-  Mapping,
-  Sequence )
-import subprocess
-import multiprocessing
-import glob
+from copy import deepcopy
+
 import warnings
 import tomli
 from pathlib import (
-  Path,
-  PurePath,
-  PurePosixPath)
+  Path)
 
-try:
-  from importlib.metadata import metadata
-
-except ImportError:
-  from importlib_metadata import metadata
 
 from .pkginfo import (
   PkgInfoReq,
@@ -42,24 +25,24 @@ from .validate import (
   mapget )
 from .norms import (
   scalar_list,
-  norm_bool,
-  norm_path_to_os,
-  norm_path )
+  norm_bool)
 from .pep import (
-  purelib_compat_tags,
   platlib_compat_tags )
 from .path import (
   resolve)
 from .load_module import (
-  EntryPointError,
-  EntryPoint,
-  load_module,
-  load_entrypoint )
+  EntryPoint )
 
 from .legacy import legacy_setup_content
 
 from .pptoml import (
   pptoml,
+  project,
+  pyproj,
+  pyproj_dist,
+  pyproj_dist_source,
+  pyproj_dist_binary,
+  pyproj_targets,
   # NOTE: deprecated
   pyproj_meson )
 
@@ -173,25 +156,33 @@ class PyProjBase:
     # Update logger once package info is created
     self.logger = self.logger.getChild( f"['{self.pkg_info.name_normed}']" )
 
+    # ensure that essential files will be in the source distribution
+    essential = [
+      Path('pyproject.toml'),
+      self.project.get('readme', {}).get('file'),
+      self.project.get('license', {}).get('file')]
+
+    for file in essential:
+      if not (file is None or any(c.src == file for c in self.source.copy)):
+        self.source.copy.append(file)
+
   #-----------------------------------------------------------------------------
   @property
-  def pptoml(self):
+  def pptoml(self) -> pptoml:
     """pptoml : Parsed and validated pyproject.toml document
     """
     return self._pptoml
 
   #-----------------------------------------------------------------------------
   @property
-  def project(self):
+  def project(self) -> project:
     """:class:`partis.pyproj.pptoml.project`
     """
     return self._pptoml.project
 
   #-----------------------------------------------------------------------------
   @property
-  def pyproj(self):
-    """:class:`partis.pyproj.pptoml.pyproj`
-    """
+  def pyproj(self) -> pyproj:
     return self._pptoml.tool.pyproj
 
   #-----------------------------------------------------------------------------
@@ -207,9 +198,7 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def targets(self):
-    """
-    """
+  def targets(self) -> pyproj_targets:
     return self._pptoml.tool.pyproj.targets
 
   #-----------------------------------------------------------------------------
@@ -241,25 +230,18 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def dist(self):
-    """:class:`partis.pyproj.pptoml.pyproj_dist`
-    """
+  def dist(self) -> pyproj_dist:
     return self._pptoml.tool.pyproj.dist
 
   #-----------------------------------------------------------------------------
   @property
-  def source(self):
-    """:class:`partis.pyproj.pptoml.pyproj_dist_source`
-    """
+  def source(self) -> pyproj_dist_source:
     return self._pptoml.tool.pyproj.dist.source
 
   #-----------------------------------------------------------------------------
   @property
-  def binary(self):
-    """:class:`partis.pyproj.pptoml.pyproj_dist_binary`
-    """
+  def binary(self) -> pyproj_dist_binary:
     return self._pptoml.tool.pyproj.dist.binary
-
 
   #-----------------------------------------------------------------------------
   @property
@@ -270,9 +252,7 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def build_requires(self):
-    """set[:class:`PkgInfoReq`]
-    """
+  def build_requires(self) -> set[PkgInfoReq]:
     return self._build_requires
 
   #-----------------------------------------------------------------------------

@@ -74,9 +74,7 @@ homepage = "https://github.com/kcdodd/partis-pyproj/"
 [build-system]
 requires = [
   "packaging == 21.3",
-  "tomli >= 1.2.3",
-  # NOTE: 'importlib.metadata' not added to stdlib until 3.8
-  "importlib_metadata; python_version < '3.8'" ]
+  "tomli >= 1.2.3" ]
 
 build-backend = "pyproj.backend"
 backend-path = [ 'src' ]
@@ -102,15 +100,12 @@ ignore = [
 #...............................................................................
 [tool.pyproj.dist.source]
 # NOTE: docs, tests, etc. not distributed to minimize size
-copy = [
-  'src',
-  'pyproject.toml',
-  'LICENSE.txt',
-  'README.md' ]
+copy = ['src']
 
 #...............................................................................
 [tool.pyproj.dist.binary.purelib]
 
+# copied under namespace module
 copy = [
   { src = 'src/pyproj', dst = 'partis/pyproj' } ]
 
