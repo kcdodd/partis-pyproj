@@ -28,6 +28,7 @@ def tail(path, n, bufsize = 1024, encoding = 'utf-8') -> list[str]:
   if n == 0:
     return []
 
+  sep = b'\n' if '\n' in os.linesep else b'\r'
   buf = bytes()
   nlines = 0
 
@@ -47,19 +48,13 @@ def tail(path, n, bufsize = 1024, encoding = 'utf-8') -> list[str]:
       fp.seek( head, os.SEEK_SET )
 
       _buf = fp.read( nread )
-
-      # NOTE: this is not exact, since pairs of '\r\n' may happen on the read
-      # boundary, but should count approximately the number of LF, CR, and CR+LF.
-      # LF -> 1 + 0 + 0 = 1
-      # CR -> 0 + 1 + 0 = 1
-      # CR+LF -> 1 + 1 - 1 = 1
-      nlines += _buf.count(b'\n') + _buf.count(b'\r') - _buf.count(b'\r\n')
+      nlines += _buf.count(sep)
 
       buf = _buf + buf
 
   if nlines > 0 and head > 0:
     # remove everything before first newline to ensure only complete lines are kept
-    i = buf.index(b'\n')
+    i = buf.index(sep)
     buf = buf[(i+1):]
 
   res = buf.decode(encoding, errors = 'replace')

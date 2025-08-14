@@ -1,5 +1,4 @@
-import os
-import tempfile
+from pathlib import Path
 import logging
 
 import pytest
@@ -17,7 +16,7 @@ class DummyRunner:
         self.commands.append(cmd)
 
 
-def test_tail_basic_and_bufsize(tmp_path):
+def test_tail_basic_and_bufsize(tmp_path: Path):
   file = tmp_path/'out.txt'
   file.write_text("a\nb\nc\n")
 
