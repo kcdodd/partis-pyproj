@@ -75,8 +75,12 @@ def test_download_extracts_and_sets_exec(tmp_path, monkeypatch):
         assert out_file.resolve() == cache_file
         # extracted content
         assert (build_dir / "inner.txt").read_text() == "data"
-        # executable bit set
-        assert out_file.stat().st_mode & stat.S_IXUSR
+
+        if os.name != 'nt':
+          # not settable on windows
+          # executable bit set
+          assert out_file.stat().st_mode & stat.S_IXUSR
+
         # info file exists
         info = cache_file.with_name(cache_file.name + ".info")
         assert info.exists()
