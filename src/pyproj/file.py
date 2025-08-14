@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 
 #===============================================================================
-def tail(path, n, bufsize = 1024, encoding = 'utf-8'):
+def tail(path, n, bufsize = 1024, encoding = 'utf-8') -> list[str]:
   """Reads the last n lines from a file
 
   Parameters
@@ -15,7 +15,7 @@ def tail(path, n, bufsize = 1024, encoding = 'utf-8'):
 
   Returns
   -------
-  lines : List[str]
+  lines:
     Up to ``n`` lines from the end of the file
   """
 
@@ -25,18 +25,21 @@ def tail(path, n, bufsize = 1024, encoding = 'utf-8'):
   n = int(n)
   n = max( 0, n )
 
+  if n == 0:
+    return []
+
   buf = bytes()
   nlines = 0
 
   head = 0
 
-  with open( path, 'rb' ) as fp:
+  with open(path, 'rb') as fp:
     # total number of bytes in the file
     tot = fp.seek( 0, os.SEEK_END )
 
     head = tot
 
-    while nlines < n and head > 0:
+    while nlines <= n and head > 0:
       # NOTE: the number of newline characters is one less than number of 'lines'
       nread = min( head, bufsize )
       head -= nread
