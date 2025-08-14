@@ -1,5 +1,4 @@
-import os
-import tempfile
+from pathlib import Path
 import logging
 
 import pytest
@@ -17,30 +16,19 @@ class DummyRunner:
         self.commands.append(cmd)
 
 
-def test_tail_basic_and_bufsize():
-    # create a temporary file with multiple lines
-    with tempfile.NamedTemporaryFile("w+", delete=False) as tmp:
-        tmp.write("a\n" + "b\n" + "c\n")
-        name = tmp.name
+def test_tail_basic_and_bufsize(tmp_path: Path):
+  file = tmp_path/'out.txt'
+  file.write_text("a\nb\nc\n")
 
-    try:
-        # requesting more lines than available should return all lines
-        assert tail(name, 10) == ["a", "b", "c", ""]
-        # requesting last two lines with small buffer to force multiple reads
-        assert tail(name, 2, bufsize=2) == ["c", ""]
-    finally:
-        os.unlink(name)
-
-
-def test_tail_zero_or_negative():
-    with tempfile.NamedTemporaryFile("w+", delete=False) as tmp:
-        tmp.write("x\ny\n")
-        name = tmp.name
-    try:
-        assert tail(name, 0) == [""]
-        assert tail(name, -5) == [""]
-    finally:
-        os.unlink(name)
+  # requesting more lines than available should return all lines
+  assert tail(file, 10) == ["a", "b", "c"]
+  assert tail(file, 3) == ["a", "b", "c"]
+  # requesting last two lines with small buffer to force multiple reads
+  assert tail(file, 2, bufsize = 1) == ["b", "c"]
+  assert tail(file, 1) == ["c"]
+  # zero or negative
+  assert tail(file, 0) == []
+  assert tail(file, -5) == []
 
 
 def test_process_branches(tmp_path):
