@@ -69,6 +69,10 @@ email = "software.support@nanohmics.com"
 homepage = "https://github.com/kcdodd/partis-pyproj/"
 
 #===============================================================================
+[project.scripts]
+partis-pyproj = "partis.pyproj.cli.__main__:main"
+
+#===============================================================================
 # Build and distribution configuration
 #===============================================================================
 [build-system]
