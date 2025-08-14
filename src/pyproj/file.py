@@ -60,6 +60,6 @@ def tail(path, n, bufsize = 1024, encoding = 'utf-8'):
     buf = buf[(i+1):]
 
   res = buf.decode(encoding, errors = 'replace')
-  lines = res.split('\n')[-n:]
+  lines = res.splitlines()[-n:]
 
   return lines
