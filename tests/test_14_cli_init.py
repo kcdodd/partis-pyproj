@@ -49,7 +49,16 @@ def test_init_pyproj_abort(tmp_path, monkeypatch):
     assert not (project_dir / "LICENSE.txt").exists()
 
 #==============================================================================
+def test_cli_main_help(tmp_path, monkeypatch):
+  def _input(*args, **kwargs):
+    assert False
 
+  monkeypatch.setattr("builtins.input", _input)
+  monkeypatch.setattr(sys, "argv", ["partis-pyproj"])
+
+  cli.main()
+
+#==============================================================================
 def test_cli_main_creates_project(tmp_path, monkeypatch):
     project_dir = tmp_path / "cli_proj"
     monkeypatch.setattr("partis.pyproj.cli.init_pyproj.metadata", _stub_metadata)
@@ -109,7 +118,7 @@ def test_init_pyproj_existing_pyproject(tmp_path, monkeypatch):
     (project_dir / "pyproject.toml").write_text("[project]\nname='exists'\n")
     monkeypatch.setattr("partis.pyproj.cli.init_pyproj.metadata", _stub_metadata)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(FileExistsError):
         _init_pyproj(path=project_dir, project="exists", version="0.1.0", description="")
 
 
