@@ -8,6 +8,7 @@ from os import (
   stat as os_stat,
   getcwd,
   chdir)
+import shutil
 from logging import getLogger
 from subprocess import check_output, check_call
 import sys
@@ -88,7 +89,7 @@ class NoIncrementalFinder(PathFinder):
     if not watched:
       return None
 
-    print(f"{fullname=}")
+    # print(f"{fullname=}")
     self.checked = True
     changed, files_diff, commit, tracked_files = check_tracked()
 
@@ -116,8 +117,7 @@ class IncrementalFinder(NoIncrementalFinder):
     self.checked = True
     changed, files_diff, commit, tracked_files = check_tracked()
 
-    print(f"{fullname=}, {changed=}")
-
+    # print(f"{fullname=}, {changed=}")
     # print('watched_diff:\n  '+'\n  '.join([str(v) for v in watched_diff]))
 
     if changed:
@@ -156,7 +156,13 @@ class IncrementalFinder(NoIncrementalFinder):
             f"  source: '{SRC_ROOT}'"]))
 
           # build_incremental()
-          venv_py = str(WHL_ROOT.parent/'.editable_venv'/'bin'/'python')
+          venv_dir = WHL_ROOT.parent/'build_venv'
+          venv_py = str(venv_dir/'bin'/'python')
+          # check_call(['virtualenv', str(venv_dir)])
+          # check_call([
+          #   venv_py, '-m', 'pip', 'install', '--force-reinstall',
+          #   '-r', str(WHL_ROOT.parent/'requirements.txt')])
+
           check_call([venv_py, __file__])
 
           # update revision once completed
@@ -218,7 +224,7 @@ def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
   _commit, _tracked_files = git_tracked_mtime(SRC_ROOT)
 
   tracked_diff = list(set(tracked_files)^set(_tracked_files))
-  print('\n'.join([str(v) for v in tracked_diff]))
+  # print('\n'.join([str(v) for v in tracked_diff]))
   # ignore changes to pure-python files
   files_diff = sorted(set([v[-1] for v in tracked_diff]) - purelib_src)
   changed = not (commit == _commit and not files_diff)
@@ -278,9 +284,9 @@ def build_incremental():
 
     _gen_root = Path(gen_mod.__file__).parent
 
-    if _gen_root != GEN_ROOT:
-      warnings.warn(
-        f"Editable '{PKG_NAME}' generator location has changed, incremental build may not work correctly: '{GEN_ROOT}' -> '{_gen_root}'")
+    # if _gen_root != GEN_ROOT:
+    #   warnings.warn(
+    #     f"Editable '{PKG_NAME}' generator location has changed, incremental build may not work correctly: '{GEN_ROOT}' -> '{_gen_root}'")
 
     pyproj = backend_init(
       root = SRC_ROOT,

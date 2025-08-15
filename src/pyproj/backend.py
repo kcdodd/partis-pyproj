@@ -27,7 +27,7 @@ from . import (
   valid_keys,
   ValidationError,
   mapget,
-  hash_sha256,
+  norm_dist_filename,
   dist_build,
   PkgInfoReq,
   PyProjBase,
@@ -290,20 +290,34 @@ def build_editable(
   # src_hash = hash_sha256(str(pyproj.root).encode('utf-8'))[0]
   # whl_root = Path(tempfile.gettempdir())/'partis_pyproj_editables'/src_hash
   # TODO: add option for desired editable virtual wheel location
-  whl_root = pyproj.root/'build'/'.editable_wheel'
-  venv_dir = pyproj.root/'build'/'.editable_venv'
+  # whl_root = pyproj.root/'build'/'.editable_wheel'
+  # venv_dir = pyproj.root/'build'/'.editable_venv'
 
-  if whl_root.exists():
+  try:
+    # prefer user home directory to avoid clashing in global "tmp" directory
+    cache_dir = Path.home()/'.cache'/'partis-pyproj'
+
+  except RuntimeError:
+    # use global temporary directory, suffixed by username to try to avoid conficts
+    # between users
+    import getpass
+    username = getpass.getuser()
+    tmp_dir = tempfile.gettempdir()
+    cache_dir = Path(tmp_dir)/f'.cache-partis-pyproj-{username}'
+
+  pkg_name = norm_dist_filename(pyproj.pkg_info.name_normed)
+  editable_root = cache_dir/f'editable_{pkg_name}_{pyproj.pkg_info.version}'
+  whl_root = editable_root/'wheel'
+
+  if editable_root.exists():
     # TODO: add status file to avoid accidentally deleting the wrong directory
-    shutil.rmtree(whl_root)
+    shutil.rmtree(editable_root)
 
   whl_root.mkdir(0o700, parents=True)
 
-  venv_bin = venv_dir/'bin'
-  venv_py = str(venv_bin/'python')
 
-  # incremental = len(pyproj.targets) > 0
-  incremental = False
+  incremental = len(pyproj.targets) > 0
+  # incremental = False
   _PATH = os.environ['PATH']
   _sys_path = list(sys.path)
 
@@ -311,26 +325,20 @@ def build_editable(
     # NOTE: this should clone the current build environment packages to reproduce
     # during incremental builds
     # add virtualenv after, otherwise dist_binary will delete it
-    requirements = check_output(['python', '-m', 'pip', 'freeze'])
-    requirements_file = whl_root/'requirements.txt'
-    requirements_file.write_bytes(requirements)
+    # requirements = check_output(['python', '-m', 'pip', 'freeze'])
+    requirements_file = editable_root/'requirements.txt'
+    # requirements_file.write_bytes(requirements)
+    requirements_file.write_text('\n'.join(pyproj.env_pkgs))
 
+    venv_dir = editable_root/'build_venv'
+    venv_py = str(venv_dir/'bin'/'python')
     check_call(['virtualenv', str(venv_dir)])
     check_call([venv_py, '-m', 'pip', 'install', '--force-reinstall', '-r', str(requirements_file)])
-
-    os.environ['PATH'] = str(venv_bin) + os.pathsep + _PATH
-
-    res = check_output([
-      venv_py,
-      '-c',
-      "import sys; import json; sys.stdout.write(json.dumps(sys.path))"])
-
-    sys_path = json.loads(res.decode('utf-8', errors = 'ignore'))
-    # sys.path[:] = sys_path
+    # TODO: do build with the virtualenv, instead of from here, so it always
+    # uses the same one. Maybe add a command to cli to do it from here?
 
   try:
     pyproj.dist_prep()
-
     pyproj.dist_binary_prep()
 
     with dist_binary_editable(

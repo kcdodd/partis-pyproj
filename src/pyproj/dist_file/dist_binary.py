@@ -212,7 +212,6 @@ class dist_binary_wheel( dist_zip ):
 
     self.check_top_level()
 
-    print(f"{self.metadata_path=}")
     self.write(
       dst = self.metadata_path,
       data = self.pkg_info.encode_pkg_info() )
@@ -235,8 +234,6 @@ class dist_binary_wheel( dist_zip ):
       data = self.encode_dist_info_wheel() )
 
     record_data, self.record_hash = self.encode_dist_info_record()
-
-    print(f"{self.record_path=}")
 
     if metadata_directory is not None:
       print(f"{metadata_directory=}")
@@ -399,7 +396,7 @@ class dist_binary_editable( dist_binary_wheel ):
     # path to "generator" (partis.pyproj)
     gen_root = Path(__file__).parent.parent
     purelib = dist.named_dirs['purelib']
-
+    self.check_top_level()
 
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pth_file = pkg_name+'.pth'
@@ -418,13 +415,9 @@ class dist_binary_editable( dist_binary_wheel ):
         str(file)
         for file in self.purelib_src]))
 
-      lib_files = []
-
       watched = set([
-        file.parts[0]
-        for file in lib_files
-        if file])
-
+        Path(file).parts[0]
+        for file in self.top_level])
 
       check_module_name = pkg_name + '_incremental'
       check_file_out = check_module_name+'.py'
