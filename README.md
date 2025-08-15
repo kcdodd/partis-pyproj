@@ -38,6 +38,28 @@ The sequence of actions for a distribution is roughly:
   (after all enabled build targets complete).
   Can also customize compatibility tags for the binary distribution as per [PEP 425](https://peps.python.org/pep-0425/).
 
+### Quickstart
+
+The backend can build a minimal project with only a `pyproject.toml` and a
+source tree. The example below copies `src/myproj` into both source and wheel
+distributions:
+
+```toml
+[build-system]
+requires = ["partis.pyproj"]
+build-backend = "partis.pyproj"
+
+[tool.pyproj.dist.source]
+copy = [{ src = "src/myproj", dst = "myproj" }]
+
+[tool.pyproj.dist.binary.purelib]
+copy = [{ src = "src/myproj", dst = "myproj" }]
+```
+
+Running `python -m build` (or `pip wheel .`) executes the `prepare`, `build`,
+and `copy` stages in order and writes the resulting sdist and wheel to
+`dist/`.
+
 ### Copy Operations
 
 The majority of ``partis.pyproj`` is devoted to copying files into a distribution.
@@ -55,6 +77,14 @@ formats and behaviors.
 * `dst` is relative, specifically depending on whether it is a source or binary (wheel) distribution and which install scheme is desired (`purelib`, `platlib`, etc.).
 * Destination file paths are constructed from matched source paths roughly equivalent
   to `{scheme}/dst/match.relative_to(src)`.
+* Symlinks that resolve within the project root are preserved; links that point
+  outside the tree or are dangling result in an error. Hidden files are treated
+  like any other path unless ignored.
+* Pattern matching uses POSIX-style `/` separators. On case-insensitive file
+  systems (e.g. Windows) different source files that would map to the same
+  destination path are considered collisions and abort the copy.
+* If multiple include rules map to the same destination file, the backend raises
+  an error to avoid silent overwrites.
 
 **Include patterns**
 
@@ -69,6 +99,14 @@ formats and behaviors.
   This cannot rename directories.
 * `strip` can remove (up to) the given number of path components from the relative
   `src` path.
+
+  For example,
+
+  ```toml
+  include = [{ glob = "src/**/*.py", rematch = "src/(.*)", replace = "{0}", strip = 1 }]
+  ```
+
+  copies `src/pkg/mod.py` into the destination as `pkg/mod.py`.
 
 **Ignore patterns**
 
@@ -266,6 +304,11 @@ env: table{STRING|STRING}?   # environment variables to set
 build_clean: BOOL?           # control cleanup (ie for development builds)
 enabled: (BOOL|MARKER)?      # environment marker
 ```
+
+Targets are executed sequentially. If a target fails or its entry point cannot
+be resolved, the remaining targets are skipped and the build aborts with an
+error message. Parallel execution is intentionally unsupported to keep ordering
+and cleanup deterministic.
 
 There are several entry points available as-is:
 
@@ -467,6 +510,10 @@ These settings, updated by any values passed from the front-end installer,
 are available in any processing hook.
 Combined with an entry-point `kwargs`, these can be used to keep all
 conditional dependencies listed in ``pyproject.toml``.
+
+Passing an option that is not declared in `tool.pyproj.config` or providing a
+value of the wrong type results in a validation error before any build hooks are
+executed.
 
 
 The type is derived from the value parsed from ``pyproject.toml``.
