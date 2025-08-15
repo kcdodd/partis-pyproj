@@ -4,13 +4,13 @@ import re
 
 #===============================================================================
 def _gen_nonprintable():
-  test = ''
+  test = []
 
   ns = [ [0,], ]
 
   for i in range(1, sys.maxunicode+1):
     c = chr(i)
-    test += c
+    test.append(c)
 
     if not ( c.isprintable() or c in '\n\t' ):
       n = ns[-1]
@@ -22,6 +22,8 @@ def _gen_nonprintable():
           n[-1] = i
       else:
         ns.append([i,])
+
+  test = ''.join(test)
 
   # print(len(test), test.isprintable())
   # print(len(ns))

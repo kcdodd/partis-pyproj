@@ -153,7 +153,7 @@ def test_as_list():
   assert as_list({'a': 'b'}) == [{'a': 'b'}]
 
 #===============================================================================
-@mark.skip(reason="sometimes very, very slow")
+# @mark.skip(reason="sometimes very, very slow")
 def test_gen_norm_printable():
   regex = gen_nonprintable()
   ns, test = _gen_nonprintable()
@@ -436,7 +436,9 @@ def test_norm_entry_point_name():
     " a.b.c\n" ]
 
   invalid = [
-    "%$" ]
+    "a=b",
+    "a[b]",
+    "a b"]
 
   for x in valid:
     assert x.strip() == norm_entry_point_name(x)

@@ -37,13 +37,11 @@ jobs:
           - windows
 
         python-version:
-          - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
-          - "3.14"
           - "pypy3.10"
 
     steps:
@@ -105,6 +103,7 @@ jobs:
 
       - name: Generate report
         run: |
+          ls -la tmp/
           nox -s report
 
       - name: "Upload HTML report"

@@ -14,7 +14,8 @@ from abc import(
 from ..norms import (
   hash_sha256 )
 from ..validate import (
-  validating )
+  validating,
+  ValidationError)
 
 #===============================================================================
 class dist_base( ABC ):
@@ -125,7 +126,8 @@ class dist_base( ABC ):
     dst: PurePosixPath,
     data: bytes,
     mode: int|None = None,
-    record: bool = True ):
+    exist_ok: bool = False,
+    record: bool = True):
     """Write data into the distribution file
 
     Parameters
@@ -141,7 +143,8 @@ class dist_base( ABC ):
     if record:
       self.record(
         dst = dst,
-        data = data )
+        data = data,
+        exist_ok = exist_ok)
 
   #-----------------------------------------------------------------------------
   def makedirs( self,
@@ -194,9 +197,6 @@ class dist_base( ABC ):
     if not src.exists():
       raise ValueError(f"Source file not found: {src}")
 
-    if not exist_ok and self.exists( dst ):
-      raise ValueError(f"Build file already has entry: {dst}")
-
     self.logger.debug( f'copyfile {src}' )
 
     if mode is None:
@@ -207,7 +207,8 @@ class dist_base( ABC ):
         dst = dst,
         data = fp,
         mode = mode,
-        record = record )
+        record = record,
+        exist_ok = exist_ok)
 
     return dst
 
@@ -321,7 +322,8 @@ class dist_base( ABC ):
   #-----------------------------------------------------------------------------
   def record( self,
     dst: PurePosixPath,
-    data: bytes) -> tuple[str, int]:
+    data: bytes,
+    exist_ok: bool = False) -> tuple[str, int]|None:
     """Creates a record for an added file
 
     This produces an sha256 hash of the data and associates a record with the item
@@ -332,17 +334,37 @@ class dist_base( ABC ):
       Path of item within the distribution
     data:
       Binary data that was added
+    exist_ok:
+      Allow overwriting a record. If False, this does *not* raise an exception if
+      the new record would be exactly the same as the previous one for the same
+      archive path.
 
+    Returns
+    -------
+    The record of the file `(hash, size)`, or None if the file has already been
+    recorded.
     """
 
     self.assert_recordable()
+    dst = PurePosixPath(dst)
+    _record = self.records.get(dst)
 
     hash, size = hash_sha256(data)
-
-    dst = PurePosixPath(dst)
     record = (hash, size)
 
-    self.logger.debug(f'record {dst}: {record}')
+    if _record is not None:
+      if record == _record:
+        # NOTE: allow equivalent records, leave original
+        return None
+
+      if not exist_ok:
+        raise ValidationError(f"Overwriting destination: {dst}")
+
+      self.logger.debug(f'record overwrite {dst}: {record}')
+
+    else:
+      self.logger.debug(f'record {dst}: {record}')
+
     self.records[dst] = record
 
     return record

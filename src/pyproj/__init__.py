@@ -88,6 +88,9 @@ from .pkginfo import (
 from .builder import (
   Builder )
 
-from .pyproj import (
+from .load_module import (
   EntryPointError,
+  EntryPoint )
+
+from .pyproj import (
   PyProjBase )

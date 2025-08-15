@@ -127,14 +127,29 @@ class dist_zip( dist_base ):
   def write( self,
     dst,
     data,
-    mode = None,
-    record = True ):
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True):
 
     self.assert_open()
 
     dst = norm_path( os.fspath(dst) )
 
     data = norm_data( data )
+
+    if record:
+      rec = self.record(
+        dst = dst,
+        data = data,
+        exist_ok = exist_ok)
+
+      if rec is None:
+        # equivalent file has already been added
+        return
+
+    elif not exist_ok and self.exists( dst ):
+      # NOTE: can only skip equivalent files when they are recorded
+      raise ValueError(f"Overwriting destination: {dst}")
 
     zinfo = zipfile.ZipInfo( dst )
 
@@ -144,12 +159,6 @@ class dist_zip( dist_base ):
       zinfo,
       data,
       compress_type = zipfile.ZIP_DEFLATED )
-
-    super().write(
-      dst = dst,
-      data = data,
-      mode = mode,
-      record = record )
 
   #-----------------------------------------------------------------------------
   def finalize( self ): # pragma: no cover

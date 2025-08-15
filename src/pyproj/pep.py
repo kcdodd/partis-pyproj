@@ -1,41 +1,18 @@
 from __future__ import annotations
 import sys
-import os
-import os.path as osp
-import io
-import warnings
-import stat
 import re
-import pathlib
 import inspect
-from copy import copy
-from collections.abc import (
-  Mapping,
-  Sequence,
-  Iterable )
 
 from collections import namedtuple
-import hashlib
-from base64 import urlsafe_b64encode
-from email.message import Message
-from email.generator import BytesGenerator
 from email.utils import parseaddr, formataddr
 from urllib.parse import urlparse
 import keyword
 
 from packaging.tags import sys_tags
-from packaging.requirements import Requirement
-from packaging.specifiers import SpecifierSet
 
 from .validate import (
   ValidationError,
-  validating,
-  valid_type,
-  valid_keys,
-  valid_dict,
-  valid_list,
-  mapget,
-  as_list)
+  validating)
 
 #===============================================================================
 CompatibilityTags = namedtuple('CompatibilityTags', ['py_tag', 'abi_tag', 'plat_tag'])
@@ -151,7 +128,7 @@ def norm_dist_name( name ):
 
   # > The name should be lowercased with all runs of the
   # > characters ., -, or _ replaced with a single - character.
-  name = re.sub( r'[\-\_\.]+', "-", name )
+  name = pep_503_name_norm.sub('-', name)
 
   return name
 
@@ -164,12 +141,14 @@ def norm_dist_filename( name ):
   Each component of the filename is escaped by replacing runs of
   non-alphanumeric characters with an underscore '_'
 
+  Addendum - It seems that "local" versions require '+'
+
   See Also
   --------
   * https://www.python.org/dev/peps/pep-0427/#file-name-convention
   """
 
-  return re.sub( r"[^\w\d\.]+", "_", name )
+  return re.sub( r"[^\w\d\.\+]+", "_", name )
 
 #===============================================================================
 def join_dist_filename( parts ):
@@ -193,6 +172,12 @@ def join_dist_filename( parts ):
 #===============================================================================
 def norm_dist_version( version ):
   """Checks for valid distribution version (:pep:`440`)
+
+  .. versionchanged:: 0.1.9
+
+    Allow local version identifiers ``<public version identifier>[+<local version label>]``,
+    in addition to public versions.
+    Version pattern now uses :ref:`~packaging.version.VERSION_PATTERN`.
 
   See Also
   --------
@@ -390,16 +375,30 @@ def norm_dist_url( label, url ):
 def norm_dist_extra( extra ):
   """Normalize distribution 'extra' requirement
 
+  .. versionchanged:: 0.2.0
+
+    Extra names are normalized according to PEP-685 and validated according to
+    Core Metadata 2.3.
+    Previously, extra names "must be a valid Python identifier" (Core Metadata 2.1)
+
+
   Note
   ----
-  * No known PEP specifies this format, but is treated as
+  * MUST write out extra names in their normalized form.
+  * This applies to the Provides-Extra field and the extra marker when used
+    in the Requires-Dist field.
+
+  See Also
+  --------
+  * https://peps.python.org/pep-0685/#specification
   """
 
-  extra = norm_printable( extra )
+  extra = norm_printable(extra).lower()
+  extra = pep_503_name_norm.sub('-', extra)
 
-  if not pep_621_extra.fullmatch( extra ):
+  if not pep_685_extra.fullmatch(extra):
     raise PEPValidationError(
-      pep = 621,
+      pep = 685,
       msg = "Invalid extra",
       val = extra )
 
@@ -590,6 +589,8 @@ def norm_entry_point_name( name ):
   See Also
   --------
   * https://packaging.python.org/en/latest/specifications/entry-points/
+  * The name may contain any characters except =, but it cannot start or end with
+    any whitespace character, or start with [
   """
 
   name = norm_printable( name )
@@ -635,14 +636,49 @@ def norm_entry_point_ref( ref ):
         or 'importable.module:object.attr': {ref}""") from e
 
 #===============================================================================
+# https://packaging.python.org/en/latest/specifications/name-normalization/#name-format
 pep426_dist_name = re.compile(
   r'^([A-Z0-9]|[A-Z0-9][A-Z0-9._\-]*[A-Z0-9])$',
   re.IGNORECASE )
 
-pep440_version = re.compile(
-  r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*'
-  r'((a|b|rc)(0|[1-9][0-9]*))?'
-  r'(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$' )
+# https://packaging.python.org/en/latest/specifications/name-normalization/#name-normalization
+# > runs of characters ., -, or _ replaced with a single - character.
+pep_503_name_norm = re.compile(r'[\-\_\.]+', re.IGNORECASE)
+
+# value of packaging.version.VERSION_PATTERN, as of 'packaging == 25.0'
+# just in case the variable is ever deprecated
+VERSION_PATTERN = r"""
+    v?
+    (?:
+        (?:(?P<epoch>[0-9]+)!)?                           # epoch
+        (?P<release>[0-9]+(?:\.[0-9]+)*)                  # release segment
+        (?P<pre>                                          # pre-release
+            [-_\.]?
+            (?P<pre_l>alpha|a|beta|b|preview|pre|c|rc)
+            [-_\.]?
+            (?P<pre_n>[0-9]+)?
+        )?
+        (?P<post>                                         # post release
+            (?:-(?P<post_n1>[0-9]+))
+            |
+            (?:
+                [-_\.]?
+                (?P<post_l>post|rev|r)
+                [-_\.]?
+                (?P<post_n2>[0-9]+)?
+            )
+        )?
+        (?P<dev>                                          # dev release
+            [-_\.]?
+            (?P<dev_l>dev)
+            [-_\.]?
+            (?P<dev_n>[0-9]+)?
+        )?
+    )
+    (?:\+(?P<local>[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?       # local version
+"""
+
+pep440_version = re.compile(VERSION_PATTERN, re.VERBOSE | re.IGNORECASE)
 
 # NOTE: PEP 427 does not specify any constraints on the string following the
 # digits, but given the form it is used in the filenames it really cannot
@@ -716,16 +752,22 @@ pep_301_classifier = re.compile(
 pep_621_keyword = re.compile( r'^[^\s\,]+$' )
 
 #===============================================================================
-pep_621_extra = re.compile( r'^([A-Z0-9_]+)?$', re.IGNORECASE  )
+# https://packaging.python.org/en/latest/specifications/core-metadata/#core-metadata-provides-extra
+pep_685_extra = re.compile( r'^[a-z0-9]+(-[a-z0-9]+)*$', re.IGNORECASE)
+
 
 #===============================================================================
 # https://packaging.python.org/en/latest/specifications/entry-points/
 # Group names must be one or more groups of letters, numbers and underscores,
 # separated by dots
 entry_point_group = re.compile( r'^[A-Z0-9_]+(\.[A-Z0-9_]+)*$', re.IGNORECASE  )
+
+# The name may contain any characters except =, but it cannot start or end with
+# any whitespace character, or start with [
 # For new entry points (names), it is recommended to use only letters, numbers,
 # underscores, dots and dashes
-entry_point_name = re.compile( r'^([A-Z0-9_\.\-]+)?$', re.IGNORECASE  )
+# entry_point_name = re.compile(r'^([A-Z0-9_\.\-]+)?$', re.IGNORECASE)
+entry_point_name = re.compile(r'^([^\[\]\=\s]+)?$', re.IGNORECASE)
 
 #===============================================================================
 py_keyword = re.compile( '^(' + '|'.join(keyword.kwlist) + ')$' )

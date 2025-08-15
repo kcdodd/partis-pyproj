@@ -5,6 +5,7 @@ import sys
 import json
 from subprocess import check_output, check_call
 import shutil
+from copy import copy
 import logging
 from logging import (
   basicConfig,
@@ -24,6 +25,7 @@ from collections.abc import (
 
 from . import (
   valid_keys,
+  ValidationError,
   mapget,
   hash_sha256,
   dist_build,
@@ -62,7 +64,7 @@ def backend_init(
 
   if init_logging and not root_logger.handlers:
     basicConfig(
-      level = logging.INFO,
+      level = os.environ.get('PARTIS_PYPROJ_LOGLEVEL', 'INFO').upper(),
       format = "{message}",
       style = "{" )
 
@@ -245,28 +247,32 @@ def build_wheel(
   * https://www.python.org/dev/peps/pep-0517/#build-wheel
   """
 
-  pyproj = backend_init(config_settings = config_settings)
+  try:
+    pyproj = backend_init(config_settings = config_settings)
 
-  pyproj.dist_prep()
+    pyproj.dist_prep()
+    pyproj.dist_binary_prep()
 
-  pyproj.dist_binary_prep()
+    with dist_binary_wheel(
+      pkg_info = pyproj.pkg_info,
+      build = dist_build(
+        pyproj.binary.get('build_number', None),
+        pyproj.binary.get('build_suffix', None) ),
+      compat = pyproj.binary.compat_tags,
+      outdir = wheel_directory,
+      logger = pyproj.logger ) as dist:
 
-  with dist_binary_wheel(
-    pkg_info = pyproj.pkg_info,
-    build = dist_build(
-      pyproj.binary.get('build_number', None),
-      pyproj.binary.get('build_suffix', None) ),
-    compat = pyproj.binary.compat_tags,
-    outdir = wheel_directory,
-    logger = pyproj.logger ) as dist:
+      pyproj.dist_binary_copy(
+        dist = dist )
 
-    pyproj.dist_binary_copy(
-      dist = dist)
 
     record_hash = dist.finalize(metadata_directory)
+    pyproj.logger.info(
+      f"Top level packages {dist.top_level}")
 
-  pyproj.logger.info(
-    f"Top level packages {dist.top_level}")
+  except ValidationError as e:
+    known_exception_type = copy(e)
+    raise known_exception_type from e.__cause__
 
   return dist.outname
 

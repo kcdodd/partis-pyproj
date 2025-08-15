@@ -60,10 +60,15 @@ formats and behaviors.
 
 * An `include` list is used to filter files or directories to be copied, expanded
   to zero or more matches relative to `src`.
-* `glob` follows the format of [Path.glob](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob), with recursion.
-* `rematch` may further discriminate files (already matched by `glob`) using [Regular Expression Syntax](https://docs.python.org/3/library/re.html#regular-expression-syntax).
-* `replace` can  change destination filenames using
+* `glob` follows the format of [Path.glob](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob).
+  If recursive pattern `**` is used, the glob will *not* match directories,
+  since the resulting `copytree` would end up copying all files in the directory.
+* `rematch` may further discriminate filenames (already matched by `glob`) using [Regular Expression Syntax](https://docs.python.org/3/library/re.html#regular-expression-syntax). Directories are *not* considered by `rematch`.
+* `replace` can  change destination *filenames* using
   [Format String Syntax](https://docs.python.org/3/library/string.html#format-string-syntax), with values supplied by any groups defined in `rematch`.
+  This cannot rename directories.
+* `strip` can remove (up to) the given number of path components from the relative
+  `src` path.
 
 **Ignore patterns**
 
@@ -98,6 +103,12 @@ shorthands where the rest are default. A semi-formal description of this configu
   IGNORE: < https://git-scm.com/docs/gitignore#_pattern_format >
 ```
 
+
+The source distribution will automatically contain `pyproject.toml`, `project.readme.file`,
+and `project.license.file` (if given) even if they are not explicitly listed
+in `tool.pyproj.dist.source.copy`.
+
+
 **Example**
 
 ```toml
@@ -114,8 +125,7 @@ ignore = [
 
 copy = [
   'src',
-  'doc',
-  'pyproject.toml' ]
+  'doc']
 
 [[tool.pyproj.dist.binary.purelib.copy]]
 src = 'src/my_project'
@@ -252,6 +262,7 @@ setup_args: array{STRING}    # 3-stage build
 compile_args: array{STRING}  # 3-stage build
 install_args: array{STRING}  # 3-stage build
 options: table{STRING|BOOL}? # options passed to builder from pyproject.toml
+env: table{STRING|STRING}?   # environment variables to set
 build_clean: BOOL?           # control cleanup (ie for development builds)
 enabled: (BOOL|MARKER)?      # environment marker
 ```
@@ -261,11 +272,28 @@ There are several entry points available as-is:
 - `partis.pyproj.builder:meson` - Support for [Meson Build system](https://mesonbuild.com/)  with the 'extra' ``partis-pyproj[meson]``
 - `partis.pyproj.builder:cmake` - Support for [CMake](https://cmake.org/) with the 'extra' ``partis-pyproj[cmake]``
 - `partis.pyproj.builder:process` - Support for running arbitrary command line executable
+- `partis.pyproj.builder:download` - Support for downloading a file to `build_dir`
+
+
+Options for `partis.pyproj.builder:download`:
+
+```
+[tool.pyproj.targets.options]
+url: URL
+checksum: ALG=HEX     # expected checksum
+filename: STRING?     # rename in build_dir, defaults to mangled version of url
+extract: BOOL?        # extract/decompress as a tar file
+executable: BOOL?     # set execute permission
+```
+
+Checksum `ALG` can be `sha256`, `md5`, or another algorithm in [hashlib](https://docs.python.org/3/library/hashlib.html)
+
+**Example**
 
 In this example, the source directory must contain appropriate `meson.build` files,
 since the 'pyproject.toml' configuration only provides a way of running
 ``meson setup`` and ``meson compile``.
-For example:
+
 
 ```toml
 # pyproject.toml
@@ -332,7 +360,7 @@ Python [Template string](https://docs.python.org/3/library/string.html#template-
 - `$$` is an escape; it is replaced with a single `$`.
 - `${identifier}` names a substitution placeholder matching a mapping key of "identifier".
 
-However, `$identifier` (without braces) is not supported, instead allowing more expressive substitutions.
+However, `$identifier` (without braces) is *not supported*, but this restriction allows more expressive substitutions.
 
 ```
 substitution: "${" (variable|literal|SEP)+ "}"
@@ -341,16 +369,30 @@ SEP: "/"
 literal: "'" CHAR+ "'"
 IDENTIFIER: < python identifier >
 INTEGER: < integer >
-CHAR: < ascii letter, number (not leading), or underscore >
+CHAR: < ascii alpha-numeric, dot ".", dash "-", underscore "_" >
 ```
 
-Variable names can reference most of the content of the original 'pyproject.toml',
-as well as values already substituted in the build target or earlier targets.
+Top-level template variable identifiers can reference the content of the original 'pyproject.toml', config. settings, environment variables, and values already substituted in the build target or earlier targets.
 If the substitution contains any separators the result is interpreted as a path, converted to platform-specific filesystem format, and resolved to project directory.
+The template namespace contains the following keys:
 
-**Example**
+- `root`: Absolute path to project root directory
+- `tmpdir`: A temporary directory created and shared by all build targets.
+  This directory is removed before the distribution is created, so any needed files must be copied back to a location within the project tree by one of the targets
+  (eg. the "install" step of 3-stage builds with a `prefix` within the project).
+- `pptoml`: Top-level of parsed `pyproject.toml`
+- `project`: The `project` section, including `name`, `version`, etc.
+- `pyproj`: The `tool.pyproj` section.
+- `config_settings`: A mapping from the `config_settings` passed to backend per PEP-517
+  after defaults applied from `tool.pyproj.config` (described below).
+- `targets`': List from `tool.pyproj.targets`, updated as targets are processed.
+- `work_dir`, `src_dir`, `build_dir`, `prefix`: Per-target values (if processed before the substitution)
+- `env`: Defaults to `os.environ`, or per-target value from `tool.pyproj.targets.env`
+  (if processed before the substitution).
+- `options`: Per-target value from `tool.pyproj.targets.options` (if processed before the substitution)
 
-The value of `options.some_option` in the example below would be substituted with a filesystem equivalent path for `{root}/build/something/my_pkg/xyz/abc.so`:
+Template substitutions are processed (once) in the *order in which they appear* from the `pyproject.toml`, no static analysis is performed. It is up to the developer to put them in the needed order if one template references a value resulting from another template.
+In the example below, the value of `options.some_option` would be substituted with a filesystem equivalent path for `{root}/build/something/my_pkg/xyz/abc.so`:
 
 
 ```toml
@@ -371,14 +413,14 @@ location according to a local installation scheme
 these can be specified within sub-tables.
 Available install scheme keys, and **example** corresponding install locations, are:
 
-- `purelib` ("pure" library Python path): ``{prefix}/lib/python{X}.{Y}/site-packages/``
-- `platlib` (platform specific Python path): ``{prefix}/lib{platform}/python{X}.{Y}/site-packages/``
+- `purelib` ("pure" library Python path): ``{venv}/lib/python{X}.{Y}/site-packages/``
+- `platlib` (platform specific Python path): ``{venv}/lib{platform}/python{X}.{Y}/site-packages/``
   Both `purelib` and `platlib` install to the base 'site-packages'
   directory, so any files copied to these paths should be placed within a
   desired top-level package directory.
 
-- `headers` (INCLUDE search paths): ``{prefix}/include/{site}/python{X}.{Y}{abiflags}/{distname}/``
-- `scripts` (executable search path): ``{prefix}/bin/``
+- `headers` (INCLUDE search paths): ``{venv}/include/{site}/python{X}.{Y}{abiflags}/{distname}/``
+- `scripts` (executable search path): ``{venv}/bin/``
   Even though any files added to the `scripts` path will be installed to
   the `bin` directory, there is often an issue with the 'execute' permission
   being set correctly by the installer (e.g. `pip`).
@@ -386,7 +428,7 @@ Available install scheme keys, and **example** corresponding install locations, 
   use the ``[project.scripts]`` section to add an entry point that will then
   run the desired executable as a sub-process.
 
-- `data` (generic data path): ``{prefix}/``
+- `data` (generic data path): ``{venv}/``
 
 ```toml
 # pyproject.toml

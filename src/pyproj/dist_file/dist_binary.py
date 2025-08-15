@@ -141,7 +141,15 @@ class dist_binary_wheel( dist_zip ):
       for py_tag, abi_tag, plat_tag in compat ]
 
     self.top_level = list()
-    self.purelib = True
+
+    # Mark as purelib only if no ABI or platform tags are specified. While ABI
+    # is not technically platform specific, it does indicate that there are compiled
+    # extensions that require ABI compatibility until a use-case presents itself
+    # where ABI does not imply platlib.
+    self.purelib = all(
+      abi_tag == 'none' and plat_tag == 'any'
+      for py_tag, abi_tag, plat_tag in compat)
+
     self.gen_name = str(gen_name)
 
     wheel_name_parts = [
@@ -168,7 +176,21 @@ class dist_binary_wheel( dist_zip ):
     self.data_paths = [
       'data',
       'headers',
-      'scripts',
+      'scripts']
+
+    # NOTE: Previously ".data/purelib" and ".data/platlib" were used exclusively
+    # according to PEP 427.
+    # But according to packaging guildlines, in practice all package files
+    # that will go into site-packages should be located at the root of the
+    # distribution, regardless of their purelib/platlib status, and the
+    # distribution marked `Root-Is-Purelib: [true|false]` as a whole.
+    # Supporting ".data/purelib" and ".data/platlib", in addition to root pure/plat
+    # just leads to confusion as to how to where the files should go since they
+    # would end up in the same place in virtually all circumstances.
+    # Basically, if *anything* goes into 'platlib' then the whole distribution should
+    # just be platlib.
+
+    self.pkg_paths = [
       'purelib',
       'platlib' ]
 
@@ -179,7 +201,8 @@ class dist_binary_wheel( dist_zip ):
       logger = logger,
       named_dirs = {
         'dist_info' : self.dist_info_path,
-        **{ k : self.data_path.joinpath(k) for k in self.data_paths } } )
+        **{k: PurePosixPath('.') for k in self.pkg_paths},
+        **{k : self.data_path.joinpath(k) for k in self.data_paths } } )
 
   #-----------------------------------------------------------------------------
   def finalize(self, metadata_directory: str|None = None):
@@ -244,33 +267,15 @@ class dist_binary_wheel( dist_zip ):
 
     top_level = set()
 
-    purelib = self.named_dirs['purelib']
-
-    platlib = self.named_dirs['platlib']
+    dist_info = self.dist_info_path.name
+    data = self.data_path.name
 
     for file, (hash, size) in self.records.items():
-      # check files added to purelib and platlib.
-      try:
-        top_level.add(pkg_name(subdir(purelib, file).parts[0]))
-        continue
-      except PathError:
-        pass
+      # check files added to purelib or platlib.
+      if (top := file.parts[0]) not in (dist_info, data):
+        top_level.add(pkg_name(top))
 
-      try:
-        top_level.add(pkg_name(subdir(platlib, file).parts[0]))
-        self.purelib = False
-        continue
-      except PathError:
-        pass
-
-      try:
-        subdir(self.dist_info_path, file)
-        subdir(self.data_path, file)
-      except PathError:
-        # check any other files that aren't in .dist-info or .data
-        top_level.add(pkg_name(file.parts[0]))
-
-    self.top_level = [ dir for dir in top_level if dir ]
+    self.top_level = [ top for top in top_level if top ]
 
   #-----------------------------------------------------------------------------
   def encode_dist_info_wheel( self ):

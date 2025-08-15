@@ -382,12 +382,14 @@ class TimeEncode:
     Parameters
     ----------
     resolution : int
-      Number of seconds that are resolved
+      Number of seconds that are resolved.
+      The default resolution is 1 minute
     rollover : int
       Number of seconds upper bound before wrapping.
-      The number of distinct values is ``rollover // resolution``
+      The number of distinct values is ``rollover // resolution``.
+      The default rollover is 324 days
     width : int
-      Minimal witdth of encoded number
+      Minimal width of encoded number
     base : int
       Numeric base used to encode number
     """

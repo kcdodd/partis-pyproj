@@ -121,9 +121,10 @@ class PkgInfoReq:
     self.req = Requirement( norm_printable(req) )
 
     marker = str( self.req.marker ) if self.req.marker else ''
-    extra = norm_dist_extra(extra)
 
     if extra:
+      extra = norm_dist_extra(extra)
+
       if marker:
         self.req.marker = Marker(f'extra == "{extra}" and ( {marker} )')
       else:

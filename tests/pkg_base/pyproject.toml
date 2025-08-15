@@ -13,6 +13,12 @@ name = "Nanohmics Inc."
 email = "software.support@nanohmics.com"
 
 #===============================================================================
+[dependency-groups]
+# https://packaging.python.org/en/latest/specifications/dependency-groups/
+coverage = ["coverage[toml]"]
+test = ["pytest>7", {include-group = "coverage"}]
+
+#===============================================================================
 # Build and distribution configuration
 #===============================================================================
 [build-system]

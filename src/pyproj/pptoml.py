@@ -49,7 +49,7 @@ from .pep import (
   norm_entry_point_ref,
   norm_dist_keyword,
   norm_dist_classifier,
-  norm_dist_url )
+  norm_dist_url)
 
 #===============================================================================
 class dynamic(valid_list):
@@ -129,6 +129,49 @@ class optional_dependency_group(dependencies):
 class optional_dependencies(valid_dict):
   key_valid = valid(norm_dist_extra)
   value_valid = valid(optional_dependency_group)
+
+#===============================================================================
+class dependency_group_include(valid_dict):
+  allow_keys = list()
+  default = {
+    'include-group': valid(norm_dist_extra)}
+
+#===============================================================================
+class dependency_group(valid_list):
+  value_valid = union(dependency_group_include, valid(norm_printable, Requirement, str))
+
+#===============================================================================
+def _check_dependency_groups(groups):
+  for group,v in groups.items():
+    for dep in v:
+      if isinstance(dep, Mapping):
+        _group = dep.get('include-group')
+
+        if _group not in groups:
+          raise ValidationError(f"'include-group' must be one of {set(groups)}: got {_group!r}")
+
+        elif _group == group:
+          raise ValidationError(f"'include-group' cannot be recursive: {_group!r}")
+
+  return groups
+
+#===============================================================================
+class dependency_groups(valid_dict):
+  r"""Dependency Groups
+
+  * https://packaging.python.org/en/latest/specifications/dependency-groups/
+
+  .. code-block:: toml
+    :caption: Example Dependency Groups
+
+    [dependency-groups]
+    coverage = ["coverage[toml]"]
+    test = ["pytest>7", {include-group = "coverage"}]
+
+  """
+  key_valid = valid(norm_dist_extra)
+  value_valid = valid(dependency_group)
+  validator = valid(_check_dependency_groups)
 
 #===============================================================================
 class entry_point_group(valid_dict):
@@ -260,6 +303,7 @@ class pyproj_build_target(valid_dict):
     ('compile', 'enabled')]
   default = {
     'enabled': valid(True, marker_evaluated),
+    'exclusive': valid('', norm_printable),
     # NOTE: default builder from backward compatibility
     'entry': valid('partis.pyproj.builder:meson', norm_entry_point_ref),
     'options': dict,
@@ -316,9 +360,10 @@ class include(valid_dict):
   proxy_key = 'glob'
   # TODO: how to normalize patterns?
   default = {
-    'glob': valid(nonempty_str),
+    'glob': valid(r'**', nonempty_str),
     'rematch': valid(r'.*', nonempty_str, re.compile),
-    'replace': valid('{0}', nonempty_str)}
+    'replace': valid('{0}', nonempty_str),
+    'strip': valid(int)}
 
 #===============================================================================
 class include_list(valid_list):
@@ -419,4 +464,5 @@ class pptoml(valid_dict):
   default = {
     'project': valid(REQUIRED, project),
     'build-system': valid(REQUIRED, build_system),
+    'dependency-groups': valid(OPTIONAL, dependency_groups),
     'tool': valid(OPTIONAL, tool) }

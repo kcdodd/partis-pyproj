@@ -1,31 +1,14 @@
 from __future__ import annotations
-import os
-import os.path as osp
-import sys
-import shutil
 from logging import (
   getLogger,
   Logger)
-import tempfile
-from copy import copy, deepcopy
-from collections.abc import (
-  Mapping,
-  Sequence )
+from copy import deepcopy
 import subprocess
-import multiprocessing
-import glob
 import warnings
 import tomli
 from pathlib import (
-  Path,
-  PurePath,
-  PurePosixPath)
-
-try:
-  import importlib.metadata as metadata
-
-except ImportError:
-  import importlib_metadata as metadata  # noqa: F401
+  Path)
+from importlib import metadata
 
 from .pkginfo import (
   PkgInfoReq,
@@ -43,25 +26,24 @@ from .validate import (
 from .norms import (
   scalar_list,
   norm_bool,
-  norm_path_to_os,
-  norm_path,
   hash_sha256)
 from .pep import (
-  purelib_compat_tags,
   platlib_compat_tags )
 from .path import (
   resolve)
 from .load_module import (
-  EntryPointError,
-  EntryPoint,
-  load_module,
-  load_entrypoint )
+  EntryPoint )
 
 from .legacy import legacy_setup_content
 
 from .pptoml import (
   pptoml,
   project,
+  pyproj,
+  pyproj_dist,
+  pyproj_dist_source,
+  pyproj_dist_binary,
+  pyproj_targets,
   # NOTE: deprecated
   pyproj,
   pyproj_meson,
@@ -104,7 +86,9 @@ class PyProjBase:
     logger: Logger|None = None,
     editable: bool = False):
 
-    self.root = resolve(Path(root))
+    root = resolve(Path(root))
+
+    self.root = root
     self.logger = logger or getLogger( __name__ )
     self.editable = editable
 
@@ -202,25 +186,33 @@ class PyProjBase:
       f"{pkg.name}=={pkg.version}"
       for pkg in metadata.Distribution.discover()]))
 
+    # ensure that essential files will be in the source distribution
+    essential = [
+      Path('pyproject.toml'),
+      self.project.get('readme', {}).get('file'),
+      self.project.get('license', {}).get('file')]
+
+    for file in essential:
+      if not (file is None or any(c.src == file for c in self.source.copy)):
+        self.source.copy.append(file)
+
   #-----------------------------------------------------------------------------
   @property
-  def pptoml(self):
+  def pptoml(self) -> pptoml:
     """pptoml : Parsed and validated pyproject.toml document
     """
     return self._pptoml
 
   #-----------------------------------------------------------------------------
   @property
-  def project(self):
+  def project(self) -> project:
     """:class:`partis.pyproj.pptoml.project`
     """
     return self._pptoml.project
 
   #-----------------------------------------------------------------------------
   @property
-  def pyproj(self):
-    """:class:`partis.pyproj.pptoml.pyproj`
-    """
+  def pyproj(self) -> pyproj:
     return self._pptoml.tool.pyproj
 
   #-----------------------------------------------------------------------------
@@ -231,13 +223,12 @@ class PyProjBase:
     return self._config_settings
 
   #-----------------------------------------------------------------------------
+  # alias for backward compatibility
   config = config_settings
 
   #-----------------------------------------------------------------------------
   @property
   def targets(self) -> pyproj_targets:
-    """
-    """
     return self._pptoml.tool.pyproj.targets
 
   #-----------------------------------------------------------------------------
@@ -250,6 +241,9 @@ class PyProjBase:
       These are no longer restricted to meson, but this attribute kept for backward
       compatability.
 
+      Inplace changes to the returned object are not propagated back to the target
+      configuration.
+
     """
     targets = self._pptoml.tool.pyproj.targets
 
@@ -259,30 +253,25 @@ class PyProjBase:
     meson = dict(targets[0])
     meson.pop('entry')
     meson.pop('work_dir')
+    meson.pop('env')
+    meson.pop('exclusive')
     meson['compile'] = meson.pop('enabled')
     return pyproj_meson(meson)
 
   #-----------------------------------------------------------------------------
   @property
-  def dist(self):
-    """:class:`partis.pyproj.pptoml.pyproj_dist`
-    """
+  def dist(self) -> pyproj_dist:
     return self._pptoml.tool.pyproj.dist
 
   #-----------------------------------------------------------------------------
   @property
-  def source(self):
-    """:class:`partis.pyproj.pptoml.pyproj_dist_source`
-    """
+  def source(self) -> pyproj_dist_source:
     return self._pptoml.tool.pyproj.dist.source
 
   #-----------------------------------------------------------------------------
   @property
-  def binary(self):
-    """:class:`partis.pyproj.pptoml.pyproj_dist_binary`
-    """
+  def binary(self) -> pyproj_dist_binary:
     return self._pptoml.tool.pyproj.dist.binary
-
 
   #-----------------------------------------------------------------------------
   @property
@@ -293,9 +282,7 @@ class PyProjBase:
 
   #-----------------------------------------------------------------------------
   @property
-  def build_requires(self):
-    """set[:class:`PkgInfoReq`]
-    """
+  def build_requires(self) -> set[PkgInfoReq]:
     return self._build_requires
 
   #-----------------------------------------------------------------------------
@@ -387,7 +374,7 @@ class PyProjBase:
     with validating( key = 'tool.pyproj.dist.source'):
       dist_copy(
         base_path = dist.named_dirs['root'],
-        include = self.source.copy,
+        copy_items = self.source.copy,
         ignore = self.dist.ignore + self.source.ignore,
         dist = dist,
         root = self.root,
@@ -437,7 +424,7 @@ class PyProjBase:
 
       dist_copy(
         base_path = dist.named_dirs['root'],
-        include = self.binary.copy,
+        copy_items = self.binary.copy,
         ignore = ignore,
         dist = dist,
         root = self.root,
@@ -461,7 +448,7 @@ class PyProjBase:
           with validating( key = k ):
             dist_copy(
               base_path = dist.named_dirs[k],
-              include = _include,
+              copy_items = _include,
               ignore = _ignore,
               dist = dist,
               root = self.root,

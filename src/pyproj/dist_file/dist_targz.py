@@ -1,7 +1,8 @@
 from __future__ import annotations
 import os
 from pathlib import (
-  Path)
+  Path,
+  PurePosixPath)
 import io
 import tempfile
 import shutil
@@ -129,16 +130,31 @@ class dist_targz( dist_base ):
 
   #-----------------------------------------------------------------------------
   def write( self,
-    dst,
-    data,
-    mode = None,
-    record = True ):
+    dst: PurePosixPath,
+    data: bytes,
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True):
 
     self.assert_open()
 
     dst = norm_path( os.fspath(dst) )
 
     data = norm_data( data )
+
+    if record:
+      rec = self.record(
+        dst = dst,
+        data = data,
+        exist_ok = exist_ok)
+
+      if rec is None:
+        # equivalent file has already been added
+        return
+
+    elif not exist_ok and self.exists( dst ):
+      # NOTE: can only skip equivalent files when they are recorded
+      raise ValueError(f"Overwriting destination: {dst}")
 
     info = tarfile.TarInfo( dst )
 
@@ -148,12 +164,6 @@ class dist_targz( dist_base ):
     self._tarfile.addfile(
       info,
       fileobj = io.BytesIO(data) )
-
-    super().write(
-      dst = dst,
-      data = data,
-      mode = mode,
-      record = record )
 
   #-----------------------------------------------------------------------------
   def finalize( self ): # pragma: no cover

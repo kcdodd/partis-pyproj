@@ -184,7 +184,7 @@ class PathMatcher:
 
 #===============================================================================
 class PathFilter:
-  """A combination of file patters applied relative to a given 'start' directory
+  """A combination of file patterns applied relative to a given 'start' directory
 
   Parameters
   ----------
