@@ -13,6 +13,51 @@ The guiding principles adopted for ``partis.pyproj`` are:
 * A distribution is simply a collection of files,
   plus package meta-data for either source or binary (wheel) distribution formats.
 
+### Quickstart
+
+Below is a minimal example project structure for a pure Python package
+named `myproj`, and backend configuration in `pyproject.toml` to build
+source and binary (wheel) distributions for installation:
+
+- `src/myproj/__init__.py`
+- `tests/test_everything.py`
+- `LICENSE.txt`
+- `pyproject.toml`
+- `README.md`
+
+
+```toml
+# pyproject.toml
+[project]
+name = "myproj"
+description = "Project myproj"
+version = "0.0.1"
+readme = { file = "README.md" }
+license = { file = "LICENSE.txt" }
+dependencies = ['typing-extensions']
+
+[dependency-groups]
+test = ['pytest']
+
+[build-system]
+requires = ["partis-pyproj"]
+# point the frontend to the backend partis-pyproj
+build-backend = "partis.pyproj.backend"
+
+# configure the backend
+[tool.pyproj.dist]
+# patterns to ignore for both source and wheel distributions
+ignore = ['__pycache__', '*.py[cod]', '*.so', '*.egg-info', '.nox', '.pytest_cache', '.coverage']
+
+[tool.pyproj.dist.source]
+# copy everything needed to re-distribute the source code (pyproject.toml, readme, and license are added automatically)
+copy = ["src", "tests"]
+
+[tool.pyproj.dist.binary.purelib]
+# copy how it should appear installed in site-packages
+copy = [{ src = "src/myproj", dst = "myproj" }]
+```
+
 The process of building a source or binary distribution is broken down into
 three general stages:
 
@@ -24,7 +69,8 @@ three general stages:
   configuration, but otherwise avoids taking on the responsibility of a full build system.
 - **copy** - Copy files into the distribution.
 
-
+Running `python -m build` (or `pip wheel .`, `pip install .`, etc.) executes the `prepare`, `build`,
+and `copy` stages in order and writes the resulting sdist or wheel.
 The sequence of actions for a distribution is roughly:
 
 - `tool.pyproj.prep`: Run before anything else, used to fill in dynamic metadata or
@@ -37,28 +83,6 @@ The sequence of actions for a distribution is roughly:
 - `tool.pyproj.dist.binary.prep`: Run before copying files to a binary distribution
   (after all enabled build targets complete).
   Can also customize compatibility tags for the binary distribution as per [PEP 425](https://peps.python.org/pep-0425/).
-
-### Quickstart
-
-The backend can build a minimal project with only a `pyproject.toml` and a
-source tree. The example below copies `src/myproj` into both source and wheel
-distributions:
-
-```toml
-[build-system]
-requires = ["partis.pyproj"]
-build-backend = "partis.pyproj"
-
-[tool.pyproj.dist.source]
-copy = [{ src = "src/myproj", dst = "myproj" }]
-
-[tool.pyproj.dist.binary.purelib]
-copy = [{ src = "src/myproj", dst = "myproj" }]
-```
-
-Running `python -m build` (or `pip wheel .`) executes the `prepare`, `build`,
-and `copy` stages in order and writes the resulting sdist and wheel to
-`dist/`.
 
 ### Copy Operations
 
@@ -88,7 +112,7 @@ formats and behaviors.
 
 **Include patterns**
 
-* An `include` list is used to filter files or directories to be copied, expanded
+* An include list is used to filter files or directories to be copied, expanded
   to zero or more matches relative to `src`.
 * `glob` follows the format of [Path.glob](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob).
   If recursive pattern `**` is used, the glob will *not* match directories,
