@@ -210,25 +210,9 @@ class dist_binary_wheel( dist_zip ):
     if self.record_hash:
       return self.record_hash
 
-    if metadata_directory is not None:
-      print(f"{metadata_directory=}")
-      # pep-517: MUST be identical to the directory created by
-      # prepare_metadata_for_build_wheel, including any unrecognized files it
-      # created.
-
-      # check for unrecognized files and copy into dist_info
-      print(f"{metadata_directory=}")
-      dist_info = self.named_dirs['dist_info']
-
-      for file in Path(metadata_directory).iterdir():
-        print(f"  {file=}")
-        _file = dist_info/file.relative_to(metadata_directory).as_posix()
-
-        if not self.exists(_file):
-          self.copyfile(file, _file)
-
     self.check_top_level()
 
+    print(f"{self.metadata_path=}")
     self.write(
       dst = self.metadata_path,
       data = self.pkg_info.encode_pkg_info() )
@@ -251,6 +235,29 @@ class dist_binary_wheel( dist_zip ):
       data = self.encode_dist_info_wheel() )
 
     record_data, self.record_hash = self.encode_dist_info_record()
+
+    print(f"{self.record_path=}")
+
+    if metadata_directory is not None:
+      print(f"{metadata_directory=}")
+      # pep-517: MUST be identical to the directory created by
+      # prepare_metadata_for_build_wheel, including any unrecognized files it
+      # created.
+
+      # check for unrecognized files and copy into dist_info
+      dist_info = self.named_dirs['dist_info']
+
+      for file in Path(metadata_directory).iterdir():
+        if file.name == 'RECORD':
+          continue
+
+        _file = dist_info/file.relative_to(metadata_directory).as_posix()
+
+        if self.exists(_file):
+          continue
+
+        self.copyfile(file, _file)
+
 
     self.write(
       dst = self.record_path,
@@ -366,10 +373,6 @@ class dist_binary_editable( dist_binary_wheel ):
       logger = logger,
       gen_name = gen_name)
 
-    # self.named_dirs['purelib'] = PurePosixPath('lib')
-    # self.named_dirs['platlib'] = PurePosixPath('lib')
-    self.named_dirs['lib'] = self.named_dirs['purelib'].parent/'lib'
-
     self.root = root
     self.incremental = incremental
     self.pptoml_checksum = pptoml_checksum
@@ -397,9 +400,6 @@ class dist_binary_editable( dist_binary_wheel ):
     gen_root = Path(__file__).parent.parent
     purelib = dist.named_dirs['purelib']
 
-    lib = self.named_dirs['lib']
-    whl_lib = whl_root/lib
-
 
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pth_file = pkg_name+'.pth'
@@ -418,9 +418,7 @@ class dist_binary_editable( dist_binary_wheel ):
         str(file)
         for file in self.purelib_src]))
 
-      lib_files = [
-        subdir(lib, file, check=False)
-        for file, (hash, size) in self.records.items()]
+      lib_files = []
 
       watched = set([
         file.parts[0]
@@ -446,7 +444,7 @@ class dist_binary_editable( dist_binary_wheel ):
         footer])
 
       pth_content = '\n'.join([
-        str(whl_lib),
+        str(whl_root),
         f"import {check_module_name}; {check_module_name}.incremental()"])
 
 
@@ -456,7 +454,7 @@ class dist_binary_editable( dist_binary_wheel ):
         record_hash = dist.finalize(metadata_directory)
 
     else:
-      pth_content = str(whl_lib)
+      pth_content = str(whl_root)
 
       with dist:
         dist.write(purelib/pth_file, pth_content.encode('utf-8'))
@@ -522,17 +520,7 @@ class dist_binary_editable( dist_binary_wheel ):
     src = Path(src)
     src = src.resolve()
 
-    if (lib_dst := subdir(self.named_dirs['purelib'], dst, check=False)) is not None:
-      # Track the files that would have gone to purelib (ignore for incremental build)
-      self.purelib_src.append(src.relative_to(self.root))
-      dst = self.named_dirs['lib']/lib_dst
-
-    if (lib_dst := subdir(self.named_dirs['platlib'], dst, check=False)) is not None:
-      # TODO: import doesn't work with separate purelib/platlib
-      dst = self.named_dirs['lib']/lib_dst
-
-    _dir = self.whl_root
-    _dst = _dir/Path(norm_path(os.fspath(dst)))
+    _dst = self.whl_root/Path(norm_path(os.fspath(dst)))
 
     if not src.exists():
       raise PathError(f"Source file not found: {src}")

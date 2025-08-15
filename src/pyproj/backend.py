@@ -302,7 +302,8 @@ def build_editable(
   venv_bin = venv_dir/'bin'
   venv_py = str(venv_bin/'python')
 
-  incremental = len(pyproj.targets) > 0
+  # incremental = len(pyproj.targets) > 0
+  incremental = False
   _PATH = os.environ['PATH']
   _sys_path = list(sys.path)
 
