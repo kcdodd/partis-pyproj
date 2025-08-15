@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-import tomllib
+import tomli
 import pytest
 from partis.pyproj.cli.init_pyproj import _init_pyproj
 from partis.pyproj.cli import __main__ as cli
@@ -29,7 +29,7 @@ def test_init_pyproj_creates_files(tmp_path, monkeypatch):
 
     pptoml_path = project_dir / "pyproject.toml"
     assert pptoml_path.exists()
-    data = tomllib.loads(pptoml_path.read_text())
+    data = tomli.loads(pptoml_path.read_text())
     assert data["project"]["name"] == "sample"
     assert data["project"]["version"] == "0.1.0"
     assert (project_dir / "README.md").exists()
@@ -71,7 +71,7 @@ def test_cli_main_creates_project(tmp_path, monkeypatch):
 
     pptoml_path = project_dir / "pyproject.toml"
     assert pptoml_path.exists()
-    data = tomllib.loads(pptoml_path.read_text())
+    data = tomli.loads(pptoml_path.read_text())
     assert data["project"]["name"] == "cli_proj"
     assert data["project"]["version"] == "2.0.0"
 
@@ -85,7 +85,7 @@ def test_init_pyproj_defaults(tmp_path, monkeypatch):
 
     _init_pyproj(path=project_dir, project=None, version="0.1.0", description="")
 
-    data = tomllib.loads((project_dir / "pyproject.toml").read_text())
+    data = tomli.loads((project_dir / "pyproject.toml").read_text())
     assert data["project"]["name"] == "auto"
     assert data["project"]["description"] == "Package for auto"
 
@@ -98,7 +98,7 @@ def test_init_pyproj_description_default_with_name(tmp_path, monkeypatch):
 
     _init_pyproj(path=project_dir, project="pkg", version="0.1.0", description="")
 
-    data = tomllib.loads((project_dir / "pyproject.toml").read_text())
+    data = tomli.loads((project_dir / "pyproject.toml").read_text())
     assert data["project"]["name"] == "pkg"
     assert data["project"]["description"] == "Package for pkg"
 
@@ -137,7 +137,7 @@ def test_init_pyproj_respects_gitignore(tmp_path, monkeypatch):
 
     _init_pyproj(path=project_dir, project="gitignore", version="0.1.0", description="gi")
 
-    data = tomllib.loads((project_dir / "pyproject.toml").read_text())
+    data = tomli.loads((project_dir / "pyproject.toml").read_text())
     sources = data["tool"]["pyproj"]["dist"]["source"]["copy"]
     assert "keep.txt" in sources
     assert "skip.txt" not in sources
