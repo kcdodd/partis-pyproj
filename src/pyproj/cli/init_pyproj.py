@@ -21,13 +21,14 @@ def _init_pyproj(
   license_file: str = None
   copy_sources: list[str] = []
 
-  root.mkdir(exist_ok = True)
+  if not root.exists():
+    root.mkdir()
 
-  if not root.is_dir():
-    raise ValueError(f"Project is not a directory: {root}")
+  elif not root.is_dir():
+    raise FileExistsError(f"Project is not a directory: {root}")
 
   if pptoml_file.exists():
-    raise ValueError(f"Project already exists: {pptoml_file}")
+    raise FileExistsError(f"Project already exists: {pptoml_file}")
 
   if project is None:
     project = root.name
