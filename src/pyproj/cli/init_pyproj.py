@@ -7,6 +7,48 @@ from partis.pyproj.path import (
   PathFilter)
 
 #===============================================================================
+def _init_parser(subparsers):
+
+  parser = subparsers.add_parser(
+    'init',
+    help='Initialize template pyproject.toml')
+
+  parser.add_argument(
+    '--name',
+    type=str,
+    default=None,
+    help='Project name')
+
+  parser.add_argument(
+    '--version',
+    type=str,
+    default='0.0.1',
+    help='Initial project version')
+
+  parser.add_argument(
+    '--desc',
+    type=str,
+    default='',
+    help='Project short description')
+
+  parser.add_argument(
+    'path',
+    type=Path,
+    help='Path of directory to create pyproject.toml')
+
+  parser.set_defaults(func = _init_impl)
+
+  return parser
+
+#===============================================================================
+def _init_impl(args):
+  _init_pyproj(
+    path = args.path,
+    project = args.name,
+    version = args.version,
+    description = args.desc)
+
+#===============================================================================
 def _init_pyproj(
     path: Path,
     project: str|None,

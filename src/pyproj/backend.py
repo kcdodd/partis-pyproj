@@ -317,9 +317,6 @@ def build_editable(
 
 
   incremental = len(pyproj.targets) > 0
-  # incremental = False
-  _PATH = os.environ['PATH']
-  _sys_path = list(sys.path)
 
   if incremental:
     # NOTE: this should clone the current build environment packages to reproduce
@@ -333,36 +330,40 @@ def build_editable(
     venv_dir = editable_root/'build_venv'
     venv_py = str(venv_dir/'bin'/'python')
     check_call(['virtualenv', str(venv_dir)])
-    check_call([venv_py, '-m', 'pip', 'install', '--force-reinstall', '-r', str(requirements_file)])
-    # TODO: do build with the virtualenv, instead of from here, so it always
-    # uses the same one. Maybe add a command to cli to do it from here?
+    check_call([
+      venv_py, '-m', 'pip', 'install',
+      '--force-reinstall',
+      '-r', str(requirements_file)])
 
-  try:
+    check_call([
+      venv_py, '-m', 'partis.pyproj.cli', 'build',
+      # '--incremental',
+      str(pyproj.root)])
+
+    pyproj.dist_prep()
+
+  else:
     pyproj.dist_prep()
     pyproj.dist_binary_prep()
 
-    with dist_binary_editable(
-      root = pyproj.root,
-      # enable incremental rebuilds if there are any targets
-      incremental = incremental,
-      pptoml_checksum = pyproj.pptoml_checksum,
-      whl_root = whl_root,
-      pkg_info = pyproj.pkg_info,
-      build = dist_build(
-        pyproj.binary.get('build_number', None),
-        pyproj.binary.get('build_suffix', None) ),
-      compat = pyproj.binary.compat_tags,
-      outdir = wheel_directory,
-      logger = pyproj.logger ) as dist:
+  with dist_binary_editable(
+    root = pyproj.root,
+    # enable incremental rebuilds if there are any targets
+    incremental = incremental,
+    pptoml_checksum = pyproj.pptoml_checksum,
+    whl_root = whl_root,
+    pkg_info = pyproj.pkg_info,
+    build = dist_build(
+      pyproj.binary.get('build_number', None),
+      pyproj.binary.get('build_suffix', None) ),
+    compat = pyproj.binary.compat_tags,
+    outdir = wheel_directory,
+    logger = pyproj.logger ) as dist:
 
-      pyproj.dist_binary_copy(
-        dist = dist )
+    pyproj.dist_binary_copy(
+      dist = dist )
 
-      record_hash = dist.finalize(metadata_directory)
-
-  finally:
-    os.environ['PATH'] = _PATH
-    sys.path[:] = _sys_path
+    record_hash = dist.finalize(metadata_directory)
 
 
   pyproj.logger.info(

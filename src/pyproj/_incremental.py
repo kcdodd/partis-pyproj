@@ -40,8 +40,7 @@ WATCHED: set[str] = set()
 INSTALLED: bool = False
 # environment variable used to enable incremental build
 ENV_NAME: str = 'PYPROJ_INCREMENTAL'
-TRACKED_FILE = WHL_ROOT/'tracked.csv'
-PURELIB_SRC_FILE = WHL_ROOT/'purelib_src.txt'
+TRACKED_FILE = WHL_ROOT.parent/'tracked.csv'
 
 #===============================================================================
 def incremental():
@@ -121,13 +120,19 @@ class IncrementalFinder(NoIncrementalFinder):
     # print('watched_diff:\n  '+'\n  '.join([str(v) for v in watched_diff]))
 
     if changed:
+      # TODO: check hash here, but cannot import pyproj here
+      # if pyproj.pptoml_checksum != PPTOML_CHECKSUM:
+      #   logger.warning(
+      #     f"Editable '{PKG_NAME}' source pyproject.toml has changed, incremental build may be inconsistent.")
+
       host = platform.node()
       pid = os.getpid()
       mtime = 10*int(time.time())
 
-      lockfile = WHL_ROOT/'incremental.lock'
-      lockfile_tmp = WHL_ROOT/f'incremental.lock.{host}.{pid:d}.{mtime}'
-      revfile = WHL_ROOT/'incremental.rev'
+      editable_root = WHL_ROOT.parent
+      lockfile = editable_root/'incremental.lock'
+      lockfile_tmp = editable_root/f'incremental.lock.{host}.{pid:d}.{mtime}'
+      revfile = editable_root/'incremental.rev'
 
       if revfile.exists():
         revision = int(revfile.read_text())
@@ -151,19 +156,18 @@ class IncrementalFinder(NoIncrementalFinder):
         try:
           print('\n'.join([
             "-------------------------------------------------------------------",
-            f"Editable '{PKG_NAME}' triggered incremental build {_revision}:",
+            f"Editable '{PKG_NAME}' triggered incremental build {_revision}: {editable_root}",
             f"  changed ({len(files_diff)} files): " + ', '.join(f"'{v}'" for v in files_diff[:5]),
             f"  source: '{SRC_ROOT}'"]))
 
           # build_incremental()
-          venv_dir = WHL_ROOT.parent/'build_venv'
+          venv_dir = editable_root/'build_venv'
           venv_py = str(venv_dir/'bin'/'python')
-          # check_call(['virtualenv', str(venv_dir)])
-          # check_call([
-          #   venv_py, '-m', 'pip', 'install', '--force-reinstall',
-          #   '-r', str(WHL_ROOT.parent/'requirements.txt')])
 
-          check_call([venv_py, __file__])
+          check_call([
+            venv_py, '-m', 'partis.pyproj.cli', 'build',
+            '--incremental',
+            str(SRC_ROOT)])
 
           # update revision once completed
           revfile.write_text(str(_revision))
@@ -206,7 +210,6 @@ def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
     raise FileNotFoundError(
       f"Editable '{PKG_NAME}' source directory not found: {SRC_ROOT}")
 
-  purelib_src = set(PURELIB_SRC_FILE.read_text().splitlines())
   tracked = TRACKED_FILE.read_text().splitlines()
   commit = tracked[0]
   tracked_files = []
@@ -225,8 +228,10 @@ def check_tracked() -> tuple[bool, list[str], str, list[tuple[int,int,str]]]:
 
   tracked_diff = list(set(tracked_files)^set(_tracked_files))
   # print('\n'.join([str(v) for v in tracked_diff]))
+  files_diff = sorted(set([v[-1] for v in tracked_diff]))
   # ignore changes to pure-python files
-  files_diff = sorted(set([v[-1] for v in tracked_diff]) - purelib_src)
+  files_diff = [file for file in files_diff if not file.endswith('.py')]
+
   changed = not (commit == _commit and not files_diff)
 
   return changed, files_diff, _commit, _tracked_files
@@ -273,37 +278,3 @@ def _git_tracked_mtime() -> tuple[str, list[tuple[int,int,str]]]:
   files = check_output(['git', 'ls-files', '--exclude-standard', '-c', '-o']).decode('utf-8').splitlines()
 
   return commit, list(map(file_size_mtime, files))
-
-#===============================================================================
-def build_incremental():
-  logger = getLogger(__name__)
-
-  try:
-    import partis.pyproj as gen_mod
-    from partis.pyproj.backend import backend_init
-
-    _gen_root = Path(gen_mod.__file__).parent
-
-    # if _gen_root != GEN_ROOT:
-    #   warnings.warn(
-    #     f"Editable '{PKG_NAME}' generator location has changed, incremental build may not work correctly: '{GEN_ROOT}' -> '{_gen_root}'")
-
-    pyproj = backend_init(
-      root = SRC_ROOT,
-      config_settings = CONFIG_SETTINGS,
-      editable = True,
-      logger = logger,
-      init_logging = False)
-
-    if pyproj.pptoml_checksum != PPTOML_CHECKSUM:
-      logger.warning(
-        f"Editable '{PKG_NAME}' source pyproject.toml has changed, incremental build may be inconsistent.")
-
-    pyproj.dist_binary_prep(incremental = True)
-
-  except Exception as e:
-    warnings.warn(f"Editable '{PKG_NAME}' build failed, incremental build may not work correctly: {e}")
-
-#===============================================================================
-if __name__ == '__main__':
-  build_incremental()

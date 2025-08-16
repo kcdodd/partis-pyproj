@@ -345,7 +345,6 @@ class dist_binary_editable( dist_binary_wheel ):
   root: Path
   pptoml_checksum: tuple[str, int]
   whl_root: Path
-  purelib_src: list[Path]
 
   #-----------------------------------------------------------------------------
   def __init__( self, *,
@@ -374,7 +373,6 @@ class dist_binary_editable( dist_binary_wheel ):
     self.incremental = incremental
     self.pptoml_checksum = pptoml_checksum
     self.whl_root = whl_root
-    self.purelib_src = []
 
     if not (root/'.git').exists():
       raise NotImplementedError(
@@ -402,18 +400,13 @@ class dist_binary_editable( dist_binary_wheel ):
     pth_file = pkg_name+'.pth'
 
     if self.incremental:
+      editable_root = whl_root.parent
       commit, tracked_files = git_tracked_mtime()
-      tracked_file = whl_root/'tracked.csv'
+      tracked_file = editable_root/'tracked.csv'
       tracked_file.write_text('\n'.join([
         commit,
         *[f"{mtime}, {size}, {file}"
           for mtime, size, file  in tracked_files]]))
-
-      # *changes* to purelib source files won't trigger incremental build
-      purelib_src_file = whl_root/'purelib_src.txt'
-      purelib_src_file.write_text('\n'.join([
-        str(file)
-        for file in self.purelib_src]))
 
       watched = set([
         Path(file).parts[0]
