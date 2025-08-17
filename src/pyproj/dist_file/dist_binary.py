@@ -450,18 +450,8 @@ class dist_binary_editable( dist_binary_wheel ):
 
   #-----------------------------------------------------------------------------
   def create_distfile( self ):
-    _dir = self.whl_root
-
-    if _dir.exists():
-      if not _dir.is_dir():
-        raise PathError(
-          f"Output directory exists but is not a directory: {_dir}")
-
-      # NOTE: the directory name should be sufficiently mangled by wheel spec
-      # that its unlikely this directory is mistakenly pointing to the wrong place
-      shutil.rmtree(_dir)
-
-    _dir.mkdir(parents=True)
+    # need to create a filesystem equivalent for the wheel
+    self.whl_root.mkdir(0o700, parents=True, exist_ok=True)
 
   #-----------------------------------------------------------------------------
   def close_distfile( self ):

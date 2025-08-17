@@ -16,21 +16,10 @@ from .builder import (
 from ..validate import (
   ValidationError)
 from ..norms import b64_nopad, nonempty_str
+from ..cache import cache_dir
 
 # replace runs of non-alphanumeric, dot, dash, or underscore
 _filename_subs = re.compile(r'[^a-z0-9\.\-\_]+', re.I)
-
-try:
-  # prefer user home directory to avoid clashing in global "tmp" directory
-  CACHE_DIR = Path.home()/'.cache'/'partis-pyproj'
-
-except RuntimeError:
-  # use global temporary directory, suffixed by username to try to avoid conficts
-  # between users
-  import getpass
-  username = getpass.getuser()
-  tmp_dir = tempfile.gettempdir()
-  CACHE_DIR = Path(tmp_dir)/f'.cache-partis-pyproj-{username}'
 
 #===============================================================================
 def download(
@@ -203,7 +192,7 @@ def _cached_download(url: str, checksum: str) -> Path:
   url_dirname = _filename_subs.sub('_', _url)
   url_filename = f"{short}-" + _filename_subs.sub('_', name)
 
-  url_dir = CACHE_DIR/url_dirname
+  url_dir = cache_dir()/'download'/url_dirname
   url_dir.mkdir(exist_ok=True, parents=True)
 
   file = url_dir/url_filename

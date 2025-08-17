@@ -1,6 +1,7 @@
 import sys
 import os
 import os.path as osp
+from pathlib import Path
 import tempfile
 import shutil
 import subprocess
@@ -19,6 +20,12 @@ from partis.pyproj import (
   PyProjBase,
   dist_source_targz,
   dist_binary_wheel )
+from partis.pyproj.backend import (
+  get_requires_for_build_sdist,
+  get_requires_for_build_wheel,
+  build_sdist,
+  prepare_metadata_for_build_wheel,
+  build_wheel)
 
 SKIP_MESON = False
 SKIP_CMAKE = SKIP_MESON
@@ -76,7 +83,7 @@ def try_legacy( name, dist_file ):
     ignore_errors = True )
 
   with tempfile.TemporaryDirectory() as tmpdir:
-
+    tmpdir = Path(tmpdir)
     cwd = os.getcwd()
 
     try:
@@ -88,7 +95,7 @@ def try_legacy( name, dist_file ):
 
         fp.extractall('.')
 
-      dist_dir = osp.join( tmpdir, osp.basename(dist_file)[:-7] )
+      dist_dir = tmpdir/osp.basename(dist_file)[:-7]
 
       os.chdir(dist_dir)
 
@@ -150,12 +157,12 @@ def try_legacy( name, dist_file ):
 def run_pyproj( name, source = True, binary = True ):
 
   with tempfile.TemporaryDirectory() as tmpdir:
-
-    outdir = osp.join(tmpdir, 'dist')
-    pkg_dir = osp.join( tmpdir, name )
+    tmpdir = Path(tmpdir)
+    outdir = tmpdir/'dist'
+    pkg_dir = tmpdir/name
 
     shutil.copytree(
-      osp.join(osp.dirname(osp.abspath(__file__)), name ),
+      Path(__file__).resolve().parent/name,
       pkg_dir,
       # some tests require copying symlinks
       symlinks = True )
@@ -172,6 +179,9 @@ def run_pyproj( name, source = True, binary = True ):
 
       # build and install source dist
       if source:
+        get_requires_for_build_sdist()
+        outname = build_sdist(outdir)
+
         pyproj.dist_source_prep()
 
         with dist_source_targz(
@@ -184,29 +194,33 @@ def run_pyproj( name, source = True, binary = True ):
 
         try_dist(
           import_name = pyproj.pkg_info.name,
-          install_name = dist.outpath )
+          install_name = outdir/outname )
 
         if pyproj.add_legacy_setup:
           try_legacy(
             name = pyproj.pkg_info.name,
-            dist_file = dist.outpath )
+            dist_file = outdir/outname )
 
       # build and install binary dist
       if binary:
+        get_requires_for_build_wheel()
+        prepare_metadata_for_build_wheel(outdir)
+        outname = build_wheel(outdir)
+
         pyproj.dist_binary_prep()
 
-        with dist_binary_wheel(
-          pkg_info = pyproj.pkg_info,
-          compat = pyproj.binary.compat_tags,
-          outdir = outdir,
-          logger = pyproj.logger ) as dist:
+        # with dist_binary_wheel(
+        #   pkg_info = pyproj.pkg_info,
+        #   compat = pyproj.binary.compat_tags,
+        #   outdir = outdir,
+        #   logger = pyproj.logger ) as dist:
 
-          pyproj.dist_binary_copy(
-            dist = dist )
+        #   pyproj.dist_binary_copy(
+        #     dist = dist )
 
         try_dist(
           import_name = pyproj.pkg_info.name,
-          install_name = dist.outpath )
+          install_name = outdir/outname )
 
     finally:
       os.chdir(cwd)

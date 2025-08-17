@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import sys
 import json
+from functools import wraps
 from subprocess import check_output, check_call
 import shutil
 from copy import copy
@@ -34,6 +35,20 @@ from . import (
   dist_source_targz,
   dist_binary_wheel,
   dist_binary_editable)
+from .cache import cache_dir
+
+#===============================================================================
+def _reraise_known_errors(func):
+  @wraps(func)
+  def _wrapped(*args, **kwargs):
+    try:
+      return func(*args, **kwargs)
+    except ValidationError as e:
+      # This re-raises the exception from here, removing the intermediate frames
+      known_exception_type = copy(e)
+      raise known_exception_type from e.__cause__
+
+  return _wrapped
 
 #===============================================================================
 def backend_init(
@@ -81,6 +96,7 @@ def backend_init(
 
 
 #-----------------------------------------------------------------------------
+@_reraise_known_errors
 def get_requires_for_build_sdist(
   config_settings: dict|None = None ):
   """
@@ -99,6 +115,7 @@ def get_requires_for_build_sdist(
   return list()
 
 #-----------------------------------------------------------------------------
+@_reraise_known_errors
 def get_requires_for_build_wheel(
   config_settings: dict|None = None,
   _editable: bool = False):
@@ -141,15 +158,7 @@ def get_requires_for_build_wheel(
   return reqs
 
 #-----------------------------------------------------------------------------
-def get_requires_for_build_editable(config_settings=None):
-  print(f"get_requires_for_build_editable({config_settings=})")
-  deps = get_requires_for_build_wheel(config_settings, _editable=True)
-
-  # add so incremental virtualenv can be created
-  deps += ['pip', 'virtualenv ~= 20.28.0']
-  return deps
-
-#-----------------------------------------------------------------------------
+@_reraise_known_errors
 def build_sdist(
   dist_directory,
   config_settings: dict|None = None ):
@@ -182,6 +191,7 @@ def build_sdist(
   return dist.outname
 
 #-----------------------------------------------------------------------------
+@_reraise_known_errors
 def prepare_metadata_for_build_wheel(
   metadata_directory,
   config_settings: dict|None = None,
@@ -220,16 +230,7 @@ def prepare_metadata_for_build_wheel(
   return os.fspath(Path(dist.dist_info_path))
 
 #-----------------------------------------------------------------------------
-def prepare_metadata_for_build_editable(
-  metadata_directory,
-  config_settings = None ):
-
-  return prepare_metadata_for_build_wheel(
-    metadata_directory,
-    config_settings,
-    _editable = True)
-
-#-----------------------------------------------------------------------------
+@_reraise_known_errors
 def build_wheel(
   wheel_directory,
   config_settings: dict|None = None,
@@ -247,36 +248,52 @@ def build_wheel(
   * https://www.python.org/dev/peps/pep-0517/#build-wheel
   """
 
-  try:
-    pyproj = backend_init(config_settings = config_settings)
+  pyproj = backend_init(config_settings = config_settings)
 
-    pyproj.dist_prep()
-    pyproj.dist_binary_prep()
+  pyproj.dist_prep()
+  pyproj.dist_binary_prep()
 
-    with dist_binary_wheel(
-      pkg_info = pyproj.pkg_info,
-      build = dist_build(
-        pyproj.binary.get('build_number', None),
-        pyproj.binary.get('build_suffix', None) ),
-      compat = pyproj.binary.compat_tags,
-      outdir = wheel_directory,
-      logger = pyproj.logger ) as dist:
+  with dist_binary_wheel(
+    pkg_info = pyproj.pkg_info,
+    build = dist_build(
+      pyproj.binary.get('build_number', None),
+      pyproj.binary.get('build_suffix', None) ),
+    compat = pyproj.binary.compat_tags,
+    outdir = wheel_directory,
+    logger = pyproj.logger ) as dist:
 
-      pyproj.dist_binary_copy(
-        dist = dist )
+    pyproj.dist_binary_copy(
+      dist = dist )
 
 
-    record_hash = dist.finalize(metadata_directory)
-    pyproj.logger.info(
-      f"Top level packages {dist.top_level}")
-
-  except ValidationError as e:
-    known_exception_type = copy(e)
-    raise known_exception_type from e.__cause__
+  record_hash = dist.finalize(metadata_directory)
+  pyproj.logger.info(
+    f"Top level packages {dist.top_level}")
 
   return dist.outname
 
 #-----------------------------------------------------------------------------
+@_reraise_known_errors
+def get_requires_for_build_editable(config_settings=None):
+  deps = get_requires_for_build_wheel(config_settings, _editable=True)
+
+  # add so incremental virtualenv can be created
+  deps += ['pip', 'virtualenv ~= 20.28.0']
+  return deps
+
+#-----------------------------------------------------------------------------
+@_reraise_known_errors
+def prepare_metadata_for_build_editable(
+  metadata_directory,
+  config_settings = None ):
+
+  return prepare_metadata_for_build_wheel(
+    metadata_directory,
+    config_settings,
+    _editable = True)
+
+#-----------------------------------------------------------------------------
+@_reraise_known_errors
 def build_editable(
   wheel_directory,
   config_settings = None,
@@ -286,27 +303,8 @@ def build_editable(
     config_settings = config_settings,
     editable = True)
 
-  # hash the path of root source directory
-  # src_hash = hash_sha256(str(pyproj.root).encode('utf-8'))[0]
-  # whl_root = Path(tempfile.gettempdir())/'partis_pyproj_editables'/src_hash
-  # TODO: add option for desired editable virtual wheel location
-  # whl_root = pyproj.root/'build'/'.editable_wheel'
-  # venv_dir = pyproj.root/'build'/'.editable_venv'
-
-  try:
-    # prefer user home directory to avoid clashing in global "tmp" directory
-    cache_dir = Path.home()/'.cache'/'partis-pyproj'
-
-  except RuntimeError:
-    # use global temporary directory, suffixed by username to try to avoid conficts
-    # between users
-    import getpass
-    username = getpass.getuser()
-    tmp_dir = tempfile.gettempdir()
-    cache_dir = Path(tmp_dir)/f'.cache-partis-pyproj-{username}'
-
   pkg_name = norm_dist_filename(pyproj.pkg_info.name_normed)
-  editable_root = cache_dir/f'editable_{pkg_name}_{pyproj.pkg_info.version}'
+  editable_root = cache_dir()/'editable'/f'{pkg_name}_{pyproj.pkg_info.version}'
   whl_root = editable_root/'wheel'
 
   if editable_root.exists():
@@ -317,6 +315,7 @@ def build_editable(
 
 
   incremental = len(pyproj.targets) > 0
+
 
   if incremental:
     # NOTE: this should clone the current build environment packages to reproduce

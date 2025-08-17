@@ -2,6 +2,7 @@ import http.server
 import socketserver
 import threading
 import tarfile
+import tempfile
 import hashlib
 import logging
 import os
@@ -12,10 +13,9 @@ from pathlib import Path
 import pytest
 
 import importlib
-
 download = importlib.import_module("partis.pyproj.builder.download")
 from partis.pyproj.validate import ValidationError
-
+from partis.pyproj import cache
 
 class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -43,7 +43,8 @@ def create_tar(directory: Path) -> tuple[Path, str]:
 
 
 def test_cached_download_sanitizes_and_writes_info(tmp_path, monkeypatch):
-    monkeypatch.setattr(download, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(cache, "CACHE_DIR", tmp_path)
+
     url = "https://example.com/a b/c?d=e"
     checksum = "sha256=deadbeef"
     path = download._cached_download(url, checksum)
@@ -54,7 +55,8 @@ def test_cached_download_sanitizes_and_writes_info(tmp_path, monkeypatch):
 
 
 def test_download_extracts_and_sets_exec(tmp_path, monkeypatch):
-    monkeypatch.setattr(download, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(cache, "CACHE_DIR", tmp_path/'cache')
+
     tar_path, digest = create_tar(tmp_path)
     httpd, thread, base = start_server(tmp_path)
     try:
@@ -90,7 +92,8 @@ def test_download_extracts_and_sets_exec(tmp_path, monkeypatch):
 
 
 def test_download_checksum_mismatch(tmp_path, monkeypatch):
-    monkeypatch.setattr(download, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(cache, "CACHE_DIR", tmp_path/'cache')
+
     tar_path, digest = create_tar(tmp_path)
     httpd, thread, base = start_server(tmp_path)
     try:
@@ -107,3 +110,15 @@ def test_download_checksum_mismatch(tmp_path, monkeypatch):
     finally:
         httpd.shutdown()
         thread.join()
+
+#===============================================================================
+def test_cache_fallback(tmp_path, monkeypatch):
+
+  def _nohome():
+    raise RuntimeError()
+
+  monkeypatch.setattr(Path, "home", _nohome)
+  dir = cache.cache_dir()
+
+  assert dir.is_relative_to(Path(tempfile.gettempdir()))
+

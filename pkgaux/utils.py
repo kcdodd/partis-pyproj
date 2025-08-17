@@ -129,7 +129,7 @@ def run(session, *args):
 
 #===============================================================================
 def install(*args):
-  return run('python', '-m', 'pip', 'install', *args)
+  return run('uv', 'pip', 'install', *args)
 
 #===============================================================================
 @session_command

@@ -183,7 +183,7 @@ class PyProjBase:
 
     # inspect/record the environment for installed packages
     self.env_pkgs = sorted(set([
-      f"{pkg.name}=={pkg.version}"
+      f"{pkg.metadata['Name']}=={pkg.metadata['Version']}"
       for pkg in metadata.Distribution.discover()]))
 
     # ensure that essential files will be in the source distribution

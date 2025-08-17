@@ -53,6 +53,7 @@ python_versions = ppnox['python']
 
 nox.options.stop_on_first_error = True
 nox.options.envdir = str(tmp_dir / '.nox')
+nox.options.default_venv_backend = ppnox['default_venv_backend']
 sitcustom_dir = test_dir/'cov_sitecustom'
 
 #===============================================================================
@@ -87,8 +88,9 @@ prepare_cmds = [
       'clean': [
         remove([sdist_dir, sdist_file])],
       'build': [
-        run('python', '-m', 'build', '--sdist', '-o', dist_dir, '.'),
-        run('python', '-m', 'build', '--wheel', '-o', dist_dir, '.')]}] }]
+        run('python', '-m', 'build', '--sdist', '-o', dist_dir, str(root_dir)),
+        run('python', '-m', 'build', '--wheel', '-o', dist_dir, str(root_dir)),
+        run('python', '-m', 'build', '--wheel', '-o', dist_dir, str(root_dir/'tests'/'cov_sitecustom'))]}] }]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 doc_cmds = [{
@@ -154,7 +156,7 @@ def test(session):
   session.env['COVERAGE_PROCESS_START'] = str(pptoml_file)
 
   # no-clean needed for gathering coverage from temporary build installs
-  session.install('--no-clean', sdist_file)
+  session.install(sdist_file)
   session.run('python', '-m', 'pytest', test_dir)
 
 #===============================================================================
