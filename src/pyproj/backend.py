@@ -313,9 +313,11 @@ def build_editable(
 
   whl_root.mkdir(0o700, parents=True)
 
-
-  incremental = len(pyproj.targets) > 0
-
+  # enable incremental build if any of the build targets allow non-clean builds
+  incremental = any(
+    not target.build_clean
+    for target in pyproj.targets
+    if target.enabled)
 
   if incremental:
     # NOTE: this should clone the current build environment packages to reproduce

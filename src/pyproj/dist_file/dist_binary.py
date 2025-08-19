@@ -399,6 +399,31 @@ class dist_binary_editable( dist_binary_wheel ):
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pth_file = pkg_name+'.pth'
 
+
+    dist_info = self.dist_info_path.name
+    data = self.data_path.name
+
+    paths = set()
+
+    for file, (hash, size) in self.records.items():
+      # check directories added to purelib/platlib.
+      if file.parts[0] not in (dist_info, data):
+        if len(file.parts) == 1 or file.name.startswith("__init__."):
+          paths.add(file)
+        else:
+          paths.add(file.parent)
+
+    modules = {}
+
+    for path in paths:
+      if path.name.startswith("__init__."):
+        fullname = '.'.join(path.parent.parts)
+      else:
+        fullname = '.'.join(path.parts).removesuffix('.py')
+
+      modules[fullname] = str(path)
+
+
     if self.incremental:
       editable_root = whl_root.parent
       commit, tracked_files = git_tracked_mtime()
@@ -408,16 +433,13 @@ class dist_binary_editable( dist_binary_wheel ):
         *[f"{mtime}, {size}, {file}"
           for mtime, size, file  in tracked_files]]))
 
-      watched = set([
-        Path(file).parts[0]
-        for file in self.top_level])
-
       check_module_name = pkg_name + '_incremental'
       check_file_out = check_module_name+'.py'
       check_file_in = gen_root/'_incremental.py'
       check_content = check_file_in.read_text()
 
       header, _, footer = check_content.partition("#@template@")
+      _modules = ',\n'.join(f"  {k!r}: {v!r}" for k,v in modules.items())
 
       check_content = '\n'.join([
         header,
@@ -426,7 +448,7 @@ class dist_binary_editable( dist_binary_wheel ):
         f"WHL_ROOT = Path('{whl_root}')",
         f"GEN_ROOT = Path('{gen_root}')",
         f"PPTOML_CHECKSUM = {self.pptoml_checksum!r}",
-        f"WATCHED = {watched!r}",
+        f"MODULES = {{\n{_modules}}}",
         footer])
 
       pth_content = '\n'.join([
@@ -557,3 +579,4 @@ class dist_binary_editable( dist_binary_wheel ):
     _dir = self.whl_root
     _dst = _dir/Path(norm_path(os.fspath(dst)))
     return _dst.exists()
+

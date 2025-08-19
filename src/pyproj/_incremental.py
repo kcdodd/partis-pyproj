@@ -7,16 +7,14 @@ from pathlib import Path
 from os import (
   stat as os_stat,
   getcwd,
-  chdir)
-import shutil
-from logging import getLogger
+  chdir,
+  path as osp)
 from subprocess import check_output, check_call
 import sys
 import os
-import warnings
 import platform
 import time
-import json
+from importlib.util import spec_from_file_location
 from importlib.machinery import PathFinder
 
 # name of editable package
@@ -32,7 +30,7 @@ PPTOML_CHECKSUM: tuple[str, int] = ('', 0)
 # config_settings originally given
 CONFIG_SETTINGS: dict = {}
 # list of module names to watch for
-WATCHED: set[str] = set()
+MODULES: dict[str, str] = {}
 
 #@template@
 
@@ -60,136 +58,129 @@ def incremental():
       pkgs.remove(PKG_NAME)
       pkgs = ':'.join(pkgs)
       os.environ[ENV_NAME] = pkgs
-      finder = IncrementalFinder()
+      finder = IncrementalFinder(incremental=True)
 
   if finder is None:
-    finder = NoIncrementalFinder()
+    finder = IncrementalFinder(incremental=False)
 
   sys.meta_path.insert(0, finder)
 
 #===============================================================================
-class NoIncrementalFinder(PathFinder):
+class IncrementalFinder(PathFinder):
   """Issues warning if watched module is imported without incremental build
   """
   #-----------------------------------------------------------------------------
-  def __init__(self):
+  def __init__(self, incremental: bool):
     self.checked = False
+    self.incremental = incremental
 
   #-----------------------------------------------------------------------------
   def find_spec(self, fullname, path, target=None):
     # print(f"find_spec({fullname=}, {path=})")
 
-    if path is not None or self.checked:
+    if fullname not in MODULES:
       return None
-
-    basename = fullname.split('.')[0]
-    watched = basename in WATCHED
-
-    if not watched:
-      return None
-
-    # print(f"{fullname=}")
-    self.checked = True
-    changed, files_diff, commit, tracked_files = check_tracked()
-
-    if changed:
-      warnings.warn(
-        f"Editable installed package '{PKG_NAME}' source has changes ({len(files_diff)} files)."
-        + f" Add name to {ENV_NAME} for automatic incremental builds.")
-
-#===============================================================================
-class IncrementalFinder(NoIncrementalFinder):
-  #-----------------------------------------------------------------------------
-  def find_spec(self, fullname, path, target=None):
 
     # print(f"find_spec({fullname=}, {path=})")
 
-    if path is not None or self.checked:
-      return None
+    if not self.checked:
+      self.checked = True
+      self.rebuild()
 
-    basename = fullname.split('.')[0]
-    watched = basename in WATCHED
+    return super().find_spec(fullname, path, target)
+    # location = osp.join(WHL_ROOT, location)
+    # # print(f"find_spec({fullname=}, {path=})")
+    # print(f">> {location}")
+    # return spec_from_file_location(fullname, location)
 
-    if not watched:
-      return None
-
-    self.checked = True
+  #-----------------------------------------------------------------------------
+  def rebuild(self):
     changed, files_diff, commit, tracked_files = check_tracked()
+
+    if not changed:
+      return
+
+    if not self.incremental:
+      print(
+        f"Editable package '{PKG_NAME}' source has changes ({len(files_diff)} files).",
+        f"Add name to {ENV_NAME} for incremental builds.",
+        file = sys.stderr)
+
+      return
 
     # print(f"{fullname=}, {changed=}")
     # print('watched_diff:\n  '+'\n  '.join([str(v) for v in watched_diff]))
 
-    if changed:
-      # TODO: check hash here, but cannot import pyproj here
-      # if pyproj.pptoml_checksum != PPTOML_CHECKSUM:
-      #   logger.warning(
-      #     f"Editable '{PKG_NAME}' source pyproject.toml has changed, incremental build may be inconsistent.")
+    # TODO: check hash here, but cannot import pyproj here
+    # if pyproj.pptoml_checksum != PPTOML_CHECKSUM:
 
-      host = platform.node()
-      pid = os.getpid()
-      mtime = 10*int(time.time())
+    host = platform.node()
+    pid = os.getpid()
+    mtime = 10*int(time.time())
 
-      editable_root = WHL_ROOT.parent
-      lockfile = editable_root/'incremental.lock'
-      lockfile_tmp = editable_root/f'incremental.lock.{host}.{pid:d}.{mtime}'
-      revfile = editable_root/'incremental.rev'
+    editable_root = WHL_ROOT.parent
+    lockfile = editable_root/'incremental.lock'
+    lockfile_tmp = editable_root/f'incremental.lock.{host}.{pid:d}.{mtime}'
+    revfile = editable_root/'incremental.rev'
 
-      if revfile.exists():
-        revision = int(revfile.read_text())
-      else:
-        revision = 0
+    if revfile.exists():
+      revision = int(revfile.read_text())
+    else:
+      revision = 0
 
-      key = f"{host},{pid:d},{mtime:d},{revision+1:d}"
+    key = f"{host},{pid:d},{mtime:d},{revision+1:d}"
 
-      if not lockfile.exists():
-        lockfile_tmp.write_text(key)
-        os.replace(lockfile_tmp, lockfile)
+    if not lockfile.exists():
+      lockfile_tmp.write_text(key)
+      os.replace(lockfile_tmp, lockfile)
 
-      _host, _pid, _mtime, _revision = lockfile.read_text().split(',')
+    _host, _pid, _mtime, _revision = lockfile.read_text().split(',')
 
-      _pid = int(_pid)
-      _mtime = int(_mtime)
-      _revision = int(_revision)
+    _pid = int(_pid)
+    _mtime = int(_mtime)
+    _revision = int(_revision)
 
-      if (_host, _pid, _mtime) == (host, pid, mtime):
-        # this process obtained lock
-        try:
-          print('\n'.join([
-            "-------------------------------------------------------------------",
-            f"Editable '{PKG_NAME}' triggered incremental build {_revision}: {editable_root}",
-            f"  changed ({len(files_diff)} files): " + ', '.join(f"'{v}'" for v in files_diff[:5]),
-            f"  source: '{SRC_ROOT}'"]))
+    print('\n'.join([
+      f"Editable package '{PKG_NAME}' triggered incremental build:",
+      f"  build: {_revision}",
+      f"  machine: {_host}:{_pid}",
+      f"  cached: {editable_root}",
+      f"  source: '{SRC_ROOT}'",
+      f"  changed ({len(files_diff)} files): " + ', '.join(f"'{v}'" for v in files_diff[:5])]),
+      file = sys.stderr)
 
-          # build_incremental()
-          venv_dir = editable_root/'build_venv'
-          venv_py = str(venv_dir/'bin'/'python')
+    if (_host, _pid, _mtime) == (host, pid, mtime):
+      # this process obtained lock
+      try:
+        venv_dir = editable_root/'build_venv'
+        venv_py = str(venv_dir/'bin'/'python')
 
-          check_call([
-            venv_py, '-m', 'partis.pyproj.cli', 'build',
-            '--incremental',
-            str(SRC_ROOT)])
+        check_call([
+          venv_py, '-m', 'partis.pyproj.cli', 'build',
+          '--incremental',
+          str(SRC_ROOT)])
 
-          # update revision once completed
-          revfile.write_text(str(_revision))
-          update_tracked(commit, tracked_files)
-          print("done.\n-------------------------------------------------------------------")
+        # update revision once completed
+        revfile.write_text(str(_revision))
+        update_tracked(commit, tracked_files)
 
-        finally:
-          lockfile.unlink()
+      finally:
+        lockfile.unlink()
 
-      else:
-        warnings.warn(f"Editable '{PKG_NAME}' incremental revision {_revision}: waiting on {_host}:{_pid} to finish")
+    else:
+      print(
+        f"Editable '{PKG_NAME}' incremental build {_revision}:",
+        f"Waiting on {_host}:{_pid} to finish",
+        file = sys.stderr)
 
-        # wait for running build
-        while revision < _revision:
-          time.sleep(1)
+      # wait for running build
+      while revision < _revision:
+        time.sleep(1)
 
-          if revfile.exists():
-            revision = int(revfile.read_text())
-          else:
-            revision = 0
-
-    return super().find_spec(fullname, path, target)
+        if revfile.exists():
+          revision = int(revfile.read_text())
+        else:
+          revision = 0
 
   #-----------------------------------------------------------------------------
   def invalidate_caches(self):
