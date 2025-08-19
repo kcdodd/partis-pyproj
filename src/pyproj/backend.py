@@ -348,18 +348,25 @@ def build_editable(
       '--no-project',
       '--python', sys.executable])
 
+
     for bin in ['bin', 'Scripts']:
       if (venv_bin := venv_dir/bin).is_dir():
         break
     else:
       raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
 
+    venv_py = venv_bin/Path(sys.executable).name
+
+    print(f"{os.environ['PATH']=}")
+    print(f"{list(venv_bin.iterdir())=}")
+
+    if not (venv_py := venv_bin/Path(sys.executable).name).exists():
+      raise FileNotFoundError(f"No virtual environment interpreter: {venv_py}")
+
     venv_env = {
       **os.environ,
       'VIRTUAL_ENV': str(venv_dir),
-      'PATH': ':'.join(os.environ['PATH'].split(':')+[str(venv_bin)])}
-
-    print(f"{list(venv_bin.iterdir())=}")
+      'PATH': os.pathsep.join(os.environ['PATH'].split(os.pathsep)+[str(venv_bin)])}
 
     check_call([
       'uv', 'pip', 'install',
@@ -368,7 +375,7 @@ def build_editable(
       env = venv_env)
 
     check_call([
-      'python', '-m', 'partis.pyproj.cli', 'build',
+      venv_py, '-m', 'partis.pyproj.cli', 'build',
       '--incremental',
       str(pyproj.root)],
       env = venv_env)
