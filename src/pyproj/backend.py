@@ -357,7 +357,7 @@ def build_editable(
     venv_env = {
       **os.environ,
       'VIRTUAL_ENV': str(venv_dir),
-      'PATH': ':'.join(os.environ['PATH'].split(':')+[str(venv_dir/'bin')])}
+      'PATH': ':'.join(os.environ['PATH'].split(':')+[str(venv_bin)])}
 
     print(f"{list(venv_bin.iterdir())=}")
 
