@@ -13,6 +13,51 @@ The guiding principles adopted for ``partis.pyproj`` are:
 * A distribution is simply a collection of files,
   plus package meta-data for either source or binary (wheel) distribution formats.
 
+### Quickstart
+
+Below is a minimal example project structure for a pure Python package
+named `myproj`, and backend configuration in `pyproject.toml` to build
+source and binary (wheel) distributions for installation:
+
+- `src/myproj/__init__.py`
+- `tests/test_everything.py`
+- `LICENSE.txt`
+- `pyproject.toml`
+- `README.md`
+
+
+```toml
+# pyproject.toml
+[project]
+name = "myproj"
+description = "Project myproj"
+version = "0.0.1"
+readme = { file = "README.md" }
+license = { file = "LICENSE.txt" }
+dependencies = ['typing-extensions']
+
+[dependency-groups]
+test = ['pytest']
+
+[build-system]
+requires = ["partis-pyproj"]
+# point the frontend to the backend partis-pyproj
+build-backend = "partis.pyproj.backend"
+
+# configure the backend
+[tool.pyproj.dist]
+# patterns to ignore for both source and wheel distributions
+ignore = ['__pycache__', '*.py[cod]', '*.so', '*.egg-info', '.nox', '.pytest_cache', '.coverage']
+
+[tool.pyproj.dist.source]
+# copy everything needed to re-distribute the source code (pyproject.toml, readme, and license are added automatically)
+copy = ["src", "tests"]
+
+[tool.pyproj.dist.binary.purelib]
+# copy how it should appear installed in site-packages
+copy = [{ src = "src/myproj", dst = "myproj" }]
+```
+
 The process of building a source or binary distribution is broken down into
 three general stages:
 
@@ -24,7 +69,8 @@ three general stages:
   configuration, but otherwise avoids taking on the responsibility of a full build system.
 - **copy** - Copy files into the distribution.
 
-
+Running `python -m build` (or `pip wheel .`, `pip install .`, etc.) executes the `prepare`, `build`,
+and `copy` stages in order and writes the resulting sdist or wheel.
 The sequence of actions for a distribution is roughly:
 
 - `tool.pyproj.prep`: Run before anything else, used to fill in dynamic metadata or
@@ -55,10 +101,18 @@ formats and behaviors.
 * `dst` is relative, specifically depending on whether it is a source or binary (wheel) distribution and which install scheme is desired (`purelib`, `platlib`, etc.).
 * Destination file paths are constructed from matched source paths roughly equivalent
   to `{scheme}/dst/match.relative_to(src)`.
+* Symlinks that resolve within the project root are preserved; links that point
+  outside the tree or are dangling result in an error. Hidden files are treated
+  like any other path unless ignored.
+* Pattern matching uses POSIX-style `/` separators. On case-insensitive file
+  systems (e.g. Windows) different source files that would map to the same
+  destination path are considered collisions and abort the copy.
+* If multiple include rules map to the same destination file, the backend raises
+  an error to avoid silent overwrites.
 
 **Include patterns**
 
-* An `include` list is used to filter files or directories to be copied, expanded
+* An include list is used to filter files or directories to be copied, expanded
   to zero or more matches relative to `src`.
 * `glob` follows the format of [Path.glob](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob).
   If recursive pattern `**` is used, the glob will *not* match directories,
@@ -69,6 +123,14 @@ formats and behaviors.
   This cannot rename directories.
 * `strip` can remove (up to) the given number of path components from the relative
   `src` path.
+
+  For example,
+
+  ```toml
+  include = [{ glob = "src/**/*.py", rematch = "src/(.*)", replace = "{0}", strip = 1 }]
+  ```
+
+  copies `src/pkg/mod.py` into the destination as `pkg/mod.py`.
 
 **Ignore patterns**
 
@@ -266,6 +328,11 @@ env: table{STRING|STRING}?   # environment variables to set
 build_clean: BOOL?           # control cleanup (ie for development builds)
 enabled: (BOOL|MARKER)?      # environment marker
 ```
+
+Targets are executed sequentially. If a target fails or its entry point cannot
+be resolved, the remaining targets are skipped and the build aborts with an
+error message. Parallel execution is intentionally unsupported to keep ordering
+and cleanup deterministic.
 
 There are several entry points available as-is:
 
@@ -467,6 +534,10 @@ These settings, updated by any values passed from the front-end installer,
 are available in any processing hook.
 Combined with an entry-point `kwargs`, these can be used to keep all
 conditional dependencies listed in ``pyproject.toml``.
+
+Passing an option that is not declared in `tool.pyproj.config` or providing a
+value of the wrong type results in a validation error before any build hooks are
+executed.
 
 
 The type is derived from the value parsed from ``pyproject.toml``.
