@@ -25,6 +25,10 @@ def _make_pkg(src, dst):
   subprocess.check_call(['git', 'commit', '-m', 'init'], cwd=dst)
 
 #===============================================================================
+def _check_link(link: Path, target: Path):
+  return link.is_symlink() and os.readlink(link).removeprefix("\\\\?\\") == str(target)
+
+#===============================================================================
 def test_build_editable_basic(tmp_path, monkeypatch):
   root = tmp_path/'pkg'
   _make_pkg(Path(__file__).parent/'pkg_base', root)
@@ -66,9 +70,7 @@ def test_build_editable_basic(tmp_path, monkeypatch):
 
   link = whl_root/'test_pkg_base'/'pure_mod'/'pure_mod.py'
   print(f"{list((whl_root/'test_pkg_base').iterdir())=}")
-  assert link.is_symlink()
-  assert os.readlink(link) == str(root/'src'/'test_pkg'/'pure_mod'/'pure_mod.py')
-
+  assert _check_link(link, root/'src'/'test_pkg'/'pure_mod'/'pure_mod.py')
 
 #===============================================================================
 def test_build_editable_incremental(tmp_path, monkeypatch):
@@ -108,5 +110,4 @@ def test_build_editable_incremental(tmp_path, monkeypatch):
   assert f'{pkg}_incremental.py' in names
 
   link = whl_root/'test_pkg_meson_1'/'pure_mod.py'
-  assert link.is_symlink()
-  assert os.readlink(link) == str(root/'src'/'test_pkg'/'pure_mod.py')
+  assert _check_link(link, root/'src'/'test_pkg'/'pure_mod.py')
