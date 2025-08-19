@@ -5,6 +5,7 @@ from __future__ import annotations
 import nox
 from logging import getLogger
 import sys
+import platform
 import os
 import re
 import tomli
@@ -149,7 +150,7 @@ def test(session):
 
   # coverage data for this sessions
   name = re.sub(r"[^A-Za-z0-9\-_]+", "", session.name)
-  session.env['COVERAGE_FILE'] = os.fspath(tmp_dir/f'.coverage.{name}')
+  session.env['COVERAGE_FILE'] = os.fspath(tmp_dir/f'.coverage.{name}.{platform.system().lower()}')
 
   # global coverage config
   session.env['COVERAGE_RCFILE'] = str(pptoml_file)
@@ -171,6 +172,7 @@ def report(session):
   session.env['COVERAGE_RCFILE'] = str(pptoml_file)
 
   # NOTE: avoid error when theres nothing to combine
+  session.run('coverage', '--version')
   session.run('coverage', 'combine', '--debug=dataio', success_codes=[0, 1])
   session.run('coverage', 'report')
 
