@@ -323,6 +323,7 @@ def build_editable(
   if incremental:
     # NOTE: this should clone the current build environment packages to reproduce
     # during incremental builds
+    # TODO: use constraints file instead?
     requirements_file = editable_root/'requirements.txt'
 
     # get build dependencies, pinned to version currently installed
@@ -339,30 +340,35 @@ def build_editable(
     requirements_file.write_text('\n'.join(build_deps))
 
     venv_dir = editable_root/'build_venv'
-    venv_py = str(venv_dir/'bin'/'python')
+    venv_bin = venv_dir/'bin'
+
+    # venv_py = venv_bin/Path(sys.executable).name
     PATH = os.environ['PATH'].split(':')
+    venv_env = {
+      **os.environ,
+      'VIRTUAL_ENV': str(venv_dir),
+      'PATH': ':'.join(PATH+[str(venv_dir/'bin')])}
 
     check_call([
       'uv',
       'venv',
       str(venv_dir),
       '--no-project',
-      '--python',
-      sys.executable])
+      '--python', sys.executable])
+
+    print(f"{list(venv_bin.iterdir())=}")
 
     check_call([
       'uv', 'pip', 'install',
       '--reinstall',
       '-r', str(requirements_file)],
-      env = {
-        **os.environ,
-        'VIRTUAL_ENV': str(venv_dir),
-        'PATH': ':'.join(PATH+[str(venv_dir/'bin')])})
+      env = venv_env)
 
     check_call([
-      venv_py, '-m', 'partis.pyproj.cli', 'build',
+      'python', '-m', 'partis.pyproj.cli', 'build',
       '--incremental',
-      str(pyproj.root)])
+      str(pyproj.root)],
+      env = venv_env)
 
     pyproj.dist_prep()
 
