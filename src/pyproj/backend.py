@@ -137,7 +137,6 @@ def get_requires_for_build_wheel(
   --------
   * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-wheel
   """
-  print(f"get_requires_for_build_wheel({config_settings=})")
 
   pyproj = backend_init(
     config_settings = config_settings,
@@ -356,9 +355,6 @@ def build_editable(
       raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
 
     venv_py = venv_bin/Path(sys.executable).name
-
-    print(f"{os.environ['PATH']=}")
-    print(f"{list(venv_bin.iterdir())=}")
 
     if not (venv_py := venv_bin/Path(sys.executable).name).exists():
       raise FileNotFoundError(f"No virtual environment interpreter: {venv_py}")
