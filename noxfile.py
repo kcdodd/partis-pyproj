@@ -37,6 +37,8 @@ dist_dir = work_dir/'dist'
 build_dir = work_dir/'build'
 reports_dir = work_dir/'reports'
 
+os.environ['PIP_FIND_LINKS'] = str(dist_dir)
+os.environ['UV_FIND_LINKS'] = str(dist_dir)
 
 pptoml = tomli.loads(pptoml_file.read_text())
 
