@@ -279,7 +279,7 @@ def get_requires_for_build_editable(config_settings=None):
 
   # add so incremental virtualenv can be created
   # deps += ['pip', 'virtualenv ~= 20.28.0']
-  deps += ['uv ~= 0.5.25']
+  deps += ['uv ~= 0.8.12']
   return deps
 
 #-----------------------------------------------------------------------------
@@ -340,14 +340,6 @@ def build_editable(
     requirements_file.write_text('\n'.join(build_deps))
 
     venv_dir = editable_root/'build_venv'
-    venv_bin = venv_dir/'bin'
-
-    # venv_py = venv_bin/Path(sys.executable).name
-    PATH = os.environ['PATH'].split(':')
-    venv_env = {
-      **os.environ,
-      'VIRTUAL_ENV': str(venv_dir),
-      'PATH': ':'.join(PATH+[str(venv_dir/'bin')])}
 
     check_call([
       'uv',
@@ -355,6 +347,17 @@ def build_editable(
       str(venv_dir),
       '--no-project',
       '--python', sys.executable])
+
+    for bin in ['bin', 'Scripts']:
+      if (venv_bin := venv_dir/bin).is_dir():
+        break
+    else:
+      raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
+
+    venv_env = {
+      **os.environ,
+      'VIRTUAL_ENV': str(venv_dir),
+      'PATH': ':'.join(os.environ['PATH'].split(':')+[str(venv_dir/'bin')])}
 
     print(f"{list(venv_bin.iterdir())=}")
 
