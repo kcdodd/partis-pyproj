@@ -3,6 +3,7 @@ build >= 0.8.0
 meson >= 0.61.3
 cmake >= 3.24.3
 ninja >= 1.10.2.3
+uv ~= 0.5.25
 nox ~= 2024.10.9
 tomli ~= 2.0.1
 Cython ~= 3.0.0
