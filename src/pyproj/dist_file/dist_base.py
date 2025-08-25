@@ -12,10 +12,13 @@ from abc import(
   ABC,
   abstractmethod )
 from ..norms import (
+  norm_path,
   hash_sha256 )
 from ..validate import (
   validating,
   ValidationError)
+from ..path import (
+  resolve)
 
 #===============================================================================
 class dist_base( ABC ):
@@ -147,6 +150,31 @@ class dist_base( ABC ):
         exist_ok = exist_ok)
 
   #-----------------------------------------------------------------------------
+  def write_link( self,
+    dst: PurePosixPath,
+    target: PurePosixPath,
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True):
+    """Write symlink into the distribution file
+
+    Parameters
+    ----------
+    dst :
+    target :
+    mode :
+    record :
+      Add file to the record
+
+    """
+
+    if record:
+      self.record(
+        dst = dst,
+        data = norm_path(target, parent_ok = True).encode('utf-8'),
+        exist_ok = exist_ok)
+
+  #-----------------------------------------------------------------------------
   def makedirs( self,
     dst: PurePosixPath,
     mode: int|None = None,
@@ -263,7 +291,20 @@ class dist_base( ABC ):
       mode = entry.stat().st_mode
 
       with validating(key = re.sub( r"[^\w\d]+", "_", entry.name )):
-        if entry.is_dir():
+
+        if entry.is_symlink():
+
+          target = Path(os.readlink(src_path))
+
+          # if not target.is_absolute():
+          #   # ensure minimal path within distribution
+          #   target = resolve(src_path/target)
+
+          # target = target.relative_to(src_path)
+
+          self.write_link(dst_path, target, mode=mode)
+
+        elif entry.is_dir():
 
           self.makedirs(
             dst = dst_path,

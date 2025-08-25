@@ -163,6 +163,7 @@ def dist_copy(*,
         src_abs = resolve(src)
 
         if root and not subdir(root, src_abs, check = False):
+          # TODO: specialize error message for symlinks?
           raise FileOutsideRootError(
             f"Must have common path with root:\n  file = \"{src_abs}\"\n  root = \"{root}\"")
 
@@ -174,7 +175,18 @@ def dist_copy(*,
 
         num_copies = len(copy_history)
 
-        if src.is_dir():
+        if src.is_symlink():
+          target = Path(os.readlink(src))
+
+          # if not target.is_absolute():
+          #   # ensure minimal path within distribution
+          #   target = resolve(src/target)
+
+          # target = target.relative_to(src)
+
+          dist.write_link(dst, target, mode = src.stat().st_mode)
+
+        elif src.is_dir():
           dist.copytree(
             src = src,
             dst = dst,
@@ -183,4 +195,5 @@ def dist_copy(*,
         else:
           dist.copyfile(
             src = src,
-            dst = dst )
+            dst = dst,
+            mode = src.stat().st_mode)

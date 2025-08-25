@@ -474,7 +474,7 @@ def tr_chrset(pat):
   return ''.join(parts)
 
 #===============================================================================
-def tr_glob(pat, pid = 0):
+def tr_glob(pat, pid = 0) -> tuple[str, list[GRef]]:
   """
   Notes
   -----
@@ -485,7 +485,7 @@ def tr_glob(pat, pid = 0):
   # collapse repeated separators '//...' to single '/'
   pat = re.sub(r'/+', '/', pat)
 
-  refs = list()
+  refs = []
   segs = GPath()
 
   def add(case):

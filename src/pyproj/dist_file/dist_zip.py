@@ -1,10 +1,12 @@
 from __future__ import annotations
 import os
 from pathlib import (
-  Path)
+  Path,
+  PurePosixPath)
 import tempfile
 import shutil
 import zipfile
+import stat
 from .dist_base import dist_base
 from ..norms import (
   norm_path,
@@ -159,6 +161,40 @@ class dist_zip( dist_base ):
       zinfo,
       data,
       compress_type = zipfile.ZIP_DEFLATED )
+
+  #-----------------------------------------------------------------------------
+  def write_link( self,
+    dst: PurePosixPath,
+    target: PurePosixPath,
+    mode: int|None = None,
+    exist_ok: bool = False,
+    record: bool = True):
+
+    self.assert_open()
+    dst = norm_path(dst)
+    target = norm_path(target, parent_ok = True)
+    data = target.encode('utf-8')
+
+    if record:
+      rec = self.record(
+        dst = dst,
+        data = data,
+        exist_ok = exist_ok)
+
+      if rec is None:
+        # equivalent file has already been added
+        return
+
+    elif not exist_ok and self.exists( dst ):
+      # NOTE: can only skip equivalent files when they are recorded
+      raise ValueError(f"Overwriting destination: {dst}")
+
+    print(f"{type(self).__name__}.write_link({dst}, {target})")
+    zinfo = zipfile.ZipInfo(dst)
+    zinfo.external_attr = norm_zip_external_attr(mode, islink = True)
+
+    self._zipfile.writestr(zinfo, data, compress_type = zipfile.ZIP_DEFLATED)
+
 
   #-----------------------------------------------------------------------------
   def finalize( self ): # pragma: no cover

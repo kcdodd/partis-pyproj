@@ -13,6 +13,8 @@ from .pattern import (
   tr_glob,
   tr_path,
   tr_rel_join )
+from .utils import (
+  subdir)
 
 #===============================================================================
 class PathMatcher:
@@ -28,6 +30,8 @@ class PathMatcher:
     This pattern is to only match the name of a directory.
   relative:
     This pattern is to match relative paths instead of just the base name.
+  start:
+    If given, shifts the pattern as though it were relative to this sub-directory.
 
   Notes
   -----
@@ -86,14 +90,15 @@ class PathMatcher:
     pattern: str,
     negate: bool = False,
     dironly: bool = False,
-    relative: bool = False):
+    relative: bool = False,
+    start: str|PurePath|None = None):
 
     pattern = str(pattern).strip()
     _pattern = pattern
 
     if pattern.startswith('!'):
       # An optional prefix "!" which negates the pattern
-      negate = True
+      negate = not negate
       pattern = pattern[1:]
 
     elif pattern.startswith(r'\!'):
@@ -119,13 +124,18 @@ class PathMatcher:
       elif pattern.startswith('./'):
         pattern = pattern[2:]
 
+    if start is not None and type(start) is not PurePath:
+      start = PurePath(start)
+
     self._pattern = _pattern
     self._pattern_tr, self._pattern_segs = tr_glob(pattern)
     self._rec = re.compile( self._pattern_tr )
     self._match = self._rec.match
+
     self.negate = negate
     self.dironly = dironly
     self.relative = relative
+    self.start = start
 
     #DEBUG print(f"{self._pattern} -> {self._pattern_tr}")
     #DEBUG print('  ' + '\n  '.join([str(seg) for seg in self._pattern_segs]))
@@ -136,11 +146,15 @@ class PathMatcher:
 
   #-----------------------------------------------------------------------------
   def __repr__(self):
-    args = [f"'{self._pattern}'"]
+    # show original pattern before being processed
+    args = [f"{self._pattern!r}"]
 
     for attr in ['negate', 'dironly', 'relative']:
       if getattr(self, attr):
         args.append(f'{attr} = True')
+
+    if self.start is not None:
+      args.append(f"start = {self.start!r}")
 
     args = ', '.join(args)
 
@@ -162,6 +176,10 @@ class PathMatcher:
 
     if not isinstance(path, PurePath):
       path = PurePath(path)
+
+    if (start := self.start) is not None:
+      if (path := subdir(start, path, check=False)) is None:
+        return False
 
     _path = tr_path(path)
     #DEBUG print('match', path, '->', _path)

@@ -1,15 +1,11 @@
 from __future__ import annotations
-import sys
 import os
-import os.path as osp
 from io import (
   IOBase,
   BytesIO)
-import warnings
 import stat
 import re
 import pathlib
-import inspect
 from copy import copy
 from collections.abc import (
   Mapping,
@@ -23,7 +19,6 @@ from email.message import Message
 from email.generator import BytesGenerator
 from email.utils import parseaddr, formataddr
 from urllib.parse import urlparse
-import keyword
 
 from packaging.tags import sys_tags
 from packaging.markers import Marker
@@ -131,7 +126,7 @@ def norm_data(data: str|bytes|IOBase) -> bytes:
   return data
 
 #===============================================================================
-def norm_path( path ) -> pathlib.PurePosixPath:
+def norm_path( path: str|pathlib.PurePath, parent_ok: bool = False) -> str:
   """Normalizes a file path for writing into a distribution archive
 
   Note
@@ -142,7 +137,7 @@ def norm_path( path ) -> pathlib.PurePosixPath:
   * All slashes replaced with forward slashes
   """
 
-  path = str(path)
+  path = os.fspath(path)
 
   if re.search( r'\s+', path ):
     raise ValidationError(
@@ -155,8 +150,12 @@ def norm_path( path ) -> pathlib.PurePosixPath:
   wpath = pathlib.PureWindowsPath( path )
   path = wpath.as_posix()
 
+  if not parent_ok and re.search(r'(\.\.)', path):
+    raise ValidationError(
+      f"path segments can not be relative to parent directories: {path}")
+
   for segment in path.split('/'):
-    if windows_invalid_filename.fullmatch( segment ):
+    if segment != '..' and windows_invalid_filename.fullmatch(segment):
       raise ValidationError(
         f"Path segment '{segment}' invalid on Windows platform: {path}")
 
@@ -164,11 +163,6 @@ def norm_path( path ) -> pathlib.PurePosixPath:
 
   if wpath.is_absolute() or ppath.is_absolute():
     raise ValidationError(f"path must be relative: {path}")
-
-
-  if re.search( r'(\.\.)', path ):
-    raise ValidationError(
-      f"path segments can not be relative to parent directories: {path}")
 
   return path
 
@@ -238,7 +232,7 @@ def norm_mode( mode = None ):
   return _mode
 
 #===============================================================================
-def norm_zip_external_attr( mode = None ):
+def norm_zip_external_attr(mode = None, islink: bool = False):
   """Converts the unix integer mode to zip external_attr
 
   The returned value follows the 4 byte format
@@ -251,6 +245,8 @@ def norm_zip_external_attr( mode = None ):
   Parameters
   ----------
   mode : int
+  islink: bool
+    Set the link flag
 
   Returns
   -------
@@ -262,6 +258,10 @@ def norm_zip_external_attr( mode = None ):
 
   # mask and shift to 3rd byte
   xattr &= 0xFFFF
+
+  if islink:
+    xattr |= stat.S_IFLNK
+
   xattr = xattr << 16
 
   # set directory flag after shift
