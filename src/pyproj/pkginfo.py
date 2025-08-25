@@ -115,6 +115,8 @@ class PkgInfoURL:
 class PkgInfoReq:
   """Internal container for normalizing "Requires-Dist" header metadata
   """
+  req: Requirement
+
   #-----------------------------------------------------------------------------
   def __init__( self, req, extra = '' ):
 

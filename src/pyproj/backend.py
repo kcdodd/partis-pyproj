@@ -137,7 +137,6 @@ def get_requires_for_build_wheel(
   --------
   * https://www.python.org/dev/peps/pep-0517/#get-requires-for-build-wheel
   """
-  print(f"get_requires_for_build_wheel({config_settings=})")
 
   pyproj = backend_init(
     config_settings = config_settings,
@@ -278,7 +277,8 @@ def get_requires_for_build_editable(config_settings=None):
   deps = get_requires_for_build_wheel(config_settings, _editable=True)
 
   # add so incremental virtualenv can be created
-  deps += ['pip', 'virtualenv ~= 20.28.0']
+  # deps += ['pip', 'virtualenv ~= 20.28.0']
+  deps += ['uv ~= 0.8.12']
   return deps
 
 #-----------------------------------------------------------------------------
@@ -322,24 +322,59 @@ def build_editable(
   if incremental:
     # NOTE: this should clone the current build environment packages to reproduce
     # during incremental builds
-    # add virtualenv after, otherwise dist_binary will delete it
-    # requirements = check_output(['python', '-m', 'pip', 'freeze'])
+    # TODO: use constraints file instead?
     requirements_file = editable_root/'requirements.txt'
-    # requirements_file.write_bytes(requirements)
-    requirements_file.write_text('\n'.join(pyproj.env_pkgs))
+
+    # get build dependencies, pinned to version currently installed
+    env_reqs = {
+      pkg.req.name: pkg.req
+      for pkg in [PkgInfoReq(dep) for dep in pyproj.env_pkgs]}
+
+    build_deps = []
+
+    for dep in pyproj.build_requires:
+      req = env_reqs[dep.req.name]
+      build_deps.extend([str(dep.req), str(req)])
+
+    requirements_file.write_text('\n'.join(build_deps))
 
     venv_dir = editable_root/'build_venv'
-    venv_py = str(venv_dir/'bin'/'python')
-    check_call(['virtualenv', str(venv_dir)])
+
     check_call([
-      venv_py, '-m', 'pip', 'install',
-      '--force-reinstall',
-      '-r', str(requirements_file)])
+      'uv',
+      'venv',
+      str(venv_dir),
+      '--no-project',
+      '--python', sys.executable])
+
+
+    for bin in ['bin', 'Scripts']:
+      if (venv_bin := venv_dir/bin).is_dir():
+        break
+    else:
+      raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
+
+    venv_py = venv_bin/Path(sys.executable).name
+
+    if not (venv_py := venv_bin/Path(sys.executable).name).exists():
+      raise FileNotFoundError(f"No virtual environment interpreter: {venv_py}")
+
+    venv_env = {
+      **os.environ,
+      'VIRTUAL_ENV': str(venv_dir),
+      'PATH': os.pathsep.join(os.environ['PATH'].split(os.pathsep)+[str(venv_bin)])}
+
+    check_call([
+      'uv', 'pip', 'install',
+      '--reinstall',
+      '-r', str(requirements_file)],
+      env = venv_env)
 
     check_call([
       venv_py, '-m', 'partis.pyproj.cli', 'build',
-      # '--incremental',
-      str(pyproj.root)])
+      '--incremental',
+      str(pyproj.root)],
+      env = venv_env)
 
     pyproj.dist_prep()
 
