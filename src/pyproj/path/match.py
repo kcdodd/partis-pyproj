@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os.path as osp
 from os import PathLike
-import pathlib
+from functools import partial
 from pathlib import (
   PurePath,
   PureWindowsPath,
@@ -316,6 +316,9 @@ class PathFilter:
 
     return feasible
 
+  #-----------------------------------------------------------------------------
+  def __repr__(self):
+    return f"{type(self).__name__}({self.patterns}, {self.start})"
 
 #===============================================================================
 def contains(a, b):
@@ -369,25 +372,24 @@ def combine_ignore_patterns(*patterns):
   -------
   callable(dir, names) -> matches
   """
-  # TODO: implement as callable object instead of closure for possible inspection
+  return partial(_combined_ignore_patterns, patterns)
 
-  def _ignore_patterns(dir, names):
-    dir = PurePath(dir)
+#===============================================================================
+def _combined_ignore_patterns(patterns, dir, names):
+  dir = PurePath(dir)
 
-    #DEBUG print(f"dir: {dir}")
+  #DEBUG print(f"dir: {dir}")
 
-    feasible = set()
+  feasible = set()
 
-    fnames, dnames = partition_dir(dir, names)
+  fnames, dnames = partition_dir(dir, names)
 
-    #DEBUG print(f"  dnames: {dnames}")
-    #DEBUG print(f"  fnames: {fnames}")
+  #DEBUG print(f"  dnames: {dnames}")
+  #DEBUG print(f"  fnames: {fnames}")
 
-    _dir = tr_path(dir)
+  _dir = tr_path(dir)
 
-    for pattern in patterns:
-      feasible = pattern._filter(_dir, fnames, dnames, feasible)
+  for pattern in patterns:
+    feasible = pattern._filter(_dir, fnames, dnames, feasible)
 
-    return feasible
-
-  return _ignore_patterns
+  return feasible
