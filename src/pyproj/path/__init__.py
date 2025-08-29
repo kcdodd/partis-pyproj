@@ -5,6 +5,11 @@ from .utils import (
   git_tracked_mtime)
 
 from .pattern import (
+  inv_path,
+  tr_path,
+  tr_rel_join,
+  tr_join,
+  tr_subdir,
   PathPatternError,
   PatternError )
 

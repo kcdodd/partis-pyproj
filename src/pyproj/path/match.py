@@ -12,7 +12,8 @@ from .pattern import (
   PatternError,
   tr_glob,
   tr_path,
-  tr_rel_join )
+  tr_rel_join,
+  tr_subdir)
 from .utils import (
   subdir)
 
@@ -31,7 +32,8 @@ class PathMatcher:
   relative:
     This pattern is to match relative paths instead of just the base name.
   start:
-    If given, shifts the pattern as though it were relative to this sub-directory.
+    If given, shifts the pattern as though it were relative to this sub-directory
+    for "relative" patterns
 
   Notes
   -----
@@ -131,6 +133,7 @@ class PathMatcher:
     self._pattern_tr, self._pattern_segs = tr_glob(pattern)
     self._rec = re.compile( self._pattern_tr )
     self._match = self._rec.match
+    self._start = None if start is None else tr_path(start)
 
     self.negate = negate
     self.dironly = dironly
@@ -306,7 +309,10 @@ class PathFilter:
       match = pattern._match
 
       if pattern.relative:
-        feasible = op({ name for name, path in _name_paths if match(path) })
+        if (start := pattern._start) is not None:
+          feasible = op({ name for name, path in _name_paths if match(tr_subdir(start, path)) })
+        else:
+          feasible = op({ name for name, path in _name_paths if match(path) })
       else:
         feasible = op({ name for name, path in _name_paths if match(name) })
 

@@ -78,7 +78,7 @@ def _init_pyproj(
   if not description:
     description = f"Package for {project}"
 
-
+  dependencies = []
   ignore_patterns = [
     '.git/',
     '.gitignore',
@@ -116,6 +116,10 @@ def _init_pyproj(
       readme_file = name
     elif name.upper().startswith('LICENSE'):
       license_file = name
+    elif name == 'requirements.txt':
+      dependencies.extend([
+        dep.strip()
+        for dep in Path(root/name).read_text().splitlines()])
     else:
       copy_sources.append(name)
 
@@ -128,6 +132,11 @@ def _init_pyproj(
   purelib = [
     file.parent.relative_to(root)
     for file in root.glob(f'**/{project}/__init__.py')]
+
+  dependencies = [
+    dep
+    for dep in dependencies
+    if dep and not dep.startswith('#')]
 
   # print(f"project.readme.file: {readme_file}")
   # print(f"project.license.file: {license_file}")
@@ -143,6 +152,7 @@ def _init_pyproj(
     description=description,
     license_file=license_file,
     readme_file=readme_file,
+    dependencies = ',\n'.join([f"  {dep!r}" for dep in dependencies]),
     sources = ',\n'.join([f"  '{name}'" for name in copy_sources]),
     purelib = ',\n'.join([f"  {{src = '{name}', dst = '{project}'}}" for name in purelib]))
 
@@ -183,6 +193,11 @@ description = "${description}"
 version = "${version}"
 readme = { file = "${readme_file}" }
 license = { file = "${license_file}" }
+
+requires-python = ">= 3.8"
+dependencies = [
+${dependencies}
+]
 
 #-------------------------------------------------------------------------------
 [build-system]

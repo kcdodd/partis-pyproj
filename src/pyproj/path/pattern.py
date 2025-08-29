@@ -96,7 +96,7 @@ rec_glob = re.compile(re_glob)
 rec_unescape = re.compile(r'\\([*?[])')
 
 #===============================================================================
-def tr_rel_join(start: str, dir: str, names: list[str]) -> list[tuple[str, str]]:
+def tr_rel_join(start: str|None, dir: str, names: list[str]) -> list[tuple[str, str]]:
   """Creates paths relative to a 'start' path for a list of names in a 'dir'
   'start' and 'dir' must already be translated by :func:`tr_path`.
 
@@ -132,7 +132,7 @@ def tr_join(*args: str):
   return SEP.join(args)
 
 #===============================================================================
-def tr_subdir(start: str, path: str) -> str:
+def tr_subdir(start: str|None, path: str) -> str:
   """Relative path, restricted to sub-directories.
 
   Parameters
@@ -486,6 +486,10 @@ def tr_glob(pat, pid = 0) -> tuple[str, list[GRef]]:
   pat = re.sub(r'/+', '/', pat)
 
   refs = []
+
+  if pat == '**':
+    return r'\A.*\Z', refs
+
   segs = GPath()
 
   def add(case):
@@ -500,6 +504,7 @@ def tr_glob(pat, pid = 0) -> tuple[str, list[GRef]]:
 
 
   i = 0
+  m = None
 
   for m in rec_glob.finditer(pat):
 
@@ -546,7 +551,7 @@ def tr_glob(pat, pid = 0) -> tuple[str, list[GRef]]:
     i = m.end()
 
   if i != len(pat):
-    undefined = pat[i:m.start()]
+    undefined = pat[i:]
     refs.append(GRef(undefined, 'undefined', i, len(pat)))
     raise PatternError("Invalid pattern", pat, refs)
 

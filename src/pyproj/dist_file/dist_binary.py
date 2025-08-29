@@ -374,9 +374,9 @@ class dist_binary_editable( dist_binary_wheel ):
     self.pptoml_checksum = pptoml_checksum
     self.whl_root = whl_root
 
-    if not (root/'.git').exists():
+    if incremental and not (root/'.git').exists():
       raise NotImplementedError(
-        f"Editable installs are only supported from a source repository: {self.root}")
+        f"Incremental editable installs are only supported from a source repository: {self.root}")
 
   #-----------------------------------------------------------------------------
   def finalize(self, metadata_directory: str|None = None): # pragma: no cover

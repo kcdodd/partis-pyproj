@@ -320,6 +320,10 @@ def build_editable(
     if target.enabled)
 
   if incremental:
+    if not Path('.git').exists():
+      raise NotImplementedError(
+        f"Incremental editable installs are only supported from a source repository: {Path()}")
+
     # NOTE: this should clone the current build environment packages to reproduce
     # during incremental builds
     # TODO: use constraints file instead?
