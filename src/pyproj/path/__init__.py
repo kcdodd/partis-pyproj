@@ -20,3 +20,8 @@ from .match import (
   partition,
   partition_dir,
   combine_ignore_patterns )
+
+from .scandir import (
+  FileInfo,
+  DirInfo,
+  scandir_recursive)

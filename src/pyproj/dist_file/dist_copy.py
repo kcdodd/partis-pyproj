@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-import glob
+from collections.abc import Iterable
 from pathlib import (
   Path)
 import logging
@@ -11,130 +11,122 @@ from ..validate import (
 from ..path import (
   PathFilter,
   subdir,
-  combine_ignore_patterns,
-  resolve)
+  resolve,
+  FileInfo,
+  DirInfo,
+  scandir_recursive)
 from ..pptoml import (
-  pyproj_dist_copy)
-
-#===============================================================================
-def _rglob(pattern: str, *, root_dir: Path) -> list[Path]:
-  # detect if glob will be recursive by finding '**' in the pattern
-  recursive = '**' in pattern
-
-  # NOTE: root_dir added in Python 3.10
-  cwd = Path.cwd()
-
-  try:
-    os.chdir(root_dir)
-    matches = glob.glob(pattern, recursive = recursive)
-
-    matches = [Path(m) for m in matches]
-
-    if recursive:
-      # don't match directories in recursive mode, since copying a parent
-      # directory negates the need to recurse
-      matches = [m for m in matches if not m.is_dir()]
-
-  finally:
-    os.chdir(cwd)
-
-  return matches
+  Include,
+  PyprojDistCopy)
 
 #===============================================================================
 def dist_iter(*,
-  copy_items: list[pyproj_dist_copy],
+  copy_items: list[PyprojDistCopy],
   ignore: list[str],
   root: Path,
   logger: logging.Logger):
 
-  patterns  = PathFilter(
-    patterns = ignore )
+  exclude = (PathFilter(ignore),)
 
+  # pre-scan all files in the project
+  scanned: DirInfo = scandir_recursive(root)
 
+  for i, cp in enumerate(copy_items):
+    src = cp.src
+    dst = cp.dst
+    include = cp.include
 
-  for i, incl in enumerate(copy_items):
-    src = incl.src
-    dst = incl.dst
-    _ignore = incl.ignore
+    # logger.debug(f"  - copy: {src} >> {dst}")
 
-    _ignore_patterns = combine_ignore_patterns(
-      patterns,
-      PathFilter(
-        patterns = _ignore,
-        start = src ) )
-
-    if not incl.include:
-      # each copy specifies a single path
-      # logger.debug(f"  - from: {src}\n  -   to: {dst}")
-      yield ( i, src, dst, _ignore_patterns, True )
-
+    if _ignore := cp.ignore:
+      # logger.debug(f"    - ignore: {cp.ignore}")
+      _exclude = exclude + (PathFilter(_ignore, start = src),)
     else:
-      # each copy can result in many paths
-      for incl_pattern in incl.include:
-        # produce list of possible copies by glob pattern, relative to 'src'
-        matches = _rglob(incl_pattern.glob, root_dir=src)
-        # logger.debug(f"- glob: {len(matches)} matches with pattern {incl_pattern.glob!r} in {str(src)!r}")
+      _exclude = exclude
 
-        if not matches:
-          logger.warning(f"Copy pattern did not yield any files: {incl_pattern.glob!r}")
+    try:
+      src_info = scanned.get(src)
+    except Exception as e:
+      # raise ValidationError() from e
+      logger.error(f"    - error: {e}", exc_info=e)
+      raise
+
+    # logger.debug(f"    - src_info: {src_info}")
+
+    if type(src_info) is FileInfo:
+      # logger.debug(f"    - from: {str(src)!r}")
+      # logger.debug(f"    -   to: {str(dst)!r}")
+      yield (i, src, dst)
+      continue
+
+    if not include:
+      include = [Include()]
+
+    for incl in include:
+      try:
+        matches = src_info.glob(
+          PathFilter(incl.glob, start=src),
+          exclude = _exclude,
+          dirpath = src)
+      except Exception as e:
+        logger.error(f"    - error: {e}", exc_info=e)
+        raise
+
+      # logger.debug(f"    - glob: {incl.glob} -> {len(matches)} matches")
+
+      if not matches:
+        logger.warning(f"Copy pattern did not yield any files: {incl.glob!r}")
+        continue
+
+      for i, (path, info) in enumerate(matches):
+        parent = path.parent.relative_to(src)
+        src_filename = path.name
+        # logger.debug(f"    - match:  {parent/src_filename}")
+
+        if incl.strip:
+          # remove leading path components
+          dst_parent = type(parent)(*parent.parts[incl.strip:])
+          # logger.debug(f"      - stripped:  {parent.parts[:incl.strip]}")
+        else:
+          dst_parent = parent
+
+        # match to regular expression
+        m = incl.rematch.fullmatch(src_filename)
+
+        if not m:
+          # logger.debug(f"      - !rematch: {src_filename!r} (pattern = {incl.rematch})")
           continue
 
-        for i, match in enumerate(matches):
-          parent = match.parent
-          src_filename = match.name
+        # apply replacement
+        if incl.replace == '{0}':
+          dst_filename = src_filename
 
-          if _ignore_patterns(src/parent, [src_filename]):
-            # Only filter by ignore pattern if this path was part of a glob
-            # logger.debug(f"  - ignored: {match}")
-            continue
+        else:
+          args = (m.group(0), *m.groups())
+          kwargs = m.groupdict()
 
-          # logger.debug(f"  - match: {match}")
+          try:
+            dst_filename = incl.replace.format(*args, **kwargs)
+            # logger.debug(f"      - renamed: {src_filename!r} -> {dst_filename!r} ({incl.rematch.pattern!r} -> {incl.replace!r})")
 
-          if incl_pattern.strip:
-            # remove leading path components
-            dst_parent = type(parent)(*parent.parts[incl_pattern.strip:])
-            # logger.debug(f"    - stripped:  {parent.parts[:incl_pattern.strip]}")
-          else:
-            dst_parent = parent
+          except (IndexError, KeyError) as e:
+            raise ValidationError(
+              f"Replacement {incl.replace!r} failed for"
+              f" {incl.rematch.pattern!r}:"
+              f" {args}, {kwargs}") from None
 
-          # match to regular expression
-          m = incl_pattern.rematch.fullmatch(src_filename)
+        _src = src/parent/src_filename
+        # re-base the dst path, (path relative to src) == (path relative to dst)
+        _dst = dst/dst_parent/dst_filename
 
-          if not m:
-            # logger.debug(f"    - !rematch: {src_filename!r} (pattern = {incl_pattern.rematch})")
-            continue
-
-          # apply replacement
-          if incl_pattern.replace == '{0}':
-            dst_filename = src_filename
-
-          else:
-            args = (m.group(0), *m.groups())
-            kwargs = m.groupdict()
-
-            try:
-              dst_filename = incl_pattern.replace.format(*args, **kwargs)
-              # logger.debug(f"    - renamed: {dst_filename!r} (template = {incl_pattern.replace!r})")
-
-            except (IndexError, KeyError) as e:
-              raise ValidationError(
-                f"Replacement '{incl_pattern.replace}' failed for"
-                f" '{incl_pattern.rematch.pattern}':"
-                f" {args}, {kwargs}") from None
-
-          _src = src/parent/src_filename
-          # re-base the dst path, (path relative to src) == (path relative to dst)
-          _dst = dst/dst_parent/dst_filename
-
-          # logger.debug(f"    - from: {str(_src)!r}\n    -   to: {str(_dst)!r}")
-
-          yield (i, _src, _dst, _ignore_patterns, False)
-
+        # logger.debug(f"      - from: {str(_src)!r}")
+        # logger.debug(f"      -   to: {str(_dst)!r}")
+        yield (i, _src, _dst)
 
 #===============================================================================
 def dist_copy(*,
   base_path: Path,
-  copy_items: list[pyproj_dist_copy],
+  copy_items: list[PyprojDistCopy],
   ignore,
   dist,
   root = None,
@@ -151,7 +143,7 @@ def dist_copy(*,
 
   with validating(key = 'copy'):
 
-    for i, src, dst, ignore_patterns, individual in dist_iter(
+    for i, src, dst in dist_iter(
       copy_items = copy_items,
       ignore = ignore,
       root = root,
@@ -187,10 +179,7 @@ def dist_copy(*,
           dist.write_link(dst, target, mode = src.stat().st_mode)
 
         elif src.is_dir():
-          dist.copytree(
-            src = src,
-            dst = dst,
-            ignore = ignore_patterns )
+          raise AssertionError("dist_iter should not yield directories")
 
         else:
           dist.copyfile(

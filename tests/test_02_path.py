@@ -18,8 +18,6 @@ from partis.pyproj import (
 from partis.pyproj.path.pattern import (
   tr_path,
   inv_path,
-  tr_rel_join,
-  tr_glob,
   PatternError)
 
 pxp = pathlib.PurePosixPath

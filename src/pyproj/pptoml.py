@@ -344,17 +344,12 @@ class pyproj_targets(valid_list):
   value_valid = valid(pyproj_build_target)
 
 #===============================================================================
-class ignore_list(valid_list):
+class IgnoreList(valid_list):
   _as_list = valid(as_list)
   value_valid = valid(nonempty_str)
 
 #===============================================================================
-class glob_list(valid_list):
-  _as_list = valid(as_list)
-  value_valid = valid(nonempty_str)
-
-#===============================================================================
-class include(valid_dict):
+class Include(valid_dict):
   allow_keys = list()
   # a string at top-level interpreted as 'match'
   proxy_key = 'glob'
@@ -366,12 +361,12 @@ class include(valid_dict):
     'strip': valid(int)}
 
 #===============================================================================
-class include_list(valid_list):
+class IncludeList(valid_list):
   _as_list = valid(as_list)
-  value_valid = valid(include)
+  value_valid = valid(Include)
 
 #===============================================================================
-class pyproj_dist_copy(valid_dict):
+class PyprojDistCopy(valid_dict):
   # a string at top-level interpreted as 'src'
   proxy_key = 'src'
   # take 'dst' from 'src' if not set
@@ -386,18 +381,18 @@ class pyproj_dist_copy(valid_dict):
     'src': valid(REQUIRED, PurePosixPath, Path),
     # the destination path in the archive should remain as a POSIX path
     'dst': valid(REQUIRED, PurePosixPath),
-    'include': include_list,
-    'ignore': ignore_list }
+    'include': IncludeList,
+    'ignore': IgnoreList }
 
 #===============================================================================
 class pyproj_dist_copy_list(valid_list):
-  value_valid = valid(pyproj_dist_copy)
+  value_valid = valid(PyprojDistCopy)
 
 #===============================================================================
 class pyproj_dist_scheme(valid_dict):
   allow_keys = list()
   default = {
-    'ignore': ignore_list,
+    'ignore': IgnoreList,
     'copy': pyproj_dist_copy_list }
 
 #===============================================================================
@@ -408,7 +403,7 @@ class pyproj_dist_binary(valid_dict):
     'build_suffix': valid(OPTIONAL_NONE, str),
     'compat_tags': valid(purelib_compat_tags(), compat_tags),
     'prep': valid(OPTIONAL_NONE, pyproj_dist_binary_prep),
-    'ignore': ignore_list,
+    'ignore': IgnoreList,
     'copy': pyproj_dist_copy_list,
     'data': pyproj_dist_scheme,
     'headers': pyproj_dist_scheme,
@@ -421,7 +416,7 @@ class pyproj_dist_source(valid_dict):
   allow_keys = list()
   default = {
     'prep': valid(OPTIONAL, pyproj_dist_source_prep),
-    'ignore': ignore_list,
+    'ignore': IgnoreList,
     'copy': pyproj_dist_copy_list,
     'add_legacy_setup': valid(False, norm_bool) }
 
@@ -430,7 +425,7 @@ class pyproj_dist(valid_dict):
   allow_keys = list()
   default = {
     'prep': valid(OPTIONAL, pyproj_dist_prep),
-    'ignore': ignore_list,
+    'ignore': IgnoreList,
     'source': pyproj_dist_source,
     'binary': pyproj_dist_binary }
 

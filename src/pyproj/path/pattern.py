@@ -96,27 +96,40 @@ rec_glob = re.compile(re_glob)
 rec_unescape = re.compile(r'\\([*?[])')
 
 #===============================================================================
-def tr_rel_join(start: str|None, dir: str, names: list[str]) -> list[tuple[str, str]]:
+def tr_rel_join(
+    start: str|None,
+    dir: str,
+    names: list[str],
+    check: bool = True
+    ) -> list[tuple[str, str]]:
   """Creates paths relative to a 'start' path for a list of names in a 'dir'
   'start' and 'dir' must already be translated by :func:`tr_path`.
 
   Parameters
   ----------
   start:
-    Starting directory, already translated by :func:`tr_path`.
+    Starting directory, already translated by :func:`tr_path`. If None, `dir` is
+    used as-is.
   dir: str
     Directory to compute relative path to, *must* be a sub-directory of `start`,
     already translated by :func:`tr_path`.
   names:
     List of names in `dir`
+  check:
+    If True, raises an exception if `dir` is not a sub-directory of `start`.
+    Otherwise an empty list is returned.
+
 
   Returns
   -------
   List of names joined with path relative to `start`
   """
 
-  rpath = tr_subdir( start, dir )
+  rpath = tr_subdir(start, dir, check=check)
   #DEBUG print(f"  rpath: {rpath}")
+
+  if rpath is None:
+    return []
 
   return [
     (name, tr_join(rpath, name))
@@ -126,27 +139,33 @@ def tr_rel_join(start: str|None, dir: str, names: list[str]) -> list[tuple[str, 
 def tr_join(*args: str):
   """Joins paths already translated by :func:`tr_path`.
   """
-
-  args = [x for x in args if x]
-
-  return SEP.join(args)
+  return SEP.join([x for x in args if x])
 
 #===============================================================================
-def tr_subdir(start: str|None, path: str) -> str:
+def tr_subdir(
+    start: str|None,
+    path: str,
+    check: bool = True
+    ) -> str|None:
   """Relative path, restricted to sub-directories.
 
   Parameters
   ----------
   start:
-    Starting directory, already translated by :func:`tr_path`.
+    Starting directory, already translated by :func:`tr_path`. If None, `path`
+    is simply returned as-is.
   path:
     Directory to compute relative path to, *must* be a sub-directory of `start`,
     already translated by :func:`tr_path`.
+  check:
+    If True, raises `PathPatternError` if `path` is not a sub-directory of `start`.
+    Otherwise `None` is returned.
 
   Returns
   -------
   rpath:
     Relative path from `start` to `path`.
+    `None` is returned if `check` is False and `path` was not a sub-directory of `start`.
   """
 
   #DEBUG print(f"  tr_subdir({start}, {path})")
@@ -159,7 +178,10 @@ def tr_subdir(start: str|None, path: str) -> str:
   _rpath = _subdir(_start, _path)
 
   if _rpath is None:
-    raise PathPatternError(f"Not a subdirectory of {inv_path(start)}: {inv_path(path)}")
+    if check:
+      raise PathPatternError(f"Not a subdirectory of {inv_path(start)!r}: {inv_path(path)!r}")
+
+    return None
 
   return SEP.join(_rpath)
 

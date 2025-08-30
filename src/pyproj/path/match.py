@@ -32,8 +32,7 @@ class PathMatcher:
   relative:
     This pattern is to match relative paths instead of just the base name.
   start:
-    If given, shifts the pattern as though it were relative to this sub-directory
-    for "relative" patterns
+    If given, paths are translated relative to this sub-directory before matching.
 
   Notes
   -----
@@ -176,6 +175,8 @@ class PathMatcher:
       True if the ``path`` matches this pattern
 
     """
+    if path is None:
+      return False
 
     if not isinstance(path, PurePath):
       path = PurePath(path)
@@ -211,6 +212,10 @@ class PathFilter:
   ----------
   patterns:
   start:
+    If given, paths are translated relative to this sub-directory before matching.
+    Note that patterns `PathMatcher.start` (if defined) must be relative to
+    the `PathFilter.start`. The path actually being tested is equivalent to
+    `pattern.match(path.relative_to(filter.start).relative_to(pattern.start))`
   """
   #-----------------------------------------------------------------------------
   def __init__(self,
@@ -244,7 +249,8 @@ class PathFilter:
       dir: PathLike,
       fnames: list[str],
       dnames: list[str]|None = None,
-      feasible: set[str]|None = None) -> set[str]:
+      feasible: set[str]|None = None,
+      check: bool = True) -> set[str]:
     """Filter a list of names in a directory
 
     Parameters
@@ -263,6 +269,10 @@ class PathFilter:
     feasible:
       The current feasible set of names (from either dnames or fnames) that have
       been matched.
+    check:
+      If True, raises an exception when relative paths cannot be constructed.
+      Otherwise, those paths behave as though they don't match.
+
 
     Returns
     -------
@@ -284,15 +294,21 @@ class PathFilter:
     fnames = [d.rstrip(osp.sep) for d in fnames]
     dnames = [d.rstrip(osp.sep) for d in dnames]
 
-    return self._filter(_dir, fnames, dnames, feasible)
+    return self._filter(_dir, fnames, dnames, feasible, check)
 
   #-----------------------------------------------------------------------------
-  def _filter(self, dir, fnames, dnames, feasible = None):
+  def _filter(self,
+      dir: str,
+      fnames: list[str],
+      dnames: list[str],
+      feasible: set[str]|None = None,
+      check: bool = True):
     """Internal method, assumes dir has already been converted to posix, and
     fnames/dnames must be separatly given.
     """
-    dname_paths = tr_rel_join(self._start, dir, dnames)
-    fname_paths = tr_rel_join(self._start, dir, fnames)
+    # translate relative to filter.start
+    dname_paths = tr_rel_join(self._start, dir, dnames, check=check)
+    fname_paths = tr_rel_join(self._start, dir, fnames, check=check)
     name_paths = dname_paths + fname_paths
 
     if feasible is None:
@@ -302,18 +318,27 @@ class PathFilter:
     #DEBUG print(f"    fnames: {fname_paths}")
     #DEBUG print(f"    dnames: {dname_paths}")
 
-    # Can only match directories, filter out other names
     for pattern in self.patterns:
+      # select whether matches add to or remove from existing matches
       op = feasible.difference if pattern.negate else feasible.union
+      # select whether to match only directories, or all paths
       _name_paths = dname_paths if pattern.dironly else name_paths
       match = pattern._match
 
       if pattern.relative:
+        # match full path
         if (start := pattern._start) is not None:
-          feasible = op({ name for name, path in _name_paths if match(tr_subdir(start, path)) })
-        else:
-          feasible = op({ name for name, path in _name_paths if match(path) })
+          # translate relative to pattern.start
+          _name_paths = [
+            (name, tr_subdir(start, path, check=check))
+            for name, path in _name_paths]
+
+        feasible = op({
+          name
+          for name, path in _name_paths
+          if path is not None and match(path)})
       else:
+        # match only base-name of path
         feasible = op({ name for name, path in _name_paths if match(name) })
 
       #DEBUG print(f"    - {repr(pattern)} -> {feasible}")
@@ -324,7 +349,7 @@ class PathFilter:
 
   #-----------------------------------------------------------------------------
   def __repr__(self):
-    return f"{type(self).__name__}({self.patterns}, {self.start})"
+    return f"{type(self).__name__}({self.patterns}, {self.start!r})"
 
 #===============================================================================
 def contains(a, b):

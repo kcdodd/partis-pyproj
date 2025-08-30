@@ -152,7 +152,7 @@ def get_requires_for_build_wheel(
 
   reqs = [ str(r) for r in build_requires ]
 
-  pyproj.logger.info(f'get_requires_for_build_wheel: {reqs}')
+  pyproj.logger.debug(f'get_requires_for_build_wheel: {reqs}')
 
   return reqs
 
@@ -266,7 +266,7 @@ def build_wheel(
 
 
   record_hash = dist.finalize(metadata_directory)
-  pyproj.logger.info(
+  pyproj.logger.debug(
     f"Top level packages {dist.top_level}")
 
   return dist.outname
@@ -406,7 +406,7 @@ def build_editable(
     record_hash = dist.finalize(metadata_directory)
 
 
-  pyproj.logger.info(
+  pyproj.logger.debug(
     f"Top level packages {dist.top_level}")
 
   return dist.outname
