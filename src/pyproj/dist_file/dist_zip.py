@@ -173,6 +173,8 @@ class dist_zip( dist_base ):
     self.assert_open()
     dst = norm_path(dst)
     target = norm_path(target, parent_ok = True)
+    self.logger.debug(f"write_link {dst} ({target})")
+
     data = target.encode('utf-8')
 
     if record:
@@ -189,7 +191,6 @@ class dist_zip( dist_base ):
       # NOTE: can only skip equivalent files when they are recorded
       raise ValueError(f"Overwriting destination: {dst}")
 
-    print(f"{type(self).__name__}.write_link({dst}, {target})")
     zinfo = zipfile.ZipInfo(dst)
     zinfo.external_attr = norm_zip_external_attr(mode, islink = True)
 

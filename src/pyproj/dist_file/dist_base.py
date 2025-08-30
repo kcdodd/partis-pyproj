@@ -167,6 +167,7 @@ class dist_base( ABC ):
       Add file to the record
 
     """
+    self.logger.debug(f"write_link {dst} ({target})")
 
     if record:
       self.record(
@@ -225,7 +226,7 @@ class dist_base( ABC ):
     if not src.exists():
       raise ValueError(f"Source file not found: {src}")
 
-    self.logger.debug( f'copyfile {src}' )
+    self.logger.debug(f'copyfile {src} -> {dst}')
 
     if mode is None:
       mode = src.stat().st_mode
@@ -267,7 +268,7 @@ class dist_base( ABC ):
     if not src.exists():
       raise ValueError(f"Source directory not found: {src}")
 
-    self.logger.debug( f'copytree {src}' )
+    self.logger.debug(f'copytree {src} -> {dst}')
 
     # returns an iterator of DirEntry
     entries = list(os.scandir(src))

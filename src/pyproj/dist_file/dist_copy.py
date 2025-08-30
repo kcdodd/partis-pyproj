@@ -24,12 +24,13 @@ def dist_iter(*,
   copy_items: list[PyprojDistCopy],
   ignore: list[str],
   root: Path,
-  logger: logging.Logger):
+  logger: logging.Logger,
+  follow_symlinks: bool = False):
 
   exclude = (PathFilter(ignore),)
 
   # pre-scan all files in the project
-  scanned: DirInfo = scandir_recursive(root)
+  scanned: DirInfo = scandir_recursive(root, follow_symlinks=follow_symlinks)
 
   for i, cp in enumerate(copy_items):
     src = cp.src
@@ -130,7 +131,8 @@ def dist_copy(*,
   ignore,
   dist,
   root = None,
-  logger = None ):
+  logger = None,
+  follow_symlinks: bool = False):
 
   if len(copy_items) == 0:
     return
@@ -147,6 +149,7 @@ def dist_copy(*,
       copy_items = copy_items,
       ignore = ignore,
       root = root,
+      follow_symlinks = follow_symlinks,
       logger = logger):
 
       with validating(key = i):
@@ -167,7 +170,7 @@ def dist_copy(*,
 
         num_copies = len(copy_history)
 
-        if src.is_symlink():
+        if not follow_symlinks and src.is_symlink():
           target = Path(os.readlink(src))
 
           # if not target.is_absolute():

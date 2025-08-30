@@ -184,7 +184,6 @@ def scandir_recursive(
     in DirInfo.ignore. These are *not* used during the scan, all files will
     still be returned.
   """
-
   files = {}
   dirs = {}
   errors = {}
@@ -206,7 +205,7 @@ def scandir_recursive(
               PurePath(os_readlink(path)))
 
           elif stat.S_ISDIR(s.st_mode):
-            dirs[entry.name] = scandir_recursive(path)
+            dirs[entry.name] = scandir_recursive(path, follow_symlinks, gitignore)
 
           else:
             files[entry.name] = FileInfo(

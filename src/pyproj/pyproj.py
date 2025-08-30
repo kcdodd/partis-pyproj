@@ -428,7 +428,8 @@ class PyProjBase:
         ignore = ignore,
         dist = dist,
         root = self.root,
-        logger = self.logger )
+        logger = self.logger,
+        follow_symlinks = True)
 
       data_scheme = [
         'data',
@@ -452,4 +453,5 @@ class PyProjBase:
               ignore = _ignore,
               dist = dist,
               root = self.root,
-              logger = self.logger )
+              logger = self.logger,
+              follow_symlinks = True)

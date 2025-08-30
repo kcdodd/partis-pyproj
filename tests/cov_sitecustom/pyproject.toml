@@ -9,7 +9,7 @@ dependencies = [
 
 [build-system]
 requires = [
-  "partis-pyproj >= 0.0.1" ]
+  "partis-pyproj == 0.2.1" ]
 
 build-backend = "partis.pyproj.backend"
 

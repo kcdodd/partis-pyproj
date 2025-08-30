@@ -23,7 +23,7 @@ test = ["pytest>7", {include-group = "coverage"}]
 #===============================================================================
 [build-system]
 requires = [
-  "partis-pyproj >= 0.0.1"]
+  "partis-pyproj == 0.2.1"]
 
 build-backend = "partis.pyproj.backend"
 
@@ -33,6 +33,11 @@ opt_a = 1
 opt_b = ["xyz", "abc"]
 opt_c = false
 opt_d = 0.0
+
+#-------------------------------------------------------------------------------
+[tool.pyproj.dist]
+
+ignore = ['__pycache__']
 
 #...............................................................................
 [tool.pyproj.prep]
@@ -69,7 +74,7 @@ src = 'src/test_pkg/pure_mod'
 dst = 'test_pkg_base/pure_mod'
 
 [[tool.pyproj.dist.binary.purelib.copy]]
-glob = '**/*.py'
+# glob = '**/*.py'
 ignore = '**/bad_file.py'
 src = 'src/test_pkg/sub_mod'
 dst = 'test_pkg_base/sub_mod'

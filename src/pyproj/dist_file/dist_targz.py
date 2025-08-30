@@ -175,6 +175,8 @@ class dist_targz( dist_base ):
     self.assert_open()
     dst = norm_path(dst)
     target = norm_path(target, parent_ok = True)
+    self.logger.debug(f"write_link {dst} ({target})")
+
     data = target.encode('utf-8')
 
     if record:
@@ -194,7 +196,6 @@ class dist_targz( dist_base ):
     info = tarfile.TarInfo(dst)
     info.type = tarfile.SYMTYPE
     info.linkname = target
-    print(f"{type(self).__name__}.write_link({dst}, {target})")
     self._tarfile.addfile(info)
 
   #-----------------------------------------------------------------------------

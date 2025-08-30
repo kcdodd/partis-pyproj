@@ -92,18 +92,24 @@ formats and behaviors.
 
 **Source and destination**
 
-* Each item listed in a `copy` is treated like `copyfile` or `copytree`, depending on whether the `src` is a file or a directory.
+* Each item listed in a `copy` is treated like `copyfile` or `copytree`, depending
+  on whether the `src` is a file or a directory.
 * All `src` must exist within the root of the project, any external or generated
   files must be prepared before the copy operation.
 * If `src` is a directory, all files are copied recursively unless they
   match an ignore pattern for that distribution type.
 * If an item is a single path, it is expanded as ``dst = src``.
-* `dst` is relative, specifically depending on whether it is a source or binary (wheel) distribution and which install scheme is desired (`purelib`, `platlib`, etc.).
+* `dst` is relative, specifically depending on whether it is a source or binary (wheel)
+  distribution and which install scheme is desired (`purelib`, `platlib`, etc.).
 * Destination file paths are constructed from matched source paths roughly equivalent
   to `{scheme}/dst/match.relative_to(src)`.
-* Symlinks that resolve within the project root are preserved; links that point
-  outside the tree or are dangling result in an error. Hidden files are treated
-  like any other path unless ignored.
+* For source distributions, symlinks that resolve within the project root are preserved;
+  links that point outside the tree or are dangling result in an error.
+  Link targets copied into distributions are transformed so they are relative to
+  its location.
+* Wheels do not support symbolic links, and links are expanded in place leading
+  to possible file duplication.
+* Hidden files are treated like any other path unless ignored.
 * Pattern matching uses POSIX-style `/` separators. On case-insensitive file
   systems (e.g. Windows) different source files that would map to the same
   destination path are considered collisions and abort the copy.
