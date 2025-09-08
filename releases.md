@@ -1,6 +1,6 @@
 # Releases
 
-## v0.2.1 - WIP
+## v0.2.1 - 2025-09-07
 
 - Support editable installs according to [PEP 660](https://peps.python.org/pep-0660/).
 - Add support for incremental rebuilds in editable installs (with caveats).
