@@ -31,6 +31,8 @@ from ..template import (
 from ..pptoml import pyproj_targets
 
 ERROR_REC = re.compile(r"error:", re.I)
+TMP = tempfile.gettempdir()
+PY_VERSION = '.'.join(str(v) for v in sys.version_info)
 
 pyexe = sys.executable
 
@@ -113,10 +115,10 @@ class Builder:
     status_content = '\n'.join([
       f"HEAD={self.pyproj.commit}",
       f"PPTOML_CHECKSUM={self.pyproj.pptoml_checksum}",
-      f"PYTHON={sys.implementation.name}, {sys.version}, api={str(sys.api_version)}",
+      f"PYTHON={sys.implementation.name}, {PY_VERSION}, api={str(sys.api_version)}",
       f"PLATFORM={sys.platform}",
       # must depend on sys.path, since that is where build dependencies are configured
-      "SYSPATH=\n  " + '\n  '.join(sys.path),
+      "SYSPATH=\n  " + '\n  '.join(v for v in sys.path if not v.startswith(TMP)),
       "PACKAGES=\n  " + '\n  '.join(self.pyproj.env_pkgs)])
 
     status_files = set()

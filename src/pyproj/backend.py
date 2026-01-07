@@ -337,6 +337,7 @@ def build_editable(
     build_deps = []
 
     for dep in pyproj.build_requires:
+      # TODO: build_requires names may not be normalized/match those of installed package
       req = env_reqs[dep.req.name]
       build_deps.extend([str(dep.req), str(req)])
 
