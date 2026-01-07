@@ -320,9 +320,9 @@ def build_editable(
     if target.enabled)
 
   if incremental:
-    if not Path('.git').exists():
-      raise NotImplementedError(
-        f"Incremental editable installs are only supported from a source repository: {Path()}")
+    # if not Path('.git').exists():
+    #   raise NotImplementedError(
+    #     f"Incremental editable installs are only supported from a source repository: {Path()}")
 
     # NOTE: this should clone the current build environment packages to reproduce
     # during incremental builds
@@ -345,12 +345,13 @@ def build_editable(
 
     venv_dir = editable_root/'build_venv'
 
-    check_call([
-      'uv',
-      'venv',
-      str(venv_dir),
-      '--no-project',
-      '--python', sys.executable])
+    if not venv_dir.exists():
+      check_call([
+        'uv',
+        'venv',
+        str(venv_dir),
+        '--no-project',
+        '--python', sys.executable])
 
 
     for bin in ['bin', 'Scripts']:
@@ -367,7 +368,7 @@ def build_editable(
     venv_env = {
       **os.environ,
       'VIRTUAL_ENV': str(venv_dir),
-      'PATH': os.pathsep.join(os.environ['PATH'].split(os.pathsep)+[str(venv_bin)])}
+      'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
 
     check_call([
       'uv', 'pip', 'install',
