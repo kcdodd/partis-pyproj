@@ -331,7 +331,6 @@ compile_args: array{STRING}  # 3-stage build
 install_args: array{STRING}  # 3-stage build
 options: table{STRING|BOOL}? # options passed to builder from pyproject.toml
 env: table{STRING|STRING}?   # environment variables to set
-build_clean: BOOL?           # control cleanup (ie for development builds)
 enabled: (BOOL|MARKER)?      # environment marker
 ```
 
