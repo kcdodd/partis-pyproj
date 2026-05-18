@@ -1031,15 +1031,30 @@ class valid_dict(Mapping, metaclass = _ValidDictMeta):
 
   #-----------------------------------------------------------------------------
   def __getitem__( self, key ):
+    key_valid = self.key_valid
+
+    if key_valid is not None:
+      key = key_valid(key)
+
     return self._data.__getitem__(key)
 
   #-----------------------------------------------------------------------------
   def __setitem__( self, key, val ):
+    key_valid = self.key_valid
+
+    if key_valid is not None:
+      key = key_valid(key)
+
     self._data.__setitem__(key, val)
     self._validate()
 
   #-----------------------------------------------------------------------------
   def __delitem__( self, key ):
+    key_valid = self.key_valid
+
+    if key_valid is not None:
+      key = key_valid(key)
+
     self._data.__delitem__( key )
     self._validate()
 

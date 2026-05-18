@@ -49,7 +49,8 @@ from .pep import (
   norm_entry_point_ref,
   norm_dist_keyword,
   norm_dist_classifier,
-  norm_dist_url)
+  norm_dist_url,
+  norm_py_identifier)
 
 #===============================================================================
 class dynamic(valid_list):
@@ -431,7 +432,7 @@ class pyproj_dist(valid_dict):
 
 #===============================================================================
 class pyproj_config(valid_dict):
-  key_valid = valid(norm_dist_extra)
+  key_valid = valid(norm_py_identifier)
   value_valid = union(scalar, scalar_list)
 
 #===============================================================================

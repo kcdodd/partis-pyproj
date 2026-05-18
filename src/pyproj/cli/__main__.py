@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import argparse
 from .init_pyproj import _init_parser
-from .build_pyproj import _build_parser
+from .build_pyproj import _prep_parser, _rebuild_parser
 
 #===============================================================================
 def main():
@@ -12,7 +12,8 @@ def main():
 
   subparsers = parser.add_subparsers()
   init_parser = _init_parser(subparsers)
-  build_parser = _build_parser(subparsers)
+  prep_parser = _prep_parser(subparsers)
+  rebuild_parser = _rebuild_parser(subparsers)
 
   args = parser.parse_args()
 

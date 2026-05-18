@@ -304,7 +304,8 @@ def build_editable(
     editable = True)
 
   pkg_name = norm_dist_filename(pyproj.pkg_info.name_normed)
-  editable_root = cache_dir()/'editable'/f'{pkg_name}_{pyproj.pkg_info.version}'
+  pyversion = '.'.join(str(n) for n in sys.version_info[:3])
+  editable_root = cache_dir()/'editable'/f'{pkg_name}_{pyproj.pkg_info.version}_py{pyversion}'
   whl_root = editable_root/'wheel'
 
   if editable_root.exists():
@@ -313,21 +314,16 @@ def build_editable(
 
   whl_root.mkdir(0o700, parents=True)
 
-  # enable incremental build if any of the build targets allow non-clean builds
-  incremental = any(
-    not target.build_clean
-    for target in pyproj.targets
-    if target.enabled)
+  if not any(target.enabled for target in pyproj.targets):
+    # not targets need building
+    pyproj.dist_prep()
+    pyproj.dist_binary_prep()
 
-  if incremental:
-    # if not Path('.git').exists():
-    #   raise NotImplementedError(
-    #     f"Incremental editable installs are only supported from a source repository: {Path()}")
-
+  else:
     # NOTE: this should clone the current build environment packages to reproduce
     # during incremental builds
     # TODO: use constraints file instead?
-    requirements_file = editable_root/'requirements.txt'
+    requirements_file = editable_root/'build_requirements.txt'
 
     # get build dependencies, pinned to version currently installed
     env_reqs = {
@@ -353,7 +349,6 @@ def build_editable(
         '--no-project',
         '--python', sys.executable])
 
-
     for bin in ['bin', 'Scripts']:
       if (venv_bin := venv_dir/bin).is_dir():
         break
@@ -377,21 +372,12 @@ def build_editable(
       env = venv_env)
 
     check_call([
-      venv_py, '-m', 'partis.pyproj.cli', 'build',
-      '--incremental',
+      venv_py, '-I', '-m', 'partis.pyproj.cli', 'prep',
       str(pyproj.root)],
       env = venv_env)
 
-    pyproj.dist_prep()
-
-  else:
-    pyproj.dist_prep()
-    pyproj.dist_binary_prep()
-
   with dist_binary_editable(
     root = pyproj.root,
-    # enable incremental rebuilds if there are any targets
-    incremental = incremental,
     pptoml_checksum = pyproj.pptoml_checksum,
     whl_root = whl_root,
     pkg_info = pyproj.pkg_info,

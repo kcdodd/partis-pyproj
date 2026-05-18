@@ -360,6 +360,8 @@ def email_encode_items(
     mangle_from_ = False,
     maxheaderlen = 0 )
 
+  # TODO: handle encoding errors with more helpful message about where the bad
+  # character(s) is located?
   gen.flatten( msg )
 
   # TODO: why does ``wheel`` replace newlines with only carriage returns?

@@ -116,8 +116,6 @@ class Builder:
       f"PPTOML_CHECKSUM={self.pyproj.pptoml_checksum}",
       f"PYTHON={sys.implementation.name}, {PY_VERSION}, api={str(sys.api_version)}",
       f"PLATFORM={sys.platform}",
-      # must depend on sys.path, since that is where build dependencies are configured
-      "SYSPATH=\n  " + '\n  '.join(sys.path),
       "PACKAGES=\n  " + '\n  '.join(self.pyproj.env_pkgs)])
 
     status_files = set()
@@ -200,7 +198,8 @@ class Builder:
 
       status_file = build_dir/'.pyproj_status'
       build_dirty = build_dir.exists() and any(build_dir.iterdir())
-      build_clean = not self.editable and target.build_clean
+      # build_clean = not self.editable and target.build_clean
+      build_clean = not self.editable
 
       if status_file not in status_files:
         status_files.add(status_file)

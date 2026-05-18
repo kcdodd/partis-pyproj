@@ -4,6 +4,7 @@ from logging import (
   Logger)
 from copy import deepcopy
 import subprocess
+import shutil
 import warnings
 import tomli
 from pathlib import (
@@ -176,15 +177,23 @@ class PyProjBase:
     # check if building from git repo
     commit = ''
 
-    if (root/'.git').is_dir():
-      commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+    if (root/'.git').is_dir() and shutil.which('git'):
+      try:
+        commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+      except subprocess.CalledProcessError as e:
+        warnings.warn(
+          "Project appears to be git repository, but could not query git status.",
+          RuntimeWarning)
 
     self.commit = commit
 
     # inspect/record the environment for installed packages
+    project_names = {self.pkg_info.name, self.pkg_info.name_normed}
     self.env_pkgs = sorted(set([
       f"{pkg.metadata['Name']}=={pkg.metadata['Version']}"
-      for pkg in metadata.Distribution.discover()]))
+      for pkg in metadata.Distribution.discover()
+      # skip projects own package, if another version is already installed
+      if pkg.metadata['Name'] not in project_names]))
 
     # ensure that essential files will be in the source distribution
     essential = [

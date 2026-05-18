@@ -463,6 +463,12 @@ The template namespace contains the following keys:
 - `env`: Defaults to `os.environ`, or per-target value from `tool.pyproj.targets.env`
   (if processed before the substitution).
 - `options`: Per-target value from `tool.pyproj.targets.options` (if processed before the substitution)
+- `config_vars`: Python sysconfig
+  - `EXENAME`: Python executable name/path
+  - `BINDIR`: Location of `bin` directory
+  - `LIBDEST`: `stdlib`
+  - `BINLIBDEST`: `platstdlib`
+  - `INCLUDEPY`: `include`
 
 Template substitutions are processed (once) in the *order in which they appear* from the `pyproject.toml`, no static analysis is performed. It is up to the developer to put them in the needed order if one template references a value resulting from another template.
 In the example below, the value of `options.some_option` would be substituted with a filesystem equivalent path for `{root}/build/something/my_pkg/xyz/abc.so`:
@@ -591,4 +597,23 @@ In this example, the command
 'additional_build_dep' to be installed before the build occurs.
 The value of `another_option` may be either `foo` or `bar`,
 and all other values will raise an exception before reaching the entry-point.
+
+#### Editable installation
+
+Editable installation should be supported by a frontend package manager
+(E.G. `pip install -e {project_root}`) for any pure Python packages,
+compiled extensions, and package data.
+Changes to Python source and data files will take effect the next time the interpreter runs.
+However, *new* files and directories will not be visible until the package is re-installed,
+and compiled extensions are *not* automatically re-compiled.
+
+For an editable installation, re-compiling extensions can be triggered using
+the CLI command `partis-pyproj rebuild {project_root}`, and then should take effect the
+next time the interpreter runs.
+Stable re-builds are achieved by creating a staging directory with symlinks back
+to the project root, but located at (depending on the system)
+`$HOME/.cache/partis-pyproj/editable/{name}_{version}_{py_version}`.
+A dedicated virtual environment is also created in the staging directory that is
+used for both the initial and subsequent re-builds,
+independently "build-isolation".
 

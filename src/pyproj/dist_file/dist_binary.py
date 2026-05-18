@@ -236,7 +236,6 @@ class dist_binary_wheel( dist_zip ):
     record_data, self.record_hash = self.encode_dist_info_record()
 
     if metadata_directory is not None:
-      print(f"{metadata_directory=}")
       # pep-517: MUST be identical to the directory created by
       # prepare_metadata_for_build_wheel, including any unrecognized files it
       # created.
@@ -336,8 +335,6 @@ class dist_binary_editable( dist_binary_wheel ):
   ----------
   root:
     Editable project root with pyproject.toml
-  incremental:
-    Setup editable install for incremental rebuilds (re-runs targets upon changes)
   pptoml_checksum:
   whl_root:
     fake wheel directory prepared by `build_editable`
@@ -349,7 +346,6 @@ class dist_binary_editable( dist_binary_wheel ):
   #-----------------------------------------------------------------------------
   def __init__( self, *,
     root: Path,
-    incremental: bool,
     pptoml_checksum: tuple[str, int],
     whl_root: Path,
     pkg_info: PkgInfo,
@@ -370,13 +366,8 @@ class dist_binary_editable( dist_binary_wheel ):
       gen_name = gen_name)
 
     self.root = root
-    self.incremental = incremental
     self.pptoml_checksum = pptoml_checksum
     self.whl_root = whl_root
-
-    if incremental and not (root/'.git').exists():
-      raise NotImplementedError(
-        f"Incremental editable installs are only supported from a source repository: {self.root}")
 
   #-----------------------------------------------------------------------------
   def finalize(self, metadata_directory: str|None = None): # pragma: no cover
@@ -423,50 +414,11 @@ class dist_binary_editable( dist_binary_wheel ):
 
       modules[fullname] = str(path)
 
+    pth_content = str(whl_root)
 
-    if self.incremental:
-      editable_root = whl_root.parent
-      commit, tracked_files = git_tracked_mtime()
-      tracked_file = editable_root/'tracked.csv'
-      tracked_file.write_text('\n'.join([
-        commit,
-        *[f"{mtime}, {size}, {file}"
-          for mtime, size, file  in tracked_files]]))
-
-      check_module_name = pkg_name + '_incremental'
-      check_file_out = check_module_name+'.py'
-      check_file_in = gen_root/'_incremental.py'
-      check_content = check_file_in.read_text()
-
-      header, _, footer = check_content.partition("#@template@")
-      _modules = ',\n'.join(f"  {k!r}: {v!r}" for k,v in modules.items())
-
-      check_content = '\n'.join([
-        header,
-        f"PKG_NAME = '{self.pkg_info.name_normed}'",
-        f"SRC_ROOT = Path('{self.root}')",
-        f"WHL_ROOT = Path('{whl_root}')",
-        f"GEN_ROOT = Path('{gen_root}')",
-        f"PPTOML_CHECKSUM = {self.pptoml_checksum!r}",
-        f"MODULES = {{\n{_modules}}}",
-        footer])
-
-      pth_content = '\n'.join([
-        str(whl_root),
-        f"import {check_module_name}; {check_module_name}.incremental()"])
-
-
-      with dist:
-        dist.write(purelib/pth_file, pth_content.encode('utf-8'))
-        dist.write(purelib/check_file_out, check_content.encode('utf-8'))
-        record_hash = dist.finalize(metadata_directory)
-
-    else:
-      pth_content = str(whl_root)
-
-      with dist:
-        dist.write(purelib/pth_file, pth_content.encode('utf-8'))
-        record_hash = dist.finalize(metadata_directory)
+    with dist:
+      dist.write(purelib/pth_file, pth_content.encode('utf-8'))
+      record_hash = dist.finalize(metadata_directory)
 
     return record_hash
 

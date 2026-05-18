@@ -1,5 +1,12 @@
 # Releases
 
+## v0.2.2 - 2026-?-?
+
+- Add support for Python 3.14
+- Fix `pyproj.config` keys replacing `_` with `-`.
+- Loosen conditions when setup is triggered with "build_clean = False"
+- Add Python version to editable virtual wheel folder
+
 ## v0.2.1 - 2025-09-07
 
 - Support editable installs according to [PEP 660](https://peps.python.org/pep-0660/).
