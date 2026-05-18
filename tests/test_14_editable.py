@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 import subprocess
 import shutil
@@ -42,7 +43,8 @@ def test_build_editable_basic(tmp_path, monkeypatch):
   monkeypatch.setattr(cache, "CACHE_DIR", cache_dir)
 
   pkg = 'test_pkg'
-  editable_root = cache_dir/'editable'/'test_pkg_base_0.0.1'
+  pyversion = '.'.join(str(n) for n in sys.version_info[:3])
+  editable_root = cache_dir/'editable'/f'test_pkg_base_0.0.1_py{pyversion}'
   editable_root.mkdir(parents=True)
   whl_root = editable_root/'wheel'
   # should still work even if it already exists
