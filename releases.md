@@ -1,6 +1,6 @@
 # Releases
 
-## v0.2.2 - 2026-?-?
+## v0.2.2 - 2026-05-19
 
 - Add support for Python 3.14
 - Fix `pyproj.config` keys replacing `_` with `-`.
