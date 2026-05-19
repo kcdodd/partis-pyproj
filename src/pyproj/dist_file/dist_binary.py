@@ -380,40 +380,12 @@ class dist_binary_editable( dist_binary_wheel ):
       logger = self.logger,
       gen_name = self.gen_name)
 
-    root = self.root
     whl_root = self.whl_root
-    # path to "generator" (partis.pyproj)
-    gen_root = Path(__file__).parent.parent
     purelib = dist.named_dirs['purelib']
     self.check_top_level()
 
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pth_file = pkg_name+'.pth'
-
-
-    dist_info = self.dist_info_path.name
-    data = self.data_path.name
-
-    paths = set()
-
-    for file, (hash, size) in self.records.items():
-      # check directories added to purelib/platlib.
-      if file.parts[0] not in (dist_info, data):
-        if len(file.parts) == 1 or file.name.startswith("__init__."):
-          paths.add(file)
-        else:
-          paths.add(file.parent)
-
-    modules = {}
-
-    for path in paths:
-      if path.name.startswith("__init__."):
-        fullname = '.'.join(path.parent.parts)
-      else:
-        fullname = '.'.join(path.parts).removesuffix('.py')
-
-      modules[fullname] = str(path)
-
     pth_content = str(whl_root)
 
     with dist:
@@ -441,23 +413,6 @@ class dist_binary_editable( dist_binary_wheel ):
   #-----------------------------------------------------------------------------
   def remove_distfile( self ):
     pass
-
-  # #-----------------------------------------------------------------------------
-  # def makedirs( self,
-  #   dst: PurePosixPath,
-  #   mode: int|None = None,
-  #   exist_ok: bool = False,
-  #   record: bool = True ):
-
-  #   _dir = self.whl_root
-  #   _dst = _dir/Path(norm_path(os.fspath(dst)))
-
-  #   if _dst.exists():
-  #     if not exist_ok:
-  #       raise PathError(f"Build file already has entry: {_dst}")
-
-  #   else:
-  #     _dst.mkdir(parents=True)
 
   #-----------------------------------------------------------------------------
   def copyfile( self,

@@ -1,11 +1,14 @@
 from __future__ import annotations
 import sys
 import os
+import shutil
 from pathlib import Path
 from subprocess import check_call
 from partis.pyproj import (
-  norm_dist_filename)
-from partis.pyproj.backend import backend_init
+  norm_dist_filename,
+  dist_build,
+  dist_binary_editable)
+from partis.pyproj.backend import backend_init, _run_editable_py
 from partis.pyproj.cache import cache_dir
 
 #===============================================================================
@@ -49,9 +52,15 @@ def _rebuild_parser(subparsers):
     help='re-runs binary distribution preparation')
 
   parser.add_argument(
-    'path',
+    '--staging',
+    type = Path,
+    default = None,
+    help='Directory of the project editable staging directory')
+
+  parser.add_argument(
+    'root',
     type=Path,
-    help='Path to project directory')
+    help='Path to project root directory')
 
   parser.set_defaults(func = _rebuild_impl)
 
@@ -59,15 +68,16 @@ def _rebuild_parser(subparsers):
 
 #===============================================================================
 def _rebuild_impl(args):
-  _rebuild_pyproj(path = args.path)
+  _rebuild_pyproj(root = args.root, editable_root = args.staging)
 
 #===============================================================================
 def _rebuild_pyproj(
-    path: Path,
+    root: Path,
+    editable_root: Path|None,
     config_settings: dict|None = None):
 
   pyproj = backend_init(
-    root = path,
+    root = root,
     config_settings = config_settings,
     editable = True)
 
@@ -75,35 +85,47 @@ def _rebuild_pyproj(
     print("Project has no build targets.")
     exit(0)
 
-  pkg_name = norm_dist_filename(pyproj.pkg_info.name_normed)
-  pyversion = '.'.join(str(n) for n in sys.version_info[:3])
-  editable_root = cache_dir()/'editable'/f'{pkg_name}_{pyproj.pkg_info.version}_py{pyversion}'
+  if editable_root is None:
+    editable_root = pyproj.editable_root
 
   if not editable_root.exists():
-    print(f"Editable install not found: {editable_root}")
+    print(f"Editable installation not found: {editable_root}")
     exit(1)
 
-  print(f"Editable install: {editable_root}")
-
+  print(f"Rebuilding editable installation: {editable_root}")
+  whl_root = editable_root/'wheel'
   venv_dir = editable_root/'build_venv'
-  for bin in ['bin', 'Scripts']:
-    if (venv_bin := venv_dir/bin).is_dir():
-      break
-  else:
-    raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
 
-  venv_py = venv_bin/Path(sys.executable).name
+  _run_editable_py(
+    venv_dir,
+    ['-I', '-m', 'partis.pyproj.cli', 'prep', str(pyproj.root)])
 
-  if not (venv_py := venv_bin/Path(sys.executable).name).exists():
-    print(f"No virtual environment interpreter: {venv_py}")
-    exit(1)
+  if whl_root.exists():
+    shutil.rmtree(whl_root)
 
-  venv_env = {
-    **os.environ,
-    'VIRTUAL_ENV': str(venv_dir),
-    'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
+  cwd = os.getcwd()
+  try:
+    os.chdir(root)
+    with dist_binary_editable(
+      root = root,
+      pptoml_checksum = pyproj.pptoml_checksum,
+      whl_root = whl_root,
+      pkg_info = pyproj.pkg_info,
+      build = dist_build(
+        pyproj.binary.get('build_number', None),
+        pyproj.binary.get('build_suffix', None) ),
+      compat = pyproj.binary.compat_tags,
+      outdir = editable_root,
+      logger = pyproj.logger ) as dist:
 
-  check_call([
-    venv_py, '-I', '-m', 'partis.pyproj.cli', 'prep',
-    str(pyproj.root)],
-    env = venv_env)
+      pyproj.dist_binary_copy(
+        dist = dist )
+
+      record_hash = dist.finalize()
+
+  finally:
+    os.chdir(cwd)
+
+
+  pyproj.logger.debug(
+    f"Top level packages {dist.top_level}")

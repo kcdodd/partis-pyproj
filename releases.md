@@ -4,8 +4,12 @@
 
 - Add support for Python 3.14
 - Fix `pyproj.config` keys replacing `_` with `-`.
-- Loosen conditions when setup is triggered with "build_clean = False"
-- Add Python version to editable virtual wheel folder
+- Loosen conditions when clean build is triggered, `target.build_clean = False` is
+  now the default.
+- Add Python version to editable virtual wheel folder name
+- Split CLI command `partis-pyproj build` into `partis-pyproj prep` which runs
+  the build targets, and `partis-pyproj rebuild` which runs the "prep" command
+  in the build virtual environment.
 
 ## v0.2.1 - 2025-09-07
 

@@ -11,7 +11,7 @@ import subprocess
 from logging import Logger
 from pathlib import Path
 from difflib import Differ
-
+from ..cache import cache_dir
 from ..file import tail
 from ..validate import (
   validating,
@@ -96,7 +96,7 @@ class Builder:
       'config_vars': _sysconfig_vars},
       root=root,
       # better way for builders to whitelist templated directories?
-      dirs=[self.tmpdir, Path(tempfile.gettempdir())/'partis-pyproj-downloads'])
+      dirs=[self.tmpdir, cache_dir()/'download'])
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
@@ -198,8 +198,9 @@ class Builder:
 
       status_file = build_dir/'.pyproj_status'
       build_dirty = build_dir.exists() and any(build_dir.iterdir())
-      # build_clean = not self.editable and target.build_clean
-      build_clean = not self.editable
+      # TODO: there could be a case for some targets always having a clean build
+      build_clean = not self.editable or target.build_clean
+      # build_clean = not self.editable
 
       if status_file not in status_files:
         status_files.add(status_file)

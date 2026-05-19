@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 from logging import (
   getLogger,
   Logger)
@@ -29,14 +30,14 @@ from .norms import (
   norm_bool,
   hash_sha256)
 from .pep import (
-  platlib_compat_tags )
+  platlib_compat_tags,
+  norm_dist_filename)
 from .path import (
   resolve)
 from .load_module import (
   EntryPoint )
 
 from .legacy import legacy_setup_content
-
 from .pptoml import (
   pptoml,
   project,
@@ -49,12 +50,9 @@ from .pptoml import (
   pyproj,
   pyproj_meson,
   pyproj_targets)
-
-from .builder import (
-  Builder )
-
-from .dist_file import (
-  dist_copy )
+from .builder import Builder
+from .dist_file import dist_copy
+from .cache import cache_dir
 
 #===============================================================================
 class PyProjBase:
@@ -204,6 +202,10 @@ class PyProjBase:
     for file in essential:
       if not (file is None or any(c.src == file for c in self.source.copy)):
         self.source.copy.append(file)
+
+    pkg_name = norm_dist_filename(self.pkg_info.name_normed)
+    pyversion = '.'.join(str(n) for n in sys.version_info[:3])
+    self.editable_root = cache_dir()/'editable'/f'{pkg_name}_{self.pkg_info.version}_py{pyversion}'
 
   #-----------------------------------------------------------------------------
   @property
@@ -396,7 +398,7 @@ class PyProjBase:
           legacy_setup_content( self, dist )
 
   #-----------------------------------------------------------------------------
-  def dist_binary_prep( self, incremental: bool = False ):
+  def dist_binary_prep( self ):
     """Prepares project files for a binary distribution
     """
 

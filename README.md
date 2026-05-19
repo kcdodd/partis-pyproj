@@ -332,6 +332,7 @@ install_args: array{STRING}  # 3-stage build
 options: table{STRING|BOOL}? # options passed to builder from pyproject.toml
 env: table{STRING|STRING}?   # environment variables to set
 enabled: (BOOL|MARKER)?      # environment marker
+build_clean: BOOL            # Always force a clean re-build of target
 ```
 
 Targets are executed sequentially. If a target fails or its entry point cannot
@@ -612,7 +613,7 @@ next time the interpreter runs.
 Stable re-builds are achieved by creating a staging directory with symlinks back
 to the project root, but located at (depending on the system)
 `$HOME/.cache/partis-pyproj/editable/{name}_{version}_{py_version}`.
-A dedicated virtual environment is also created in the staging directory that is
-used for both the initial and subsequent re-builds,
-independently "build-isolation".
+A dedicated virtual environment is also created in the staging directory
+used for both the initial and subsequent re-builds, and is independent from the
+"build-isolation" of the package manager.
 

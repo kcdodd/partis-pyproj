@@ -303,10 +303,9 @@ def build_editable(
     config_settings = config_settings,
     editable = True)
 
-  pkg_name = norm_dist_filename(pyproj.pkg_info.name_normed)
-  pyversion = '.'.join(str(n) for n in sys.version_info[:3])
-  editable_root = cache_dir()/'editable'/f'{pkg_name}_{pyproj.pkg_info.version}_py{pyversion}'
+  editable_root = pyproj.editable_root
   whl_root = editable_root/'wheel'
+  venv_dir = editable_root/'build_venv'
 
   if editable_root.exists():
     # TODO: add status file to avoid accidentally deleting the wrong directory
@@ -339,42 +338,19 @@ def build_editable(
 
     requirements_file.write_text('\n'.join(build_deps))
 
-    venv_dir = editable_root/'build_venv'
-
     if not venv_dir.exists():
       check_call([
-        'uv',
-        'venv',
-        str(venv_dir),
+        'uv', 'venv', str(venv_dir),
         '--no-project',
         '--python', sys.executable])
 
-    for bin in ['bin', 'Scripts']:
-      if (venv_bin := venv_dir/bin).is_dir():
-        break
-    else:
-      raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
+    _run_editable_cmd(
+      venv_dir,
+      ['uv', 'pip', 'install', '--reinstall', '-r', str(requirements_file)])
 
-    venv_py = venv_bin/Path(sys.executable).name
-
-    if not (venv_py := venv_bin/Path(sys.executable).name).exists():
-      raise FileNotFoundError(f"No virtual environment interpreter: {venv_py}")
-
-    venv_env = {
-      **os.environ,
-      'VIRTUAL_ENV': str(venv_dir),
-      'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
-
-    check_call([
-      'uv', 'pip', 'install',
-      '--reinstall',
-      '-r', str(requirements_file)],
-      env = venv_env)
-
-    check_call([
-      venv_py, '-I', '-m', 'partis.pyproj.cli', 'prep',
-      str(pyproj.root)],
-      env = venv_env)
+    _run_editable_py(
+      venv_dir,
+      ['-I', '-m', 'partis.pyproj.cli', 'prep', str(pyproj.root)])
 
   with dist_binary_editable(
     root = pyproj.root,
@@ -391,6 +367,7 @@ def build_editable(
     pyproj.dist_binary_copy(
       dist = dist )
 
+    # generate metadata
     record_hash = dist.finalize(metadata_directory)
 
 
@@ -414,3 +391,38 @@ class UnsupportedOperation( Exception ):
   * https://www.python.org/dev/peps/pep-0517/
   """
   pass
+
+#===============================================================================
+def _run_editable_cmd(venv_dir, args):
+  for bin in ['bin', 'Scripts']:
+    if (venv_bin := venv_dir/bin).is_dir():
+      break
+  else:
+    raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
+
+  venv_env = {
+    **os.environ,
+    'VIRTUAL_ENV': str(venv_dir),
+    'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
+
+  check_call(args, env = venv_env)
+
+#===============================================================================
+def _run_editable_py(venv_dir, args):
+  for bin in ['bin', 'Scripts']:
+    if (venv_bin := venv_dir/bin).is_dir():
+      break
+  else:
+    raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
+
+  venv_py = venv_bin/Path(sys.executable).name
+
+  if not (venv_py := venv_bin/Path(sys.executable).name).exists():
+    raise FileNotFoundError(f"No virtual environment interpreter: {venv_py}")
+
+  venv_env = {
+    **os.environ,
+    'VIRTUAL_ENV': str(venv_dir),
+    'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
+
+  check_call([venv_py, *args], env = venv_env)

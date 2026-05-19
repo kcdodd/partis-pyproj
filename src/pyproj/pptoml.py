@@ -317,7 +317,7 @@ class pyproj_build_target(valid_dict):
     'setup_args': nonempty_str_list,
     'compile_args': nonempty_str_list,
     'install_args': nonempty_str_list,
-    'build_clean': valid(True, norm_bool) }
+    'build_clean': valid(False, norm_bool) }
 
 #===============================================================================
 class pyproj_meson(valid_dict):
