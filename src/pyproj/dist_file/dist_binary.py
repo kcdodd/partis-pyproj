@@ -35,17 +35,6 @@ def pkg_name(dir):
   return dir
 
 #===============================================================================
-def module_name_from_path(path):
-  if path.name.startswitch('__init__'):
-    parts = path.parent.parts
-
-  else:
-    parts = path.parts
-    name = parts[-1]
-    name = name.partition('-')
-
-
-#===============================================================================
 class dist_binary_wheel( dist_zip ):
   """Build a binary distribution :pep:`427`, :pep:`491` wheel file ``*.whl``
 

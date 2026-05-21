@@ -3,6 +3,7 @@ import os.path as osp
 import tempfile
 import shutil
 import pathlib
+from pathlib import Path, PurePath
 
 from pytest import (
   raises )
@@ -19,6 +20,16 @@ from partis.pyproj.path.pattern import (
   tr_path,
   inv_path,
   PatternError)
+
+from partis.pyproj.path.utils import (
+  _concretize,
+  _subdir,
+  file_size_mtime)
+
+from partis.pyproj.path import (
+  PathError,
+  subdir,
+  git_tracked_mtime)
 
 pxp = pathlib.PurePosixPath
 ntp = pathlib.PureWindowsPath
@@ -307,6 +318,164 @@ def test_file_ignore_patterns():
       os.utime( y, None )
 
     assert ignore_patterns('z/x', ['y'])
+
+#===============================================================================
+# path/utils.py — _concretize
+#===============================================================================
+def test_concretize_empty_component():
+  assert _concretize(['', 'a', 'b']) == ['a', 'b']
+
+def test_concretize_curdir_component():
+  assert _concretize(['.', 'a']) == ['a']
+  assert _concretize(['a', '.', 'b']) == ['a', 'b']
+
+def test_concretize_pardir_past_root():
+  # 'a/../../b' requires knowing a's parent — not concretizable
+  assert _concretize(['a', '..', '..', 'b']) is None
+
+def test_concretize_pardir_within_root():
+  # 'a/../b' → 'b' is fine
+  assert _concretize(['a', '..', 'b']) == ['b']
+
+#===============================================================================
+# path/utils.py — _subdir
+#===============================================================================
+def test_subdir_internal_nonconcretizable_start():
+  # start path cannot be concretized → returns None
+  assert _subdir(['a', '..', '..'], ['b']) is None
+
+def test_subdir_internal_nonconcretizable_path():
+  # path cannot be concretized → returns None
+  assert _subdir(['a'], ['a', '..', '..']) is None
+
+#===============================================================================
+# path/utils.py — subdir (public)
+#===============================================================================
+def test_subdir_raises_when_not_subdir():
+  with raises(PathError):
+    subdir(PurePath('a/b'), PurePath('c/d'))
+
+def test_subdir_returns_none_when_check_false():
+  assert subdir(PurePath('a/b'), PurePath('c/d'), check=False) is None
+
+def test_subdir_ok():
+  assert subdir(PurePath('a'), PurePath('a/b/c')) == PurePath('b/c')
+
+#===============================================================================
+# path/utils.py — file_size_mtime
+#===============================================================================
+def test_file_size_mtime_missing(tmp_path):
+  missing = tmp_path / 'does_not_exist.txt'
+  mtime, size, path = file_size_mtime(str(missing))
+  assert mtime == 0
+  assert size == 0
+  assert path == str(missing)
+
+def test_file_size_mtime_existing(tmp_path):
+  f = tmp_path / 'real.txt'
+  f.write_bytes(b'hello')
+  mtime, size, path = file_size_mtime(str(f))
+  assert size == 5
+  assert mtime > 0
+
+#===============================================================================
+# path/utils.py — git_tracked_mtime
+#===============================================================================
+def test_git_tracked_mtime():
+  commit, files = git_tracked_mtime()
+  assert isinstance(commit, str) and len(commit) > 0
+  assert isinstance(files, list)
+  assert all(isinstance(t, tuple) and len(t) == 3 for t in files)
+
+def test_git_tracked_mtime_with_root():
+  commit1, files1 = git_tracked_mtime()
+  commit2, files2 = git_tracked_mtime(root=Path('.'))
+  assert commit1 == commit2
+  assert len(files1) == len(files2)
+
+#===============================================================================
+# path/match.py — PathMatcher edge cases
+#===============================================================================
+def test_matcher_start_as_string():
+  m = PathMatcher('bar', start='src')
+  assert m.start == PurePath('src')
+
+def test_matcher_repr():
+  # bare pattern
+  r = repr(PathMatcher('foo'))
+  assert 'foo' in r
+  # negate flag
+  r = repr(PathMatcher('!foo'))
+  assert 'negate' in r
+  # dironly + start (covers start branch and relative branch in repr)
+  r = repr(PathMatcher('a/b/', start=PurePath('root')))
+  assert 'dironly' in r
+  assert 'start' in r
+
+def test_matcher_match_none():
+  assert PathMatcher('foo').match(None) is False
+
+def test_matcher_match_string_path():
+  assert PathMatcher('foo').match('foo')
+  assert not PathMatcher('foo').match('bar')
+
+def test_matcher_match_with_start():
+  m = PathMatcher('bar', start=PurePath('src'))
+  # path under start → matches
+  assert m.match(PurePath('src/bar'))
+  # path not under start → does not match (returns False explicitly)
+  assert m.match(PurePath('other/bar')) is False
+
+def test_matcher_nt():
+  m = PathMatcher('foo/bar')
+  assert m.nt('foo\\bar')
+  assert not m.nt('baz\\bar')
+
+#===============================================================================
+# path/match.py — PathFilter edge cases
+#===============================================================================
+def test_filter_init_single_string():
+  pf = PathFilter('*.py')
+  assert len(pf.patterns) == 1
+  assert pf.patterns[0].posix('mod.py')
+
+def test_filter_init_single_matcher():
+  inner = PathMatcher('*.py')
+  pf = PathFilter(inner)
+  assert len(pf.patterns) == 1
+  assert pf.patterns[0] is inner
+
+def test_filter_init_start_as_string():
+  pf = PathFilter(['*.py'], start='src')
+  assert pf.start == PurePath('src')
+
+def test_filter_dnames_none():
+  # when dnames is omitted, entries ending with osp.sep are treated as dirs
+  pf = PathFilter(['a/'])  # dironly pattern
+  result = pf.filter('.', fnames=['a' + osp.sep, 'b.py'])
+  assert result == {'a'}
+
+def test_filter_pattern_with_start():
+  # PathMatcher inside the filter has its own start — hits line 332 of match.py
+  inner = PathMatcher('bar', start=PurePath('src'), relative=True)
+  pf = PathFilter([inner])
+  # 'bar' inside 'src' matches
+  assert pf.filter(PurePath('src'), fnames=['bar']) == {'bar'}
+  # 'bar' inside 'other' does not match; check=False avoids PathPatternError
+  # since 'other' is not under the pattern's start ('src')
+  assert pf.filter(PurePath('other'), fnames=['bar'], check=False) == set()
+
+def test_filter_repr():
+  r = repr(PathFilter(['*.py'], start=PurePath('src')))
+  assert 'PathFilter' in r
+
+#===============================================================================
+# path/match.py — contains
+#===============================================================================
+def test_contains():
+  assert contains(PurePath('a/b'), PurePath('a/b/c')) is True
+  assert contains(PurePath('a/b'), PurePath('a/b')) is True
+  assert contains(PurePath('a/b'), PurePath('x/y')) is False
 
 #===============================================================================
 if __name__ == '__main__':

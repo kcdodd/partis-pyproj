@@ -76,8 +76,8 @@ def download(
       tmp_file.unlink()
 
     if checksum:
-      checksum = checksum.lower()
       alg, _, checksum = checksum.partition('=')
+      alg = alg.lower()
 
       try:
         hash = getattr(hashlib, alg)()
@@ -123,12 +123,13 @@ def download(
 
         if checksum.endswith('='):
           digest = urlsafe_b64encode(digest).decode("ascii")
+          checksum_ok = checksum == digest
         elif checksum.startswith('x'):
           digest = 'x'+digest.hex()
+          checksum_ok = checksum.lower() == digest
         else:
           digest = digest.hex()
-
-        checksum_ok = checksum == digest
+          checksum_ok = checksum.lower() == digest
         logger.info(f"- checksum{' (OK)' if checksum_ok else ''}: {alg}={digest}")
 
         if not checksum_ok:
@@ -161,7 +162,7 @@ def download(
           members=None,
           numeric_owner=False,
           filter='tar')
-      else:
+      else:  # pragma: no cover
         fp.extractall(
           path=out_dir,
           members=None,
