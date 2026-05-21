@@ -1,7 +1,9 @@
 import os
 import os.path as osp
+import stat
 import tempfile
 import shutil
+import zipfile
 
 from pytest import (
   raises )
@@ -329,3 +331,59 @@ def test_dist_binary_wheel():
       bdist.copytree(
         src = pkg_dir,
         dst = 'my_package' )
+
+#===============================================================================
+# dist_zip additional branch coverage
+#===============================================================================
+
+def test_dist_zip_copy_overwrite(tmp_path):
+  # copy_distfile: outpath already exists → unlink before copying (line 112)
+  with dist_zip(outname='over.zip', outdir=tmp_path) as d:
+    d.write('first.txt', b'first')
+
+  assert (tmp_path / 'over.zip').exists()
+
+  with dist_zip(outname='over.zip', outdir=tmp_path) as d:
+    d.write('second.txt', b'second')
+
+  with zipfile.ZipFile(tmp_path / 'over.zip') as zf:
+    assert 'second.txt' in zf.namelist()
+    assert 'first.txt' not in zf.namelist()
+
+def test_dist_zip_remove_no_tmppath(tmp_path):
+  # remove_distfile: _tmp_path is falsy (never opened) → early return, no error
+  d = dist_zip(outname='never.zip', outdir=tmp_path)
+  d.remove_distfile()  # must not raise
+
+def test_dist_zip_write_duplicate_no_record(tmp_path):
+  # write with record=False, same dst twice → ValueError (line 154)
+  with dist_zip(outname='dup.zip', outdir=tmp_path) as d:
+    d.write('a/b.txt', b'first', record=False)
+    with raises(ValueError, match='Overwriting destination'):
+      d.write('a/b.txt', b'second', record=False)
+
+def test_dist_zip_write_link(tmp_path):
+  # write_link happy path: entry has symlink bit, data is encoded target
+  with dist_zip(outname='links.zip', outdir=tmp_path) as d:
+    d.write_link('link/target.py', '../real/target.py')
+
+  with zipfile.ZipFile(tmp_path / 'links.zip') as zf:
+    info = zf.getinfo('link/target.py')
+    assert (info.external_attr >> 16) & 0xF000 == stat.S_IFLNK
+    assert zf.read('link/target.py') == b'../real/target.py'
+
+def test_dist_zip_write_link_dedup(tmp_path):
+  # write_link record=True, identical link twice → second is a no-op (rec is None)
+  with dist_zip(outname='dedup.zip', outdir=tmp_path) as d:
+    d.write_link('a.py', '../b.py')
+    d.write_link('a.py', '../b.py')  # must not raise
+
+  with zipfile.ZipFile(tmp_path / 'dedup.zip') as zf:
+    assert zf.namelist().count('a.py') == 1
+
+def test_dist_zip_write_link_overwrite_guard(tmp_path):
+  # write_link record=False, exist_ok=False, dst already written → ValueError (line 192)
+  with dist_zip(outname='guard.zip', outdir=tmp_path) as d:
+    d.write_link('a.py', '../b.py')
+    with raises(ValueError, match='Overwriting destination'):
+      d.write_link('a.py', '../c.py', record=False, exist_ok=False)

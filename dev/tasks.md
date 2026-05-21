@@ -10,8 +10,8 @@ Effort: **S**mall (< 1 hr) / **M**edium (1–3 hr) / **L**arge (3+ hr)
 |---|-----------|---------------|:---:|:---:|:---:|
 | 1 | [task_path_utils.md](task_path_utils.md) | `path/utils.py` | ~~63%~~ **100%** ✓ | H | S |
 | 2 | [task_path_match.md](task_path_match.md) | `path/match.py` | ~~80%~~ **100%** ✓ | H | S |
-| 3 | [task_builder_errors.md](task_builder_errors.md) | `builder/builder.py` | 71% | M | M |
-| 4 | [task_dist_zip_links.md](task_dist_zip_links.md) | `dist_file/dist_zip.py` | 74% | M | S |
+| 3 | [task_builder_errors.md](task_builder_errors.md) | `builder/builder.py` | ~~71%~~ **100%** ✓ | M | M |
+| 4 | [task_dist_zip_links.md](task_dist_zip_links.md) | `dist_file/dist_zip.py` | ~~74%~~ **96%** ✓ | M | S |
 | 5 | [task_dist_binary.md](task_dist_binary.md) | `dist_file/dist_binary.py` | 77% | M | M |
 | 6 | [task_download.md](task_download.md) | `builder/download.py` | 77% | L | M |
 | 7 | [task_cli_rebuild.md](task_cli_rebuild.md) | `cli/build_pyproj.py` | 40% | H | L |

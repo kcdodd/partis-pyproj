@@ -37,7 +37,7 @@ pyexe = sys.executable
 
 try:
   pyexe = osp.realpath(pyexe)
-except Exception:
+except Exception:  # pragma: no cover
   ...
 
 # fallback for commonly needed config. variables, but sometimes are not set
@@ -149,6 +149,7 @@ class Builder:
       if (group := target.exclusive) and (group_idx := exclusive.get(group)) != i:
         self.logger.warning(
           f"Skipping targets[{i}], exclusive group {group!r} already satisfied by targets[{group_idx}]")
+        continue
 
       # each target isolated (shallow) changes to namespace
       namespace = copy(self.namespace)
