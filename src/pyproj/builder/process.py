@@ -23,7 +23,12 @@ def process(
   """Run general three-part set of commands
   """
 
-  if not ( build_dir.exists() and any(build_dir.iterdir()) ):
+  # Ignore the .pyproj_status file written by the builder before calling here;
+  # it is internal bookkeeping, not a build artifact.
+  build_dirty = build_dir.exists() and any(
+    f.name != '.pyproj_status' for f in build_dir.iterdir())
+
+  if not build_dirty:
     # build directory is clean
     ...
 
