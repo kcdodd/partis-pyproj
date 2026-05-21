@@ -14,7 +14,7 @@ Effort: **S**mall (< 1 hr) / **M**edium (1–3 hr) / **L**arge (3+ hr)
 | 4 | [task_dist_zip_links.md](task_dist_zip_links.md) | `dist_file/dist_zip.py` | ~~74%~~ **96%** ✓ | M | S |
 | 5 | [task_dist_binary.md](task_dist_binary.md) | `dist_file/dist_binary.py` | ~~77%~~ **99%** ✓ | M | M |
 | 6 | [task_download.md](task_download.md) | `builder/download.py` | ~~77%~~ **95%** ✓ | L | M |
-| 7 | [task_cli_rebuild.md](task_cli_rebuild.md) | `cli/build_pyproj.py` | 40% | H | L |
+| 7 | [task_cli_rebuild.md](task_cli_rebuild.md) | `cli/build_pyproj.py` | ~~40%~~ **100%** ✓ | H | L |
 
 ## Notes
 
