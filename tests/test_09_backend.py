@@ -10,11 +10,13 @@ from pytest import (
 from partis.pyproj.backend import (
   UnsupportedOperation,
   backend_init,
+  _run_editable_cmd,
   get_requires_for_build_sdist,
   build_sdist,
   get_requires_for_build_wheel,
   prepare_metadata_for_build_wheel,
   build_wheel )
+from partis.pyproj.pyproj import PyProjBase
 
 
 #===============================================================================
@@ -55,3 +57,16 @@ def test_backend_basic():
 
   finally:
     os.chdir( cwd )
+
+#===============================================================================
+def test_backend_init_no_logging():
+  root = osp.join(osp.dirname(osp.abspath(__file__)), 'pkg_base')
+
+  result = backend_init(root=root, init_logging=False)
+
+  assert isinstance(result, PyProjBase)
+
+#===============================================================================
+def test_run_editable_cmd_missing_bin(tmp_path):
+  with raises(FileNotFoundError):
+    _run_editable_cmd(tmp_path, ['echo', 'hello'])
