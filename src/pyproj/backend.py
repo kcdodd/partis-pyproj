@@ -299,6 +299,7 @@ def build_editable(
   config_settings = None,
   metadata_directory = None ):
 
+  # TODO: save config_settings in staging directory so that rebuilds are consistent
   pyproj = backend_init(
     config_settings = config_settings,
     editable = True)
