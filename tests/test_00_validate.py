@@ -1,4 +1,5 @@
 import warnings
+import functools
 from copy import copy
 
 from pytest import (
@@ -29,6 +30,9 @@ from partis.pyproj.validate import (
   valid_list,
   mapget,
   as_list )
+
+import partis.pyproj.validate as _validate_mod
+_ValidDictAttr = _validate_mod._ValidDictAttr
 
 #===============================================================================
 def test_special():
@@ -495,3 +499,120 @@ def test_mapget():
 
   with raises( ValidationError ):
     mapget( 'asd', 'x', default = default )
+
+#===============================================================================
+def test_valid_dict_attr_get_class():
+  class MyDict(valid_dict):
+    allow_keys = ['item']
+
+  descriptor = MyDict.item
+  assert isinstance(descriptor, _ValidDictAttr)
+
+#===============================================================================
+def test_valid_dict_attr_delete():
+  class MyDict(valid_dict):
+    allow_keys = ['item']
+
+  d = MyDict({'item': 42})
+  del d.item
+  assert 'item' not in d
+
+#===============================================================================
+def test_valid_dict_attr_repr():
+  class MyDict(valid_dict):
+    allow_keys = ['item']
+
+  descriptor = MyDict.item
+  r = repr(descriptor)
+  assert 'item' in r
+
+#===============================================================================
+def test_valid_dict_update_value_valid():
+  class MyDict(valid_dict):
+    value_valid = staticmethod(str)
+
+  d = MyDict({'a': 1})
+  d.update({'b': 2})
+  assert d['b'] == '2'
+
+#===============================================================================
+def test_valid_dict_popitem():
+  class MyDict(valid_dict):
+    pass
+
+  d = MyDict({'x': 1, 'y': 2})
+  key, val = d.popitem()
+  assert key in ('x', 'y')
+  assert len(d) == 1
+
+#===============================================================================
+def test_valid_dict_setitem_key_valid():
+  def strip_key(k):
+    return k.strip()
+
+  class MyDict(valid_dict):
+    key_valid = staticmethod(strip_key)
+
+  d = MyDict({'a': 1})
+  d[' b '] = 2
+  assert 'b' in d
+  assert d['b'] == 2
+
+#===============================================================================
+def test_valid_dict_delitem_key_valid():
+  def strip_key(k):
+    return k.strip()
+
+  class MyDict(valid_dict):
+    key_valid = staticmethod(strip_key)
+
+  d = MyDict({'a': 1, 'b': 2})
+  del d[' a ']
+  assert 'a' not in d
+
+#===============================================================================
+def test_valid_list_extend_value_valid():
+  class MyList(valid_list):
+    value_valid = staticmethod(str)
+
+  lst = MyList([1])
+  lst.extend([2, 3])
+  assert lst[1] == '2'
+  assert lst[2] == '3'
+
+#===============================================================================
+def test_valid_list_setitem_value_valid():
+  class MyList(valid_list):
+    value_valid = staticmethod(str)
+
+  lst = MyList([1, 2])
+  lst[0] = 99
+  assert lst[0] == '99'
+
+#===============================================================================
+def test_fmt_validator_name_only():
+  class CallableWithName:
+    __name__ = 'my_callable'
+    def __call__(self, x):
+      return x
+
+  c = CallableWithName()
+  result = fmt_validator(c)
+  assert 'my_callable' in result
+
+#===============================================================================
+def test_fmt_validator_type_fallback():
+  p = functools.partial(int, base=16)
+  result = fmt_validator(p)
+  assert 'partial' in result
+
+#===============================================================================
+def test_fmt_validator_lambda_starts_with_angle():
+  f = lambda x: x
+  result = fmt_validator(f)
+  assert result.startswith('<')
+
+#===============================================================================
+def test_validate_sequence_not_list_or_tuple():
+  with raises( ValidDefinitionError ):
+    validate('hello', REQUIRED, 'abc')
