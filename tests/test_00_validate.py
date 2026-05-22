@@ -529,7 +529,7 @@ def test_valid_dict_attr_repr():
 #===============================================================================
 def test_valid_dict_update_value_valid():
   class MyDict(valid_dict):
-    value_valid = staticmethod(str)
+    value_valid = valid(str)
 
   d = MyDict({'a': 1})
   d.update({'b': 2})
@@ -551,7 +551,7 @@ def test_valid_dict_setitem_key_valid():
     return k.strip()
 
   class MyDict(valid_dict):
-    key_valid = staticmethod(strip_key)
+    key_valid = valid(strip_key)
 
   d = MyDict({'a': 1})
   d[' b '] = 2
@@ -564,7 +564,7 @@ def test_valid_dict_delitem_key_valid():
     return k.strip()
 
   class MyDict(valid_dict):
-    key_valid = staticmethod(strip_key)
+    key_valid = valid(strip_key)
 
   d = MyDict({'a': 1, 'b': 2})
   del d[' a ']
@@ -573,7 +573,7 @@ def test_valid_dict_delitem_key_valid():
 #===============================================================================
 def test_valid_list_extend_value_valid():
   class MyList(valid_list):
-    value_valid = staticmethod(str)
+    value_valid = valid(str)
 
   lst = MyList([1])
   lst.extend([2, 3])
@@ -583,7 +583,7 @@ def test_valid_list_extend_value_valid():
 #===============================================================================
 def test_valid_list_setitem_value_valid():
   class MyList(valid_list):
-    value_valid = staticmethod(str)
+    value_valid = valid(str)
 
   lst = MyList([1, 2])
   lst[0] = 99
