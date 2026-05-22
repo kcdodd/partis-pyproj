@@ -52,6 +52,7 @@ mypy src/
 ## Architecture
 
 ### Source layout
+
 - `src/pyproj/` — source, installed as `partis/pyproj` (namespace package)
 - `tests/` — pytest test suite plus fixture packages (`pkg_base`, `pkg_cmake_1`, `pkg_meson_1`, etc.)
 - `pkgaux/` — nox helper utilities and requirements files
@@ -86,4 +87,4 @@ mypy src/
 `tests/pkg_base`, `tests/pkg_cmake_1`, etc. are minimal `pyproject.toml` projects used by the integration tests. Tests that build wheels or sdists install the `partis-pyproj` sdist from `dist/` (built during `prepare`), which is why `nox -s prepare` must run first.
 
 ### Coverage
-Coverage is gathered across subprocess boundaries using a `sitecustom` hook (`tests/cov_sitecustom`). Coverage files accumulate in `tmp/` with per-session names; `nox -s report` combines them.
+Coverage is gathered across subprocess boundaries using a `sitecustom` hook (`tests/cov_sitecustom`). Coverage files accumulate in `tmp/` with per-session names; `nox -s report` combines them. Coverage reports are generated in `./reports`.
