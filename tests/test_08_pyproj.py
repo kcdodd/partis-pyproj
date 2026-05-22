@@ -6,6 +6,8 @@ import tempfile
 import shutil
 import subprocess
 import glob
+import warnings
+from unittest.mock import patch
 
 from pytest import (
   mark,
@@ -292,6 +294,56 @@ def test_meson_bad_1():
 @mark.skipif(SKIP_CMAKE, reason="")
 def test_cmake_1():
   run_pyproj('pkg_cmake_1')
+
+#===============================================================================
+def test_missing_tool_key(tmp_path):
+  (tmp_path / 'pyproject.toml').write_text(
+    '[project]\n'
+    'name = "test_pkg"\n'
+    'version = "0.1.0"\n'
+    'requires-python = ">=3.8"\n'
+    '\n'
+    '[build-system]\n'
+    'requires = ["partis-pyproj"]\n'
+    'build-backend = "partis.pyproj.backend"\n'
+  )
+  with raises(ValidationError):
+    PyProjBase(root=tmp_path)
+
+#===============================================================================
+def test_git_failure_runtime_warning(tmp_path):
+  (tmp_path / 'pyproject.toml').write_text(
+    '[project]\n'
+    'name = "test_pkg"\n'
+    'version = "0.1.0"\n'
+    'requires-python = ">=3.8"\n'
+    '\n'
+    '[build-system]\n'
+    'requires = ["partis-pyproj"]\n'
+    'build-backend = "partis.pyproj.backend"\n'
+    '\n'
+    '[tool.pyproj]\n'
+  )
+  (tmp_path / '.git').mkdir()
+  with patch('subprocess.check_output', side_effect=subprocess.CalledProcessError(128, 'git')):
+    with warns(RuntimeWarning):
+      PyProjBase(root=tmp_path)
+
+#===============================================================================
+def test_meson_deprecated_non_meson_targets():
+  pkg_base_root = Path(osp.join(osp.dirname(__file__), 'pkg_base'))
+  import tempfile, shutil as _shutil
+  with tempfile.TemporaryDirectory() as tmpdir:
+    pkg_dir = Path(tmpdir) / 'pkg_base'
+    _shutil.copytree(pkg_base_root, pkg_dir)
+    cwd = os.getcwd()
+    try:
+      os.chdir(pkg_dir)
+      pyproj = PyProjBase(root=pkg_dir)
+    finally:
+      os.chdir(cwd)
+  with raises(ValidationError):
+    _ = pyproj.meson
 
 #===============================================================================
 if __name__ == '__main__':
