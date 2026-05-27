@@ -14,6 +14,9 @@ dist/
 reports/
 _build/
 
+.claude
+!.claude/agents
+
 uv.lock
 
 # Compiled Java class files
