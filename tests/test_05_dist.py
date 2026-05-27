@@ -387,3 +387,238 @@ def test_dist_zip_write_link_overwrite_guard(tmp_path):
     d.write_link('a.py', '../b.py')
     with raises(ValueError, match='Overwriting destination'):
       d.write_link('a.py', '../c.py', record=False, exist_ok=False)
+
+#===============================================================================
+# dist_targz additional branch coverage
+#===============================================================================
+
+def test_dist_targz_copy_before_create(tmp_path):
+  # copy_distfile with no _tmp_path → early return, no error (line 110)
+  d = dist_targz(outname='never.tgz', outdir=tmp_path)
+  d.copy_distfile()  # must not raise
+
+def test_dist_targz_remove_before_create(tmp_path):
+  # remove_distfile with no _tmp_path → early return, no error (line 123)
+  d = dist_targz(outname='never.tgz', outdir=tmp_path)
+  d.remove_distfile()  # must not raise
+
+def test_dist_targz_write_duplicate_no_record(tmp_path):
+  # write with record=False, same dst twice, exist_ok=False → ValueError (lines 154, 156)
+  with dist_targz(outname='dup.tgz', outdir=tmp_path) as d:
+    d.write('a/b.txt', b'first', record=False)
+    with raises(ValueError, match='Overwriting destination'):
+      d.write('a/b.txt', b'second', record=False)
+
+def test_dist_targz_write_link_dedup(tmp_path):
+  # write_link record=True, identical link twice → second is a no-op (lines 188-190)
+  with dist_targz(outname='dedup.tgz', outdir=tmp_path) as d:
+    d.write_link('a.py', '../b.py')
+    d.write_link('a.py', '../b.py')  # must not raise
+
+def test_dist_targz_write_link_no_record_duplicate(tmp_path):
+  # write_link record=False, exist_ok=False, dst already written → ValueError (lines 192, 194)
+  with dist_targz(outname='guard.tgz', outdir=tmp_path) as d:
+    d.write_link('a.py', '../b.py')
+    with raises(ValueError, match='Overwriting destination'):
+      d.write_link('a.py', '../c.py', record=False, exist_ok=False)
+
+#===============================================================================
+# dist_base additional branch coverage
+#===============================================================================
+
+def test_dist_base_copytree_with_symlink(tmp_path):
+  # copytree with a symlink in the source tree → write_link is called (lines 298, 306)
+  src = tmp_path / 'src'
+  src.mkdir()
+  real_file = src / 'real.txt'
+  real_file.write_text('hello')
+  link_file = src / 'link.txt'
+  link_file.symlink_to('real.txt')
+
+  out = tmp_path / 'out'
+  out.mkdir()
+
+  with dist_targz(outname='sym.tgz', outdir=out) as d:
+    d.copytree(src=src, dst='pkg')
+
+  import tarfile as _tarfile
+  with _tarfile.open(out / 'sym.tgz') as tf:
+    members = {m.name: m for m in tf.getmembers()}
+    assert 'pkg/link.txt' in members
+    assert members['pkg/link.txt'].issym()
+
+def test_dist_base_copytree_ignore_logs_debug(tmp_path, caplog):
+  # copytree with ignore callable returning names → debug log emitted (line 282)
+  import logging as _logging
+  src = tmp_path / 'src'
+  src.mkdir()
+  (src / 'keep.py').write_text('keep')
+  (src / 'skip.py').write_text('skip')
+
+  out = tmp_path / 'out'
+  out.mkdir()
+
+  with _logging.getLogger('dist_targz').propagate and caplog.at_level(_logging.DEBUG, logger='dist_targz'):
+    with dist_targz(outname='ign.tgz', outdir=out) as d:
+      with caplog.at_level(_logging.DEBUG):
+        d.copytree(src=src, dst='pkg', ignore=lambda path, names: ['skip.py'])
+
+  assert any('ignoring' in r.message for r in caplog.records)
+
+def test_dist_base_record_exist_ok_overwrites(tmp_path):
+  # record() with exist_ok=True on duplicate key with different data → logs overwrite (line 405)
+  out = tmp_path / 'out'
+  out.mkdir()
+
+  with dist_targz(outname='rec.tgz', outdir=out) as d:
+    d.record('file.txt', b'first data', exist_ok=False)
+    # second call with different data and exist_ok=True should log overwrite, not raise
+    d.record('file.txt', b'different data', exist_ok=True)
+
+def test_dist_base_write_with_record(tmp_path):
+  # write() with record=True exercises the record path (lines 146-147)
+  out = tmp_path / 'out'
+  out.mkdir()
+
+  with dist_targz(outname='wrec.tgz', outdir=out) as d:
+    d.write('myfile.txt', b'content', record=True)
+    assert 'myfile.txt' in {str(k) for k in d.records}
+
+def test_dist_base_write_link_with_record(tmp_path):
+  # write_link() with record=True exercises the record path (lines 170, 172-176)
+  out = tmp_path / 'out'
+  out.mkdir()
+
+  with dist_targz(outname='wlrec.tgz', outdir=out) as d:
+    d.write_link('mylink.py', '../real.py', record=True)
+    assert 'mylink.py' in {str(k) for k in d.records}
+
+#===============================================================================
+# dist_copy (dist_iter) additional branch coverage
+#===============================================================================
+
+import logging as _logging
+from unittest.mock import patch, MagicMock
+from partis.pyproj.dist_file.dist_copy import dist_iter
+from partis.pyproj.validate import ValidationError
+from partis.pyproj.pptoml import PyprojDistCopy
+from pathlib import PurePosixPath as _PurePosixPath
+
+def test_dist_iter_empty_glob_warns(tmp_path, caplog):
+  # glob pattern matches no files → WARNING logged (lines 78-80)
+  src = tmp_path / 'source'
+  src.mkdir()
+  (src / 'hello.py').write_text('x')
+
+  copy_item = PyprojDistCopy({
+    'src': _PurePosixPath('source'),
+    'dst': _PurePosixPath('dest'),
+    'include': [{'glob': '**/*.pyx'}],
+  })
+
+  with caplog.at_level(_logging.WARNING):
+    results = list(dist_iter(
+      copy_items=[copy_item],
+      ignore=[],
+      root=tmp_path,
+      logger=_logging.getLogger('test_dist_iter'),
+    ))
+
+  assert results == []
+  assert any('Copy pattern did not yield any files' in r.message for r in caplog.records)
+
+def test_dist_iter_rematch_skips_non_matching(tmp_path):
+  # rematch that doesn't match filename → file silently skipped (lines 97-99)
+  src = tmp_path / 'source'
+  src.mkdir()
+  (src / 'hello.py').write_text('x')
+
+  copy_item = PyprojDistCopy({
+    'src': _PurePosixPath('source'),
+    'dst': _PurePosixPath('dest'),
+    'include': [{'glob': '**/*.py', 'rematch': r'\.pyx$'}],
+  })
+
+  results = list(dist_iter(
+    copy_items=[copy_item],
+    ignore=[],
+    root=tmp_path,
+    logger=_logging.getLogger('test_dist_iter'),
+  ))
+
+  assert results == []
+
+def test_dist_iter_invalid_replace_raises(tmp_path):
+  # replace format string references non-existent group → ValidationError (lines 113-117)
+  src = tmp_path / 'source'
+  src.mkdir()
+  (src / 'hello.py').write_text('x')
+
+  copy_item = PyprojDistCopy({
+    'src': _PurePosixPath('source'),
+    'dst': _PurePosixPath('dest'),
+    'include': [{'glob': '**/*.py', 'rematch': r'(hello)\.py', 'replace': '{99}'}],
+  })
+
+  with raises(ValidationError):
+    list(dist_iter(
+      copy_items=[copy_item],
+      ignore=[],
+      root=tmp_path,
+      logger=_logging.getLogger('test_dist_iter'),
+    ))
+
+def test_dist_iter_duplicate_src_dst_skipped(tmp_path, monkeypatch):
+  # two copy operations producing the same (src, dst) → duplicate skipped (lines 167, 169)
+  from partis.pyproj.dist_file.dist_copy import dist_copy
+
+  src = tmp_path / 'source'
+  src.mkdir()
+  (src / 'hello.py').write_text('x')
+
+  copy_items = [
+    PyprojDistCopy({'src': _PurePosixPath('source/hello.py'), 'dst': _PurePosixPath('dest/hello.py')}),
+    PyprojDistCopy({'src': _PurePosixPath('source/hello.py'), 'dst': _PurePosixPath('dest/hello.py')}),
+  ]
+
+  out = tmp_path / 'out'
+  out.mkdir()
+
+  monkeypatch.chdir(tmp_path)
+
+  with dist_targz(outname='dup.tgz', outdir=out) as d:
+    dist_copy(
+      base_path=_PurePosixPath('.'),
+      copy_items=copy_items,
+      ignore=[],
+      dist=d,
+      root=tmp_path,
+      logger=_logging.getLogger('test_dist_copy'),
+    )
+
+  # file should appear exactly once
+  import tarfile as _tarfile
+  with _tarfile.open(out / 'dup.tgz') as tf:
+    names = tf.getnames()
+  assert names.count('dest/hello.py') == 1
+
+def test_dist_iter_scanned_get_exception_propagates(tmp_path):
+  # DirInfo.get raises RuntimeError → error logged and re-raised (lines 50, 52-53)
+  from partis.pyproj.path.scandir import DirInfo
+
+  src = tmp_path / 'source'
+  src.mkdir()
+
+  copy_item = PyprojDistCopy({
+    'src': _PurePosixPath('source'),
+    'dst': _PurePosixPath('dest'),
+  })
+
+  with patch.object(DirInfo, 'get', side_effect=RuntimeError('boom')):
+    with raises(RuntimeError, match='boom'):
+      list(dist_iter(
+        copy_items=[copy_item],
+        ignore=[],
+        root=tmp_path,
+        logger=_logging.getLogger('test_dist_iter'),
+      ))

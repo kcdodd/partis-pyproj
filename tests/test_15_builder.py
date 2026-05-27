@@ -10,12 +10,15 @@ import sys
 import os
 import logging
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
 
 from partis.pyproj import ValidationError, PyProjBase
 from partis.pyproj.validate import ValidPathError
 from partis.pyproj.builder.builder import ProcessRunner, BuildCommandError, Builder
+from partis.pyproj.builder.cmake import cmake
+from partis.pyproj.builder.meson import meson
 
 #===============================================================================
 # Helpers
@@ -289,3 +292,101 @@ def test_env_substitution(tmp_path):
   pyproj, pkg = _make_pyproj(tmp_path, _PROCESS_TARGET_WITH_ENV)
   with _builder(pyproj, pkg) as b:
     b.build_targets()  # must complete without error
+
+#===============================================================================
+# cmake / meson missing executable
+#===============================================================================
+
+def _make_cmake_args(tmp_path):
+  pyproj, pkg = _make_pyproj(tmp_path)
+  runner = MagicMock()
+  return dict(
+    pyproj=pyproj,
+    logger=pyproj.logger,
+    options={},
+    work_dir=pkg,
+    src_dir=pkg,
+    build_dir=tmp_path / 'build',
+    prefix=tmp_path / 'prefix',
+    setup_args=[],
+    compile_args=[],
+    install_args=[],
+    build_clean=True,
+    runner=runner)
+
+def _make_meson_args(tmp_path):
+  pyproj, pkg = _make_pyproj(tmp_path)
+  runner = MagicMock()
+  return dict(
+    pyproj=pyproj,
+    logger=pyproj.logger,
+    options={},
+    work_dir=pkg,
+    src_dir=pkg,
+    build_dir=tmp_path / 'build',
+    prefix=tmp_path / 'prefix',
+    setup_args=[],
+    compile_args=[],
+    install_args=[],
+    build_clean=True,
+    runner=runner)
+
+def test_cmake_missing_cmake(tmp_path):
+  args = _make_cmake_args(tmp_path)
+  with patch('shutil.which', return_value=None):
+    with pytest.raises(ValueError, match="cmake"):
+      cmake(**args)
+
+def test_cmake_missing_ninja(tmp_path):
+  args = _make_cmake_args(tmp_path)
+  def _which(name):
+    return '/usr/bin/cmake' if name == 'cmake' else None
+  with patch('shutil.which', side_effect=_which):
+    with pytest.raises(ValueError, match="ninja"):
+      cmake(**args)
+
+def test_meson_missing_meson(tmp_path):
+  args = _make_meson_args(tmp_path)
+  with patch('shutil.which', return_value=None):
+    with pytest.raises(ValueError, match="meson"):
+      meson(**args)
+
+def test_meson_missing_ninja(tmp_path):
+  args = _make_meson_args(tmp_path)
+  def _which(name):
+    return '/usr/bin/meson' if name == 'meson' else None
+  with patch('shutil.which', side_effect=_which):
+    with pytest.raises(ValueError, match="ninja"):
+      meson(**args)
+
+#===============================================================================
+# build_clean=False skips setup
+#===============================================================================
+
+def test_cmake_build_clean_false_skips_setup(tmp_path):
+  args = _make_cmake_args(tmp_path)
+  args['build_clean'] = False
+  args['build_dir'].mkdir(parents=True)
+  runner = args['runner']
+  def _which(name):
+    return f'/usr/bin/{name}'
+  with patch('shutil.which', side_effect=_which):
+    cmake(**args)
+  calls = [str(c) for c in runner.run.call_args_list]
+  assert not any('cmake' in c and '-S' in c for c in calls), \
+    "cmake configure should be skipped when build_clean=False"
+  assert runner.run.call_count == 2
+
+def test_meson_build_clean_false_skips_setup(tmp_path):
+  args = _make_meson_args(tmp_path)
+  args['build_clean'] = False
+  args['build_dir'].mkdir(parents=True)
+  runner = args['runner']
+  def _which(name):
+    return f'/usr/bin/{name}'
+  with patch('shutil.which', side_effect=_which):
+    meson(**args)
+  calls = [str(c) for c in runner.run.call_args_list]
+  assert not any('setup' in c for c in calls), \
+    "meson setup should be skipped when build_clean=False"
+  assert runner.run.call_count == 2

@@ -23,7 +23,7 @@ test = ["pytest>7", {include-group = "coverage"}]
 #===============================================================================
 [build-system]
 requires = [
-  "partis-pyproj == 0.2.2"]
+  "partis-pyproj == 0.2.3"]
 
 build-backend = "partis.pyproj.backend"
 

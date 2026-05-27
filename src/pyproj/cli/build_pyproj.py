@@ -81,10 +81,6 @@ def _rebuild_pyproj(
     config_settings = config_settings,
     editable = True)
 
-  if not any(target.enabled for target in pyproj.targets):
-    print("Project has no build targets.")
-    exit(0)
-
   if editable_root is None:
     editable_root = pyproj.editable_root
 
