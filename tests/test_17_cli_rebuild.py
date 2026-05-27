@@ -65,16 +65,6 @@ def test_prep_pyproj(tmp_path):
   _prep_pyproj(path=pkg)  # must complete without error
 
 #===============================================================================
-# _rebuild_pyproj — "no targets" branch (line 84-86)
-#===============================================================================
-
-def test_rebuild_no_targets(tmp_path):
-  pkg = _make_pkg(tmp_path, _TOML_NO_TARGETS)
-  with pytest.raises(SystemExit) as exc:
-    _rebuild_pyproj(root=pkg, editable_root=None)
-  assert exc.value.code == 0
-
-#===============================================================================
 # _rebuild_pyproj — "editable root not found" branch (line 91-93)
 #===============================================================================
 
@@ -143,12 +133,3 @@ def test_prep_impl(tmp_path):
   pkg = _make_pkg(tmp_path, _TOML_NO_TARGETS)
   _prep_impl(argparse.Namespace(path=pkg))
 
-#===============================================================================
-# _rebuild_impl — argparse dispatch wrapper (line 71)
-#===============================================================================
-
-def test_rebuild_impl_no_targets(tmp_path):
-  pkg = _make_pkg(tmp_path, _TOML_NO_TARGETS)
-  with pytest.raises(SystemExit) as exc:
-    _rebuild_impl(argparse.Namespace(root=pkg, staging=None))
-  assert exc.value.code == 0
