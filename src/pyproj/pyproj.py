@@ -105,7 +105,7 @@ class PyProjBase:
 
       with validating(key = 'tool'):
         if 'tool' not in self.pptoml:
-          # TODO: !!!
+          # TODO: These should be validated against the schema, not ad-hoc checks
           raise RequiredValueError("tool.pyproj is required for backend")
 
         with validating(key = 'pyproj'):
@@ -177,7 +177,9 @@ class PyProjBase:
 
     if (root/'.git').is_dir() and shutil.which('git'):
       try:
-        commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+        commit = subprocess.check_output(
+          ['git', 'rev-parse', '--short', 'HEAD'],
+          cwd = root).decode('utf-8').strip()
       except subprocess.CalledProcessError as e:
         warnings.warn(
           "Project appears to be git repository, but could not query git status.",

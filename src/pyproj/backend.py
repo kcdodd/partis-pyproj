@@ -224,6 +224,9 @@ def prepare_metadata_for_build_wheel(
   with zipfile.ZipFile( dist.outpath ) as fp:
     fp.extractall(metadata_directory)
 
+  # cleanup dummy wheel file (not part of contract)
+  dist.outpath.unlink()
+
   # NOTE: dist_info_path is a POSIX path, need to convert to OS path first
   # PIP assums the return value is a string
   return os.fspath(Path(dist.dist_info_path))

@@ -111,8 +111,8 @@ class Builder:
 
   #-----------------------------------------------------------------------------
   def build_targets(self):
+    # NOTE: minimal conditions that could plausibly break a build (environment, deps, etc)
     status_content = '\n'.join([
-      f"HEAD={self.pyproj.commit}",
       f"PPTOML_CHECKSUM={self.pyproj.pptoml_checksum}",
       f"PYTHON={sys.implementation.name}, {PY_VERSION}, api={str(sys.api_version)}",
       f"PLATFORM={sys.platform}",
