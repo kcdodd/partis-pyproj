@@ -28,6 +28,7 @@ from . import (
   valid_keys,
   ValidationError,
   mapget,
+  norm_dist_name,
   norm_dist_filename,
   dist_build,
   PkgInfoReq,
@@ -328,17 +329,22 @@ def build_editable(
     # TODO: use constraints file instead?
     requirements_file = editable_root/'build_requirements.txt'
 
-    # get build dependencies, pinned to version currently installed
+    # get build dependencies, pinned to version currently installed.
+    # keys are PEP 503 normalized names so that lookups match regardless of
+    # how the name was spelled in build_requires vs. the installed package.
     env_reqs = {
-      pkg.req.name: pkg.req
+      norm_dist_name(pkg.req.name): pkg.req
       for pkg in [PkgInfoReq(dep) for dep in pyproj.env_pkgs]}
 
     build_deps = []
 
     for dep in pyproj.build_requires:
-      # TODO: build_requires names may not be normalized/match those of installed package
-      req = env_reqs[dep.req.name]
-      build_deps.extend([str(dep.req), str(req)])
+      build_deps.append(str(dep.req))
+
+      req = env_reqs.get(norm_dist_name(dep.req.name))
+
+      if req is not None:
+        build_deps.append(str(req))
 
     requirements_file.write_text('\n'.join(build_deps))
 
@@ -429,4 +435,4 @@ def _run_editable_py(venv_dir, args):
     'VIRTUAL_ENV': str(venv_dir),
     'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
 
-  check_call([venv_py, *args], env = venv_env)
+  check_call([str(venv_py), *args], env = venv_env)
