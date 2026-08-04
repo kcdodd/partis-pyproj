@@ -6,8 +6,8 @@ uv venv, build-backend `partis.pyproj.backend`. Source read at commit in
 reproduced against the installed 0.2.2, same code paths. File paths below are
 `src/pyproj/backend.py` (installed as `partis/pyproj/backend.py`).
 
-Issue 1 and both parts of Issue 2 are S2. None blocks work today (worked around), but they
-cost a debugging session and one broke a working environment.
+Neither blocks work today (worked around), but both cost a debugging session
+and one broke a working environment.
 
 ---
 
@@ -53,12 +53,7 @@ diagnostic naming the package + both versions (option b), not a raw resolver con
 
 ---
 
-## Issue 2 — editable root: global cache location, and non-atomic rebuild
-
-Two defects in the same directory (`pyproj.editable_root`), addressed together because the
-first changes where the second's staging/rename happens.
-
-### 2a — editable root is global, keyed only by package name/version/python
+## Issue 2 — editable root is global, keyed only by package name/version/python
 
 **Where:** `pyproj.py:208-210`.
 
@@ -75,18 +70,18 @@ only — not of the source tree. Two *distinct source trees* at the same version
 share one farm: two worktrees or checkouts of the same package, each installed editable into
 its own venv. The second install overwrites the first's `wheel/` tree while the first venv's
 `.pth` still points at it, so one environment silently starts importing the other tree's
-build. Combined with 2b, the overwrite is a `rmtree` of a tree another venv depends on.
+build. The overwrite is a `rmtree` (`backend.py:315-317`) of a tree another venv depends on.
 
 **Scope.** In farm-per-tree terms, three configurations:
 
 | venvs | farms | trees | status |
 |---|---|---|---|
 | 2 | 2 | 2 | works today; unchanged |
-| 2 | 1 | 2 | the clobbering bug — what 2a fixes |
+| 2 | 1 | 2 | the clobbering bug — what this issue fixes |
 | 2 | 1 | 1 | not handled, before or after |
 
-Two venvs sharing one tree share one farm. That is not supported and 2a does not change it;
-see the structural limit below for why no backend-side key would.
+Two venvs sharing one tree share one farm. That is not supported and this issue does not
+change it; see the structural limit below for why no backend-side key would.
 
 **Proposed fix.** Move the editable root in-tree, consistent with build targets
 (`build_dir` defaults to `build/tmp`, `prefix` to `build`).
@@ -163,7 +158,7 @@ strictly a reparenting.
   `default` (`pptoml.py:439-446`).
 - `pyproj.py:208-210` — build `editable_root` from the configured `build_dir` instead of
   `cache_dir()/'editable'`; apply the in-root check per `builder.py:158-181`.
-- `backend.py:311-330` — consumes `pyproj.editable_root`; no change beyond 2b's staging work.
+- `backend.py:311-330` — consumes `pyproj.editable_root`; no change needed.
 - `cli/build_pyproj.py` — drop `--staging` and the `editable_root` parameter.
 - `cache.py` — unchanged. `cache_dir()` stays: the download builder uses it
   (`builder/download.py:196` and `builder/builder.py:99`, both `cache_dir()/'download'`), and
@@ -192,30 +187,6 @@ strictly a reparenting.
   parameter, including `test_rebuild_default_editable_root` which exists to cover the
   `editable_root=None` fallback being deleted. Rework against configured `build_dir`.
 
-### 2b — editable build is non-atomic: a failed rebuild destroys the previously-working install
-
-**Where:** `backend.py:315-317` (`build_editable`).
-
-```python
-if editable_root.exists():
-    # TODO: add status file to avoid accidentally deleting the wrong directory
-    shutil.rmtree(editable_root)
-```
-
-**Problem.** The entire editable root (including the working `wheel/` tree that the
-`.pth` points at) is deleted *before* the new build runs. If the build then fails (e.g.
-Issue 1), the package is left uninstalled/unimportable — a previously-working environment
-is broken by an attempt to rebuild it. Observed directly: a failing `pip install -e` left
-`import nohm.core` raising `ModuleNotFoundError` until the tree was hand-reconstructed.
-
-**Proposed fix.** Build into a staging directory and atomically `os.replace()`/rename into
-place only after the build succeeds; on failure, leave the existing editable untouched. A
-failed rebuild then becomes a no-op rather than a breakage. (The line-316 TODO already
-gestures at more careful handling of this directory.)
-
-**Test idea.** Given a working editable install, run a build that fails partway → assert the
-prior `wheel/` tree and importability are unchanged.
-
 ---
 
 ## Not a partis-pyproj bug (recorded for completeness)
@@ -227,5 +198,5 @@ prior `wheel/` tree and importability are unchanged.
 
 ## Ideas
 
-- (Moved to Issue 2a: locate the editable virtual wheel within the repo, via a location
+- (Moved to Issue 2: locate the editable virtual wheel within the repo, via a location
   option.)
