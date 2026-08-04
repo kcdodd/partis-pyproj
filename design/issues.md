@@ -6,8 +6,8 @@ uv venv, build-backend `partis.pyproj.backend`. Source read at commit in
 reproduced against the installed 0.2.2, same code paths. File paths below are
 `src/pyproj/backend.py` (installed as `partis/pyproj/backend.py`).
 
-Both are S2. Neither blocks work today (worked around), but both cost a debugging session
-and one broke a working environment.
+Issue 1 and both parts of Issue 2 are S2. None blocks work today (worked around), but they
+cost a debugging session and one broke a working environment.
 
 ---
 
@@ -53,7 +53,146 @@ diagnostic naming the package + both versions (option b), not a raw resolver con
 
 ---
 
-## Issue 2 — editable build is non-atomic: a failed rebuild destroys the previously-working install
+## Issue 2 — editable root: global cache location, and non-atomic rebuild
+
+Two defects in the same directory (`pyproj.editable_root`), addressed together because the
+first changes where the second's staging/rename happens.
+
+### 2a — editable root is global, keyed only by package name/version/python
+
+**Where:** `pyproj.py:208-210`.
+
+```python
+pkg_name = norm_dist_filename(self.pkg_info.name_normed)
+pyversion = '.'.join(str(n) for n in sys.version_info[:3])
+self.editable_root = cache_dir()/'editable'/f'{pkg_name}_{self.pkg_info.version}_py{pyversion}'
+```
+
+`cache_dir()` is `~/.cache/partis-pyproj` (or a username-suffixed temp dir; `cache.py:8-23`).
+
+**Problem.** The symlink-farm path is a function of (package name, version, python version)
+only — not of the source tree. Two *distinct source trees* at the same version therefore
+share one farm: two worktrees or checkouts of the same package, each installed editable into
+its own venv. The second install overwrites the first's `wheel/` tree while the first venv's
+`.pth` still points at it, so one environment silently starts importing the other tree's
+build. Combined with 2b, the overwrite is a `rmtree` of a tree another venv depends on.
+
+**Scope.** In farm-per-tree terms, three configurations:
+
+| venvs | farms | trees | status |
+|---|---|---|---|
+| 2 | 2 | 2 | works today; unchanged |
+| 2 | 1 | 2 | the clobbering bug — what 2a fixes |
+| 2 | 1 | 1 | not handled, before or after |
+
+Two venvs sharing one tree share one farm. That is not supported and 2a does not change it;
+see the structural limit below for why no backend-side key would.
+
+**Proposed fix.** Move the editable root in-tree, consistent with build targets
+(`build_dir` defaults to `build/tmp`, `prefix` to `build`).
+
+Decided form: `tool.pyproj.editable` is a **table**, initially carrying a single key
+`build_dir`, default `build/editable`, resolved relative to the project root. A table (not a
+bare path) so further keys can be added without a schema break. Sketch, added to the
+`pyproj` schema's `default` (`pptoml.py:439-446`):
+
+```python
+class pyproj_editable(valid_dict):
+  allow_keys = list()
+  default = {
+    # NOTE: paths should start as POSIX, but transformed to current OS
+    'build_dir': valid('build/editable', PurePosixPath, Path) }
+```
+
+The existing per-install subdirectory is **retained beneath** `build_dir`:
+
+```python
+self.editable_root = <build_dir>/f'{pkg_name}_{self.pkg_info.version}_py{pyversion}'
+```
+
+so the leaf name is unchanged and only the parent moves from `cache_dir()/'editable'` to an
+in-tree path. This removes the cross-tree collision by construction (distinct trees →
+distinct parents) and keeps version/python discrimination within one tree.
+
+`build_dir` is constrained to lie within the project root, as elsewhere. The existing
+enforcement for target paths is `builder.py:158-181` — non-absolute paths joined to
+`self.root`, `resolve()`d, then rejected with `FileOutsideRootError` if not a subdir of the
+root (or tmpdir), and rejected if equal to the root itself. Reuse that check.
+
+**Structural limit — the target venv is not observable at build time.** Keying the path by
+the installing venv is not available to a PEP 517 backend. Under build isolation the
+frontend runs the backend in an ephemeral build environment, so `sys.prefix` /
+`sys.executable` name that environment (or the base interpreter it was created from), never
+the venv the wheel is about to be installed into; the frontend passes no target-env
+identity in `config_settings`. Worse than merely absent: with `--no-build-isolation` the
+observable venv *is* the target, so a venv-derived key would make the editable path depend
+on how the install was invoked rather than on what was installed, and an isolated and a
+non-isolated install of the same tree would disagree about where the farm lives. Note
+`backend.py:351-355` already creates its own `build_venv` inside the editable root from
+`sys.executable` for later rebuilds — that is the build interpreter, not the target venv.
+
+This is why the third row of the scope table stays unhandled: one tree in two venvs is one
+farm, and no backend-side key separates them.
+
+**`./build` is not excluded from the distribution, by design.** The convention is that
+`./build` holds all build products — wheels, docs, anything generated — functioning as a
+build-specific tmp directory. Keeping the editable farm at `build/editable` follows that
+convention. Excluding it from the sdist/wheel is the project's responsibility via its own
+dist copy patterns, not something the backend does implicitly; the default gains no special
+ignore.
+
+**The `--staging` CLI option is removed.** `cli/build_pyproj.py:54-58` currently lets the
+caller override the editable root per-invocation. Once `build_dir` is declared in
+`pyproject.toml`, that override is a second, conflicting source of truth for the same path —
+and a rebuild pointed at a different root than the install used produces a farm no `.pth`
+references. The location comes from the project config only.
+
+Follow-on, read as implied rather than stated: `_rebuild_pyproj`'s `editable_root`
+parameter (`cli/build_pyproj.py:74-85`, including the `if editable_root is None` fallback)
+also goes, leaving the function to always use `pyproj.editable_root`. Flagged because
+`tests/test_17_cli_rebuild.py` passes that parameter directly in three tests; they would
+move to setting `build_dir` in the fixture's `pyproject.toml` instead. If the parameter
+should survive as a library-level seam with only the argparse flag removed, say so.
+
+**Leaf name retained.** `{pkg}_{version}_py{X.Y.Z}` stays as-is beneath `build_dir`. Version
+and python still discriminate within a single tree, and keeping the name means the change is
+strictly a reparenting.
+
+**Work items.**
+- `pptoml.py` — add `pyproj_editable` with `build_dir`; register under the `pyproj` schema
+  `default` (`pptoml.py:439-446`).
+- `pyproj.py:208-210` — build `editable_root` from the configured `build_dir` instead of
+  `cache_dir()/'editable'`; apply the in-root check per `builder.py:158-181`.
+- `backend.py:311-330` — consumes `pyproj.editable_root`; no change beyond 2b's staging work.
+- `cli/build_pyproj.py` — drop `--staging` and the `editable_root` parameter.
+- `cache.py` — unchanged. `cache_dir()` stays: the download builder uses it
+  (`builder/download.py:196` and `builder/builder.py:99`, both `cache_dir()/'download'`), and
+  a global cache is right there — downloads are content-fetched by URL and genuinely shared
+  across projects. What this issue removes is the use of `cache_dir()` for *install state*,
+  which is per-tree and per-venv rather than shared. Two dead imports fall out:
+  `backend.py:39` and `cli/build_pyproj.py:12` both import `cache_dir` without using it
+  already.
+
+**Tests to add.**
+- Two checkouts of the same package at the same version, installed editable into two venvs
+  on one interpreter → each `.pth` resolves to a distinct tree under its own source root, and
+  building one does not modify the other. (Row 2 of the scope table — the regression test for
+  this issue.)
+- Default location → farm lands in `build/editable/{pkg}_{version}_py{X.Y.Z}`.
+- `tool.pyproj.editable.build_dir` set → farm lands there.
+- `build_dir` escaping the root (`../elsewhere`, absolute outside root, or the root itself)
+  → `FileOutsideRootError` / `ValidPathError`, matching target-path behavior.
+
+**Existing tests to update.**
+- `tests/test_14_editable.py:44-52, 90-107` — monkeypatches `cache.CACHE_DIR` and reconstructs
+  the expected path under it. The monkeypatch becomes unnecessary; assertions move to the
+  in-tree path.
+- `tests/test_14_editable.py:126` — invokes the CLI with `--staging`; breaks on removal.
+- `tests/test_17_cli_rebuild.py:71-125` — four tests built around the `editable_root`
+  parameter, including `test_rebuild_default_editable_root` which exists to cover the
+  `editable_root=None` fallback being deleted. Rework against configured `build_dir`.
+
+### 2b — editable build is non-atomic: a failed rebuild destroys the previously-working install
 
 **Where:** `backend.py:315-317` (`build_editable`).
 
@@ -88,4 +227,5 @@ prior `wheel/` tree and importability are unchanged.
 
 ## Ideas
 
-- Have editable virtual wheel be located within repo somewhere. (a location option?)
+- (Moved to Issue 2a: locate the editable virtual wheel within the repo, via a location
+  option.)
