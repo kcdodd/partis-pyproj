@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import shutil
 import zipfile
+from importlib import metadata
 import pytest
 from unittest.mock import patch
 from subprocess import check_call
@@ -17,26 +18,29 @@ from partis.pyproj.backend import (
   prepare_metadata_for_build_editable,
   build_editable,
   _run_editable_py)
+from .pkg_util import copy_pkg
 
 pyversion = '.'.join(str(n) for n in sys.version_info[:3])
 
-# Minimal package, used to check only where the editable root is placed
+# Minimal package, used to check the editable root and build requirements only
 _TOML_MIN = """\
 [project]
 name = "test-editable-pkg"
 version = "0.0.1"
 
 [build-system]
-requires = ["partis-pyproj"]
+requires = [{requires}]
 build-backend = "partis.pyproj.backend"
 
 [tool.pyproj.dist.binary.purelib]
 copy = []
 """
 
+_MIN_LEAF = f'test_editable_pkg_0.0.1_py{pyversion}'
+
 #===============================================================================
 def _make_pkg(src, dst):
-  shutil.copytree(src, dst)
+  copy_pkg(src, dst)
   shutil.copyfile(Path(__file__).parent.parent/'.gitignore', dst/'.gitignore')
 
   subprocess.check_call(['git', 'init'], cwd=dst)
@@ -50,9 +54,9 @@ def _check_link(link: Path, target: Path):
   return link.is_symlink() and os.readlink(link).removeprefix("\\\\?\\") == str(target)
 
 #===============================================================================
-def _make_min_pkg(root: Path, build_dir = None) -> Path:
+def _make_min_pkg(root: Path, build_dir = None, requires = '"partis-pyproj"') -> Path:
   root.mkdir(parents=True)
-  toml = _TOML_MIN
+  toml = _TOML_MIN.format(requires = requires)
 
   if build_dir is not None:
     toml += f'\n[tool.pyproj.editable]\nbuild_dir = "{build_dir}"\n'
@@ -149,12 +153,56 @@ def test_build_incremental(tmp_path):
   assert edited_dst.read_text() == edited_text
 
 #===============================================================================
+def test_build_requirements_pin(tmp_path, caplog):
+  """Installed versions are pinned only when they satisfy the build requirement
+  """
+  # 'packaging' is a dependency, so it is installed at a version satisfying an
+  # unrestricted requirement. The pin for 'pytest' would conflict with the
+  # (deliberately unsatisfiable) requirement, and must be dropped instead.
+  packaging_version = metadata.version('packaging')
+
+  root = _make_min_pkg(
+    tmp_path/'pkg',
+    requires = '"packaging", "pytest == 0.0.1"')
+
+  wheel_dir = tmp_path/'dist'
+  wheel_dir.mkdir()
+
+  cwd = os.getcwd()
+
+  with patch('partis.pyproj.backend.check_call') as venv_call, \
+      patch('partis.pyproj.backend._run_editable_cmd') as install_cmd, \
+      patch('partis.pyproj.backend._run_editable_py') as prep_cmd:
+
+    try:
+      os.chdir(root)
+      build_editable(str(wheel_dir))
+    finally:
+      os.chdir(cwd)
+
+  # the build environment is created and used even with no build targets
+  assert venv_call.called
+  assert install_cmd.called
+  assert prep_cmd.called
+
+  requirements_file = root/'build'/'editable'/_MIN_LEAF/'build_requirements.txt'
+  deps = requirements_file.read_text().splitlines()
+
+  # NOTE: 'build_requires' is a set, so the order is not significant
+  assert sorted(deps) == sorted([
+    'packaging',
+    f'packaging=={packaging_version}',
+    'pytest==0.0.1'])
+
+  assert 'does not satisfy build requirement' in caplog.text
+
+#===============================================================================
 def test_editable_root_default(tmp_path):
   root = _make_min_pkg(tmp_path/'pkg')
   pyproj = PyProjBase(root = root, editable = True)
 
   assert pyproj.editable_root == (
-    root/'build'/'editable'/f'test_editable_pkg_0.0.1_py{pyversion}')
+    root/'build'/'editable'/_MIN_LEAF)
 
 #===============================================================================
 def test_editable_root_configured(tmp_path):
@@ -162,7 +210,7 @@ def test_editable_root_configured(tmp_path):
   pyproj = PyProjBase(root = root, editable = True)
 
   assert pyproj.editable_root == (
-    root/'staging'/'editable'/f'test_editable_pkg_0.0.1_py{pyversion}')
+    root/'staging'/'editable'/_MIN_LEAF)
 
 #===============================================================================
 def test_editable_root_outside_root(tmp_path):

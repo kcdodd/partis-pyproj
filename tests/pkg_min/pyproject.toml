@@ -9,7 +9,7 @@ version = "0.0.1"
 #===============================================================================
 [build-system]
 requires = [
-  "partis-pyproj== 0.0.1"]
+  "partis-pyproj"]
 
 build-backend = "partis.pyproj.backend"
 

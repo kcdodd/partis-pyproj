@@ -7,7 +7,9 @@ import shutil
 import subprocess
 import glob
 import warnings
+from importlib import metadata
 from unittest.mock import patch
+import tomli
 
 from pytest import (
   mark,
@@ -28,6 +30,9 @@ from partis.pyproj.backend import (
   build_sdist,
   prepare_metadata_for_build_wheel,
   build_wheel)
+from .pkg_util import (
+  PYPROJ_REQ,
+  copy_pkg)
 
 SKIP_MESON = False
 SKIP_CMAKE = SKIP_MESON
@@ -156,6 +161,37 @@ def try_legacy( name, dist_file ):
       os.chdir(cwd)
 
 #===============================================================================
+def test_corpus_pyproj_req():
+  """The corpus declares 'partis-pyproj' unpinned, and is copied with it pinned
+  to the version under test
+  """
+  version = metadata.version('partis-pyproj')
+  corpus = sorted(Path(__file__).resolve().parent.glob('*/pyproject.toml'))
+
+  assert corpus
+
+  for pptoml_file in corpus:
+    reqs = list(PYPROJ_REQ.finditer(pptoml_file.read_text()))
+
+    # a stale pin silently builds the fixture with a released version, or fails
+    # to resolve at all once that version is no longer in 'dist'
+    assert reqs, f"'partis-pyproj' build requirement not found: {pptoml_file}"
+
+    for req in reqs:
+      assert not req['spec'].strip(), (
+        f"'partis-pyproj' build requirement must not be pinned: {pptoml_file}")
+
+  with tempfile.TemporaryDirectory() as tmpdir:
+    pkg_dir = copy_pkg(
+      Path(__file__).resolve().parent/'pkg_meson_1',
+      Path(tmpdir)/'pkg')
+
+    pptoml = tomli.loads((pkg_dir/'pyproject.toml').read_text())
+
+    assert pptoml['build-system']['requires'][0] == (
+      f'partis-pyproj[meson] == {version}')
+
+#===============================================================================
 def run_pyproj( name, source = True, binary = True ):
 
   with tempfile.TemporaryDirectory() as tmpdir:
@@ -163,11 +199,9 @@ def run_pyproj( name, source = True, binary = True ):
     outdir = tmpdir/'dist'
     pkg_dir = tmpdir/name
 
-    shutil.copytree(
+    copy_pkg(
       Path(__file__).resolve().parent/name,
-      pkg_dir,
-      # some tests require copying symlinks
-      symlinks = True )
+      pkg_dir )
 
     cwd = os.getcwd()
 
@@ -332,10 +366,10 @@ def test_git_failure_runtime_warning(tmp_path):
 #===============================================================================
 def test_meson_deprecated_non_meson_targets():
   pkg_base_root = Path(osp.join(osp.dirname(__file__), 'pkg_base'))
-  import tempfile, shutil as _shutil
+  import tempfile
   with tempfile.TemporaryDirectory() as tmpdir:
     pkg_dir = Path(tmpdir) / 'pkg_base'
-    _shutil.copytree(pkg_base_root, pkg_dir)
+    copy_pkg(pkg_base_root, pkg_dir)
     cwd = os.getcwd()
     try:
       os.chdir(pkg_dir)
