@@ -1,5 +1,14 @@
 # Releases
 
+## v0.2.4 - WIP
+
+- Move the editable staging directory into the project tree, at
+  `tool.pyproj.editable.build_dir` (default `build/editable`), instead of
+  `$HOME/.cache/partis-pyproj/editable`. Two checkouts of the same package and
+  version no longer share (and overwrite) one staging directory.
+- Remove `partis-pyproj rebuild --staging`; the location comes from
+  `pyproject.toml` only.
+
 ## v0.2.2 - 2026-05-19
 
 - Add support for Python 3.14

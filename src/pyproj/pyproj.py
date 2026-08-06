@@ -18,6 +18,7 @@ from .pkginfo import (
 from .validate import (
   ValidationWarning,
   ValidationError,
+  ValidPathError,
   FileOutsideRootError,
   RequiredValueError,
   valid_dict,
@@ -33,7 +34,8 @@ from .pep import (
   platlib_compat_tags,
   norm_dist_filename)
 from .path import (
-  resolve)
+  resolve,
+  subdir)
 from .load_module import (
   EntryPoint )
 
@@ -52,7 +54,6 @@ from .pptoml import (
   pyproj_targets)
 from .builder import Builder
 from .dist_file import dist_copy
-from .cache import cache_dir
 
 #===============================================================================
 class PyProjBase:
@@ -205,9 +206,29 @@ class PyProjBase:
       if not (file is None or any(c.src == file for c in self.source.copy)):
         self.source.copy.append(file)
 
+    # in-tree location of the editable symlink farm, so that distinct source
+    # trees of the same package+version cannot clobber each other
+    with validating(key = 'tool.pyproj.editable.build_dir'):
+      build_dir = self.pyproj.editable.build_dir
+
+      if not build_dir.is_absolute():
+        build_dir = self.root/build_dir
+
+      build_dir = resolve(build_dir)
+
+      if not subdir(self.root, build_dir, check = False):
+        raise FileOutsideRootError(
+          f"Must be within project root directory: "
+          f"file = \"{build_dir}\",  root = \"{self.root}\"")
+
+      if subdir(build_dir, self.root, check = False):
+        raise ValidPathError(
+          f"'build_dir' cannot be project root directory: "
+          f"file = \"{build_dir}\",  root = \"{self.root}\"")
+
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pyversion = '.'.join(str(n) for n in sys.version_info[:3])
-    self.editable_root = cache_dir()/'editable'/f'{pkg_name}_{self.pkg_info.version}_py{pyversion}'
+    self.editable_root = build_dir/f'{pkg_name}_{self.pkg_info.version}_py{pyversion}'
 
   #-----------------------------------------------------------------------------
   @property

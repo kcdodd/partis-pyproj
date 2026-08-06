@@ -36,7 +36,6 @@ from . import (
   dist_source_targz,
   dist_binary_wheel,
   dist_binary_editable)
-from .cache import cache_dir
 
 #===============================================================================
 def _reraise_known_errors(func):

@@ -611,9 +611,24 @@ For an editable installation, re-compiling extensions can be triggered using
 the CLI command `partis-pyproj rebuild {project_root}`, and then should take effect the
 next time the interpreter runs.
 Stable re-builds are achieved by creating a staging directory with symlinks back
-to the project root, but located at (depending on the system)
-`$HOME/.cache/partis-pyproj/editable/{name}_{version}_{py_version}`.
+to the project root, located within the project at
+`build/editable/{name}_{version}_{py_version}`.
 A dedicated virtual environment is also created in the staging directory
 used for both the initial and subsequent re-builds, and is independent from the
 "build-isolation" of the package manager.
+
+The parent of the staging directory may be changed with `build_dir`, which must be
+within the project root directory, and may not be the project root itself.
+
+```toml
+# pyproject.toml
+[tool.pyproj.editable]
+# default: 'build/editable'
+build_dir = 'build/editable'
+```
+
+Note that the staging directory contains symlinks into the project source, and is
+not excluded from distributions automatically.
+A project that copies whole directories containing `build_dir` should ignore it in
+its own `tool.pyproj.dist` patterns.
 

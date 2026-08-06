@@ -436,12 +436,20 @@ class pyproj_config(valid_dict):
   value_valid = union(scalar, scalar_list)
 
 #===============================================================================
+class pyproj_editable(valid_dict):
+  allow_keys = list()
+  default = {
+    # NOTE: paths should start as POSIX, but transformed to current OS
+    'build_dir': valid('build/editable', PurePosixPath, Path) }
+
+#===============================================================================
 class pyproj(valid_dict):
   allow_keys = list()
   default = {
     'config': pyproj_config,
     'prep': valid(OPTIONAL, pyproj_prep),
     'dist': pyproj_dist,
+    'editable': pyproj_editable,
     'targets': pyproj_targets }
   deprecate_keys = [('meson', 'targets')]
 

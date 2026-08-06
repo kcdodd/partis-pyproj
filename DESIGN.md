@@ -170,7 +170,13 @@ any of them should flag it as a bug.
 - New files and directories require reinstallation.
 - Compiled extensions are **not** automatically recompiled; `partis-pyproj rebuild`
   triggers this.
-- The staging directory is at `$HOME/.cache/partis-pyproj/editable/{name}_{version}_{py_version}`.
+- The staging directory is in-tree at `{build_dir}/{name}_{version}_{py_version}`,
+  where `build_dir` is `tool.pyproj.editable.build_dir` (default `build/editable`)
+  and must resolve within the project root, but not to the project root itself.
+  In-tree because the path is keyed on the source tree: two checkouts of the same
+  package and version must not share (and clobber) one staging directory.
+  The install target venv is not observable from a PEP 517 backend, so two venvs
+  installing the *same* tree still share one staging directory.
 - A dedicated venv in the staging directory is used for rebuilds, independent of
   build isolation.
 

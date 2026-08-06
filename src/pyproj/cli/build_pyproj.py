@@ -9,7 +9,6 @@ from partis.pyproj import (
   dist_build,
   dist_binary_editable)
 from partis.pyproj.backend import backend_init, _run_editable_py
-from partis.pyproj.cache import cache_dir
 
 #===============================================================================
 def _prep_parser(subparsers):
@@ -52,12 +51,6 @@ def _rebuild_parser(subparsers):
     help='re-runs binary distribution preparation')
 
   parser.add_argument(
-    '--staging',
-    type = Path,
-    default = None,
-    help='Directory of the project editable staging directory')
-
-  parser.add_argument(
     'root',
     type=Path,
     help='Path to project root directory')
@@ -68,12 +61,11 @@ def _rebuild_parser(subparsers):
 
 #===============================================================================
 def _rebuild_impl(args):
-  _rebuild_pyproj(root = args.root, editable_root = args.staging)
+  _rebuild_pyproj(root = args.root)
 
 #===============================================================================
 def _rebuild_pyproj(
     root: Path,
-    editable_root: Path|None,
     config_settings: dict|None = None):
 
   pyproj = backend_init(
@@ -81,8 +73,7 @@ def _rebuild_pyproj(
     config_settings = config_settings,
     editable = True)
 
-  if editable_root is None:
-    editable_root = pyproj.editable_root
+  editable_root = pyproj.editable_root
 
   if not editable_root.exists():
     print(f"Editable installation not found: {editable_root}")
