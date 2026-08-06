@@ -178,7 +178,16 @@ any of them should flag it as a bug.
   The install target venv is not observable from a PEP 517 backend, so two venvs
   installing the *same* tree still share one staging directory.
 - A dedicated venv in the staging directory is used for rebuilds, independent of
-  build isolation.
+  build isolation. It is created for every editable install, including when no build
+  targets are enabled, because `prep` hooks may also need the build dependencies.
+- `build_requirements.txt` records `[build-system].requires` plus a pin to the
+  installed version of each requirement, so an incremental rebuild reproduces the
+  build environment. The pin is written only when the installed version satisfies
+  the requirement; otherwise it is dropped with a warning, since the two together
+  would be unsatisfiable.
+- Prep hooks run in the build venv, while the wheel is written by the parent
+  process, so metadata assigned to the parent by a hook does not reach the editable
+  wheel (Issue 3 in `design/issues.md`).
 
 ### 4.6 Self-Hosting
 

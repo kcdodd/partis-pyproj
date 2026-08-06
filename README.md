@@ -616,6 +616,13 @@ to the project root, located within the project at
 A dedicated virtual environment is also created in the staging directory
 used for both the initial and subsequent re-builds, and is independent from the
 "build-isolation" of the package manager.
+Its contents are recorded in `build_requirements.txt`, which lists
+`[build-system].requires` together with a pin to the version of each requirement
+currently installed, so that re-builds reproduce the build environment.
+A pin is only recorded when the installed version satisfies the requirement.
+Otherwise it is dropped with a warning, and the re-build resolves a version that
+does satisfy the requirement, since a stale installed version and the requirement
+cannot both be satisfied.
 
 The parent of the staging directory may be changed with `build_dir`, which must be
 within the project root directory, and may not be the project root itself.

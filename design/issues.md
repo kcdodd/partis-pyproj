@@ -51,6 +51,10 @@ constraint still conflicts with a `~=3.1.3` requirement; the satisfiability chec
 `[build-system]` spec → assert either a clean spec-satisfying resolution (option a) or a
 diagnostic naming the package + both versions (option b), not a raw resolver conflict.
 
+**Status.** Option (a) implemented, with a warning naming the package, installed version,
+and spec; see `releases.md` v0.2.4. Test: `tests/test_14_editable.py`
+`test_build_requirements_pin`.
+
 ---
 
 ## Issue 2 — editable root is global, keyed only by package name/version/python
@@ -186,6 +190,44 @@ strictly a reparenting.
 - `tests/test_17_cli_rebuild.py:71-125` — four tests built around the `editable_root`
   parameter, including `test_rebuild_default_editable_root` which exists to cover the
   `editable_root=None` fallback being deleted. Rework against configured `build_dir`.
+
+**Status.** Implemented as decided above, including removal of `--staging` and of
+`_rebuild_pyproj`'s `editable_root` parameter; see `releases.md` v0.2.4.
+
+---
+
+## Issue 3 — editable wheel metadata does not reflect prep hooks
+
+**Where:** `backend.py` (`build_editable`), `pyproj.py` (`dist_binary_prep`).
+
+**What it does now.** `build_editable` runs `partis-pyproj prep` inside the editable build
+venv, so `tool.pyproj.dist.prep` and `tool.pyproj.dist.binary.prep` hooks execute in that
+subprocess. The wheel is written by the parent process from the parent's `PyProjBase`,
+which does not run those hooks.
+
+**Effect.** Metadata a hook assigns to the parent object is dropped from the editable
+wheel: `binary.build_number`, `binary.build_suffix`, and `binary.compat_tags` are read by
+`build_editable` from the un-prepped parent object. Observed with `tests/pkg_base`, whose
+`dist_binary_prep` sets `build_number = 123` and `build_suffix = 'test'`: the editable
+wheel is `test_pkg_base-0.0.1-py3-none-any.whl`, where a non-editable wheel from the same
+hooks is `test_pkg_base-0.0.1-123_test-py3-none-any.whl`.
+
+**History.** Before v0.2.4, packages with no enabled build targets ran
+`dist_prep`/`dist_binary_prep` in the parent process and did not create a build venv, so
+their metadata was carried into the wheel; packages with enabled targets already had this
+defect. Removing that branch — so prep hooks always run with the pinned build
+dependencies — made the behavior uniform.
+
+**Options, not adjudicated.**
+- Round-trip: the in-venv prep writes the prepped metadata into the editable root, and the
+  parent reads it before writing the wheel. Keeps hooks in the build venv only; adds an
+  on-disk interface between the two processes.
+- Also run the `dist.binary.prep` entry point in the parent, without `Builder`, so targets
+  are not built twice. Restores the metadata; the hook then runs twice per build, once in
+  an environment that may lack the build dependencies the venv exists to provide.
+
+**Test idea.** Editable build of a package whose `dist.binary.prep` sets `build_number`
+and `build_suffix` → assert the wheel filename carries them.
 
 ---
 

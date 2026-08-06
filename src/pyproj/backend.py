@@ -317,49 +317,58 @@ def build_editable(
 
   whl_root.mkdir(0o700, parents=True)
 
-  if not any(target.enabled for target in pyproj.targets):
-    # not targets need building
-    pyproj.dist_prep()
-    pyproj.dist_binary_prep()
+  # NOTE: the build environment is created even when there are no build targets,
+  # since 'prep' hooks may also need the build dependencies.
+  # NOTE: this should clone the current build environment packages to reproduce
+  # during incremental builds
+  # TODO: use constraints file instead?
+  requirements_file = editable_root/'build_requirements.txt'
 
-  else:
-    # NOTE: this should clone the current build environment packages to reproduce
-    # during incremental builds
-    # TODO: use constraints file instead?
-    requirements_file = editable_root/'build_requirements.txt'
+  # get build dependencies, pinned to version currently installed.
+  # keys are PEP 503 normalized names so that lookups match regardless of
+  # how the name was spelled in build_requires vs. the installed package.
+  # NOTE: 'env_pkgs' entries are exact pins, 'name==version'
+  env_vers = {
+    norm_dist_name(req.name): next(iter(req.specifier)).version
+    for req in [PkgInfoReq(dep).req for dep in pyproj.env_pkgs]}
 
-    # get build dependencies, pinned to version currently installed.
-    # keys are PEP 503 normalized names so that lookups match regardless of
-    # how the name was spelled in build_requires vs. the installed package.
-    env_reqs = {
-      norm_dist_name(pkg.req.name): pkg.req
-      for pkg in [PkgInfoReq(dep) for dep in pyproj.env_pkgs]}
+  build_deps = []
 
-    build_deps = []
+  for dep in pyproj.build_requires:
+    build_deps.append(str(dep.req))
 
-    for dep in pyproj.build_requires:
-      build_deps.append(str(dep.req))
+    name = norm_dist_name(dep.req.name)
+    version = env_vers.get(name)
 
-      req = env_reqs.get(norm_dist_name(dep.req.name))
+    if version is None:
+      continue
 
-      if req is not None:
-        build_deps.append(str(req))
+    if dep.req.specifier.contains(version, prereleases = True):
+      build_deps.append(f"{name}=={version}")
 
-    requirements_file.write_text('\n'.join(build_deps))
+    else:
+      # NOTE: pinning would be unsatisfiable together with the build requirement
+      # itself, so the resolver is left to pick a satisfying version instead of
+      # reproducing the current environment for this package.
+      pyproj.logger.warning(
+        f"Installed '{name}' version {version} does not satisfy build"
+        f" requirement '{dep.req}', not pinned to installed version")
 
-    if not venv_dir.exists():
-      check_call([
-        'uv', 'venv', str(venv_dir),
-        '--no-project',
-        '--python', sys.executable])
+  requirements_file.write_text('\n'.join(build_deps))
 
-    _run_editable_cmd(
-      venv_dir,
-      ['uv', 'pip', 'install', '--reinstall', '-r', str(requirements_file)])
+  if not venv_dir.exists():
+    check_call([
+      'uv', 'venv', str(venv_dir),
+      '--no-project',
+      '--python', sys.executable])
 
-    _run_editable_py(
-      venv_dir,
-      ['-I', '-m', 'partis.pyproj.cli', 'prep', str(pyproj.root)])
+  _run_editable_cmd(
+    venv_dir,
+    ['uv', 'pip', 'install', '--reinstall', '-r', str(requirements_file)])
+
+  _run_editable_py(
+    venv_dir,
+    ['-I', '-m', 'partis.pyproj.cli', 'prep', str(pyproj.root)])
 
   with dist_binary_editable(
     root = pyproj.root,

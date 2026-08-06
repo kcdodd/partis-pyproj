@@ -8,6 +8,17 @@
   version no longer share (and overwrite) one staging directory.
 - Remove `partis-pyproj rebuild --staging`; the location comes from
   `pyproject.toml` only.
+- Only pin an editable build dependency to the installed version when that version
+  satisfies the declared requirement. Previously both were written to
+  `build_requirements.txt`, which is unsatisfiable when the installed version is
+  stale relative to a tightened `[build-system].requires`. A warning now names the
+  package, installed version, and requirement, and the resolver picks a satisfying
+  version.
+- Always create the editable build environment, including when no build targets are
+  enabled, since `prep` hooks may also need the build dependencies. Note that
+  metadata assigned by a `prep` hook (`build_number`, `build_suffix`,
+  `compat_tags`) no longer reaches the editable wheel for such packages; see
+  Issue 3 in `design/issues.md`.
 
 ## v0.2.2 - 2026-05-19
 
