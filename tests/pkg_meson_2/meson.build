@@ -8,7 +8,8 @@ project( 'test_pkg',
 #...............................................................................
 # https://mesonbuild.com/Python-module.html
 py_mod = import('python')
-py3 = py_mod.find_installation('python3')
+# NOTE: see pkg_meson_1/meson.build - no argument means the interpreter running meson
+py3 = py_mod.find_installation()
 
 if py3.found() and not py3.language_version().version_compare('>= 3.6')
   error('Python 3.6 or newer is required.')

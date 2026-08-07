@@ -12,6 +12,11 @@ defaults:
   run:
     shell: bash
 
+env:
+  # Fixed interpreter that hosts nox itself, independent of the matrix entry
+  # under test. Bump when it goes end-of-life.
+  NOX_HOST_PYTHON: "3.13"
+
 permissions:
   contents: read
 
@@ -51,15 +56,27 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: "Set up Python"
+      # The interpreter under test. Only needs to exist on PATH for nox/uv to
+      # discover; nothing is installed into it.
+      - name: "Set up target Python"
         uses: actions/setup-python@v5
         with:
           python-version: "${{ matrix.python-version }}"
           allow-prereleases: true
 
+      # Runs *after* the target so it wins on PATH and becomes `python`. The nox
+      # host is deliberately decoupled from the version under test: running nox
+      # under the oldest matrix entry makes CI hostage to whether nox and its
+      # transitive dependencies still support it.
+      - name: "Set up nox host Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.NOX_HOST_PYTHON }}"
+
       - name: "Install dependencies"
         run: |
           set -xe
+          python -VV
           python -m pip install --upgrade pip
           python -m pip install -r pkgaux/base_requirements.txt
 
@@ -87,7 +104,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "${{ env.NOX_HOST_PYTHON }}"
 
       - name: "Install dependencies"
         run: |
