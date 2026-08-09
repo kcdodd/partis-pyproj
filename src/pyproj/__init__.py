@@ -19,6 +19,7 @@ from .norms import (
   nonempty_str_list,
   norm_bool,
   norm_path,
+  norm_rel_path,
   norm_path_to_os,
   norm_mode,
   norm_zip_external_attr,

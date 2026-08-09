@@ -25,6 +25,7 @@ from packaging.markers import Marker
 
 from .validate import (
   ValidationError,
+  FileOutsideRootError,
   valid,
   valid_type,
   valid_keys,
@@ -163,6 +164,26 @@ def norm_path( path: str|pathlib.PurePath, parent_ok: bool = False) -> str:
 
   if wpath.is_absolute() or ppath.is_absolute():
     raise ValidationError(f"path must be relative: {path}")
+
+  return path
+
+#===============================================================================
+def norm_rel_path( path: str|pathlib.PurePath ) -> pathlib.PurePosixPath:
+  """Normalizes a POSIX path, declared relative to the project root directory
+
+  Note
+  ----
+  * Must be relative, including no Windows drive or UNC prefix. A drive is not
+    detected by :class:`pathlib.PurePosixPath`, and is silently dropped when
+    converting to a :class:`pathlib.Path` on Python < 3.12, so that e.g.
+    'C:/somewhere' would be re-interpreted as a path within the root directory.
+  """
+
+  path = pathlib.PurePosixPath(path)
+
+  if pathlib.PureWindowsPath(str(path)).anchor:
+    raise FileOutsideRootError(
+      f"Must be relative to the project root directory: \"{path}\"")
 
   return path
 

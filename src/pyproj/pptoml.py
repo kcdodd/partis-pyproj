@@ -34,6 +34,7 @@ from .norms import (
   nonempty_str_list,
   norm_bool,
   norm_path,
+  norm_rel_path,
   norm_path_to_os )
 
 from .pep import (
@@ -440,7 +441,7 @@ class pyproj_editable(valid_dict):
   allow_keys = list()
   default = {
     # NOTE: paths should start as POSIX, but transformed to current OS
-    'build_dir': valid('build/editable', PurePosixPath, Path) }
+    'build_dir': valid('build/editable', norm_rel_path, Path) }
 
 #===============================================================================
 class pyproj(valid_dict):
