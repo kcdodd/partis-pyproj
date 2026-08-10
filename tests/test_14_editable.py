@@ -236,9 +236,13 @@ def test_build_venv_dir_unique(tmp_path):
   # version, and the build environment is keyed on it
   root = _make_min_pkg(tmp_path/'c'/'pkg')
   pyproj = PyProjBase(root = root, editable = True)
+  name = pyproj.build_venv_dir.name
 
-  assert _MIN_LEAF in pyproj.build_venv_dir.name
-  assert pyproj.build_venv_dir.name.endswith(_MIN_LEAF)
+  assert name.endswith(f'0.0.1_py{pyversion}')
+
+  # the name is bounded, so that paths *within* the build environment stay within
+  # the Windows MAX_PATH limit
+  assert len(name) <= 48
 
 #===============================================================================
 def test_editable_root_configured(tmp_path):

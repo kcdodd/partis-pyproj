@@ -9,9 +9,14 @@ CACHE_DIR: Path|None = None
 
 _dirname_subs = re.compile(r'[^a-z0-9\.\-\_]+', re.IGNORECASE)
 
-# limits the sanitized path, which is otherwise unbounded, to keep the total
-# length of paths within the cache workable (notably on Windows)
-_DIRNAME_MAX = 128
+# Limits the sanitized path, which is otherwise unbounded.
+# A build environment is created *within* a cache entry, and the longest path
+# below the environment root measured for a meson build environment is ~100
+# characters, so the entry name must stay short enough that the total remains
+# under the Windows MAX_PATH limit of 260 characters. Otherwise the environment
+# is created but unusable, e.g. "ImportError: DLL load failed while importing
+# tomli: The filename or extension is too long".
+_DIRNAME_MAX = 32
 
 #===============================================================================
 def cache_dir() -> Path:

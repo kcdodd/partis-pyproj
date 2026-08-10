@@ -307,8 +307,30 @@ def test_cache_fallback(tmp_path, monkeypatch):
   def _nohome():
     raise RuntimeError()
 
+  # NOTE: this test exercises 'cache_dir' itself, so the re-direction applied by
+  # the 'isolate_cache_dir' fixture must be undone, or the fallback is never reached
+  monkeypatch.setattr(cache, 'CACHE_DIR', None)
+  monkeypatch.delenv('PARTIS_PYPROJ_CACHE_DIR', raising = False)
+
   monkeypatch.setattr(Path, "home", _nohome)
   dir = cache.cache_dir()
 
   assert dir.is_relative_to(Path(tempfile.gettempdir()))
+
+#===============================================================================
+def test_cache_dirname():
+  # a cache entry holds a build environment, whose own paths must remain within
+  # the Windows MAX_PATH limit, so the name may not grow with the source path
+  long = '/a_very/deeply/nested' + 20*'/directory' + '/pkg_0.0.1_py3.13.14'
+  name = cache.cache_dirname(long)
+
+  assert len(name) <= 48
+  # the trailing segments identify what the entry is for
+  assert name.endswith('pkg_0.0.1_py3.13.14')
+
+  # sanitized names alone are not injective, the hash prefix separates them
+  assert cache.cache_dirname('/a/b') != cache.cache_dirname('/a_b')
+
+  # a path and its string form give the same name
+  assert cache.cache_dirname(Path(long)) == cache.cache_dirname(str(Path(long)))
 
