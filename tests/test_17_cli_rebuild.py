@@ -3,6 +3,7 @@ Tests for cli/build_pyproj.py covering:
   - _prep_impl / _rebuild_impl: argparse dispatch wrappers
   - _prep_pyproj: basic call on a package with no targets/prep
   - _rebuild_pyproj: "editable root not found" branch → SystemExit(1)
+  - _rebuild_pyproj: "build environment not found" branch → SystemExit(1)
   - _rebuild_pyproj: full rebuild, whl_root pre-exists → rmtree + recreate
   - _rebuild_pyproj: full rebuild, whl_root absent → create fresh (skips rmtree)
   - _rebuild_pyproj: configured 'tool.pyproj.editable.build_dir' is used
@@ -14,6 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 import pytest
 
+from partis.pyproj import PyProjBase
 from partis.pyproj.cli.build_pyproj import (
   _prep_impl, _rebuild_impl,
   _prep_pyproj, _rebuild_pyproj)
@@ -59,6 +61,13 @@ def _make_pkg(tmp_path, toml: str) -> Path:
   (pkg / 'pyproject.toml').write_text(toml)
   return pkg
 
+def _make_build_venv(pkg: Path) -> Path:
+  """Stand in for the out-of-tree build environment a rebuild requires
+  """
+  venv_dir = PyProjBase(root = pkg, editable = True).build_venv_dir
+  venv_dir.mkdir(parents = True)
+  return venv_dir
+
 #===============================================================================
 # _prep_pyproj
 #===============================================================================
@@ -94,6 +103,8 @@ def test_rebuild_full(tmp_path):
   stale = whl_root / 'stale.so'
   stale.touch()
 
+  _make_build_venv(pkg)
+
   # _run_editable_py requires a real venv; mock it out
   with patch('partis.pyproj.cli.build_pyproj._run_editable_py'):
     _rebuild_pyproj(root=pkg)
@@ -112,6 +123,8 @@ def test_rebuild_full_no_existing_wheel(tmp_path):
   editable_root.mkdir(parents=True)
   # whl_root does not pre-exist → if whl_root.exists() is False → skip rmtree
 
+  _make_build_venv(pkg)
+
   with patch('partis.pyproj.cli.build_pyproj._run_editable_py'):
     _rebuild_pyproj(root=pkg)
 
@@ -129,11 +142,28 @@ def test_rebuild_configured_build_dir(tmp_path):
   editable_root = pkg / 'staging' / _LEAF
   editable_root.mkdir(parents=True)
 
+  _make_build_venv(pkg)
+
   with patch('partis.pyproj.cli.build_pyproj._run_editable_py'):
     _rebuild_pyproj(root=pkg)
 
   assert (editable_root / 'wheel').is_dir()
   assert not (pkg / 'build' / 'editable').exists()
+
+#===============================================================================
+# _rebuild_pyproj — build environment removed from the cache
+#===============================================================================
+
+def test_rebuild_build_venv_not_found(tmp_path):
+  # the in-tree editable installation is intact, but the out-of-tree build
+  # environment has been removed from the user cache → exit(1)
+  pkg = _make_pkg(tmp_path, _TOML_WITH_TARGETS)
+  (pkg / 'build' / 'editable' / _LEAF).mkdir(parents=True)
+
+  with pytest.raises(SystemExit) as exc:
+    _rebuild_pyproj(root=pkg)
+
+  assert exc.value.code == 1
 
 #===============================================================================
 # _prep_impl / _rebuild_impl — argparse dispatch wrappers

@@ -8,7 +8,7 @@ from importlib import metadata
 import pytest
 from unittest.mock import patch
 from subprocess import check_call
-from partis.pyproj import PyProjBase
+from partis.pyproj import PyProjBase, cache
 from partis.pyproj.path import PathError
 from partis.pyproj.validate import (
   FileOutsideRootError,
@@ -203,6 +203,42 @@ def test_editable_root_default(tmp_path):
 
   assert pyproj.editable_root == (
     root/'build'/'editable'/_MIN_LEAF)
+
+#===============================================================================
+def test_build_venv_dir_out_of_tree(tmp_path):
+  """The build environment must not be within the source tree
+
+  Meson rejects an absolute include path that is lexically within the source
+  directory, which breaks any meson.build resolving includes from the build
+  environment, e.g. 'numpy.get_include()'.
+  """
+  root = _make_min_pkg(tmp_path/'pkg')
+  pyproj = PyProjBase(root = root, editable = True)
+  venv_dir = pyproj.build_venv_dir
+
+  assert not venv_dir.is_relative_to(root)
+  assert venv_dir.is_relative_to(cache.cache_dir()/'build_venv')
+
+#===============================================================================
+def test_build_venv_dir_unique(tmp_path):
+  """The build environment is unique per source tree, version and python version
+  """
+  names = set()
+
+  for name in ('a', 'b'):
+    root = _make_min_pkg(tmp_path/name/'pkg')
+    names.add(PyProjBase(root = root, editable = True).build_venv_dir.name)
+
+  # two checkouts of the same package at the same version do not share one
+  assert len(names) == 2
+
+  # the in-tree editable root already carries package name, version and python
+  # version, and the build environment is keyed on it
+  root = _make_min_pkg(tmp_path/'c'/'pkg')
+  pyproj = PyProjBase(root = root, editable = True)
+
+  assert _MIN_LEAF in pyproj.build_venv_dir.name
+  assert pyproj.build_venv_dir.name.endswith(_MIN_LEAF)
 
 #===============================================================================
 def test_editable_root_configured(tmp_path):

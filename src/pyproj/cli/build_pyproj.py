@@ -81,7 +81,16 @@ def _rebuild_pyproj(
 
   print(f"Rebuilding editable installation: {editable_root}")
   whl_root = editable_root/'wheel'
-  venv_dir = editable_root/'build_venv'
+  # NOTE: out-of-tree, see 'PyProjBase.build_venv_dir'
+  venv_dir = pyproj.build_venv_dir
+
+  # NOTE: the build environment is in the user cache, so it can be removed
+  # independently of the in-tree editable installation
+  if not venv_dir.exists():
+    print(
+      f"Build environment not found: {venv_dir}\n"
+      f"Re-install the editable distribution to re-create it.")
+    exit(1)
 
   _run_editable_py(
     venv_dir,

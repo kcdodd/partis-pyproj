@@ -309,7 +309,8 @@ def build_editable(
 
   editable_root = pyproj.editable_root
   whl_root = editable_root/'wheel'
-  venv_dir = editable_root/'build_venv'
+  # NOTE: out-of-tree, see 'PyProjBase.build_venv_dir'
+  venv_dir = pyproj.build_venv_dir
 
   if editable_root.exists():
     # TODO: add status file to avoid accidentally deleting the wrong directory
@@ -357,14 +358,20 @@ def build_editable(
   requirements_file.write_text('\n'.join(build_deps))
 
   if not venv_dir.exists():
+    venv_dir.parent.mkdir(parents=True, exist_ok=True)
+
     check_call([
       'uv', 'venv', str(venv_dir),
       '--no-project',
       '--python', sys.executable])
 
+  # NOTE: '--exact' removes packages that are no longer in the build requirements.
+  # The build environment now out-lives a single call, so it is no longer implicitly
+  # emptied by re-creating it, and must be pruned to remain exactly the declared
+  # build requirements.
   _run_editable_cmd(
     venv_dir,
-    ['uv', 'pip', 'install', '--reinstall', '-r', str(requirements_file)])
+    ['uv', 'pip', 'install', '--exact', '--reinstall', '-r', str(requirements_file)])
 
   _run_editable_py(
     venv_dir,

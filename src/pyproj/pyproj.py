@@ -26,6 +26,9 @@ from .validate import (
   valid,
   restrict,
   mapget )
+from .cache import (
+  cache_dir,
+  cache_dirname)
 from .norms import (
   scalar_list,
   norm_bool,
@@ -229,6 +232,15 @@ class PyProjBase:
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pyversion = '.'.join(str(n) for n in sys.version_info[:3])
     self.editable_root = build_dir/f'{pkg_name}_{self.pkg_info.version}_py{pyversion}'
+
+    # NOTE: the build environment must *not* be in-tree. Meson rejects an absolute
+    # include path that is lexically within the source directory
+    # ("Tried to form an absolute path to a dir in the source tree"), which breaks
+    # any meson.build resolving includes from the build environment, e.g.
+    # ``run_command(py3, ['-c', 'import numpy; print(numpy.get_include())'])``.
+    # It is keyed on 'editable_root' so that it stays unique per source tree,
+    # package version, and python version, and persists to allow incremental builds.
+    self.build_venv_dir = cache_dir()/'build_venv'/cache_dirname(self.editable_root)
 
   #-----------------------------------------------------------------------------
   @property
