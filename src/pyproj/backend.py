@@ -373,9 +373,15 @@ def build_editable(
     venv_dir,
     ['uv', 'pip', 'install', '--exact', '--reinstall', '-r', str(requirements_file)])
 
-  _run_editable_py(
-    venv_dir,
-    ['-I', '-m', 'partis.pyproj.cli', 'prep', str(pyproj.root)])
+  if pyproj.pkg_info.name_normed == 'partis-pyproj':
+    # bootstrapping self install, the cli is not installed in the build
+    # environment yet, so the prep steps are run in this process instead
+    pyproj.dist_prep()
+    pyproj.dist_binary_prep()
+  else:
+    _run_editable_py(
+      venv_dir,
+      ['-I', '-m', 'partis.pyproj.cli', 'prep', str(pyproj.root)])
 
   with dist_binary_editable(
     root = pyproj.root,

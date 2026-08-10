@@ -53,7 +53,7 @@ copy = []
 entry = "partis.pyproj.builder:process"
 """
 
-_LEAF = f'test_cli_targets_pkg_0.0.1_py{pyversion}'
+_LEAF = f'test_cli_targets_pkg-0.0.1-py{pyversion}'
 
 def _make_pkg(tmp_path, toml: str) -> Path:
   pkg = tmp_path / 'pkg'

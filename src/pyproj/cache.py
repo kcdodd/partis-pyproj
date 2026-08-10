@@ -1,22 +1,10 @@
 from __future__ import annotations
 import hashlib
 import os
-import re
 import tempfile
 from pathlib import Path
 
 CACHE_DIR: Path|None = None
-
-_dirname_subs = re.compile(r'[^a-z0-9\.\-\_]+', re.IGNORECASE)
-
-# Limits the sanitized path, which is otherwise unbounded.
-# A build environment is created *within* a cache entry, and the longest path
-# below the environment root measured for a meson build environment is ~100
-# characters, so the entry name must stay short enough that the total remains
-# under the Windows MAX_PATH limit of 260 characters. Otherwise the environment
-# is created but unusable, e.g. "ImportError: DLL load failed while importing
-# tomli: The filename or extension is too long".
-_DIRNAME_MAX = 32
 
 #===============================================================================
 def cache_dir() -> Path:
@@ -43,27 +31,31 @@ def cache_dir() -> Path:
 
 #===============================================================================
 def cache_dirname(path: str|Path) -> str:
-  """Sanitize a filesystem path for use as a single cache directory name
+  """Name a single cache directory after a filesystem path
 
-  The name is prefixed by a short hash of the un-sanitized path, since the
-  substitution is not injective (e.g. '/a/b' and '/a_b' both sanitize to 'a_b'),
-  and the sanitized path is truncated from the left, keeping the trailing
-  segments that identify what the entry is for.
+  Only the final component of the path is kept, prefixed by a short hash of the
+  whole path, since that component alone is not unique: two source trees may end
+  in the same directory name.
 
   Parameters
   ----------
   path:
     Absolute path the cache entry corresponds to. Must already be resolved for
-    the name to be stable.
+    the name to be stable, and its final component must already be a valid, short
+    directory name. A build environment is created *within* a cache entry, and
+    the longest path below the environment root measured for a meson build
+    environment is ~100 characters, so a long name leaves the environment
+    unusable on Windows, e.g. "ImportError: DLL load failed while importing
+    tomli: The filename or extension is too long".
   """
-  path = str(path)
+  path = Path(path)
 
-  # hash of path used to prevent collision after path is sanitized
+  # hash of path used to prevent collision after only the final component is kept
   h = hashlib.sha256()
-  h.update(path.encode('utf-8'))
+  h.update(str(path).encode('utf-8'))
   # keep only 4 bytes (8 hex characters) worth of the hash
   short = h.digest()[:4].hex()
 
-  name = _dirname_subs.sub('_', path).strip('_')
+  name = path.name
 
-  return f"{short}-{name[-_DIRNAME_MAX:].lstrip('_')}"
+  return f"{short}-{name}"

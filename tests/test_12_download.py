@@ -321,15 +321,15 @@ def test_cache_fallback(tmp_path, monkeypatch):
 def test_cache_dirname():
   # a cache entry holds a build environment, whose own paths must remain within
   # the Windows MAX_PATH limit, so the name may not grow with the source path
-  long = '/a_very/deeply/nested' + 20*'/directory' + '/pkg_0.0.1_py3.13.14'
+  long = '/a_very/deeply/nested' + 20*'/directory' + '/pkg-0.0.1-py3.13.14'
   name = cache.cache_dirname(long)
 
-  assert len(name) <= 48
-  # the trailing segments identify what the entry is for
-  assert name.endswith('pkg_0.0.1_py3.13.14')
+  # only the final component identifies what the entry is for
+  assert name.endswith('pkg-0.0.1-py3.13.14')
+  assert 'directory' not in name
 
-  # sanitized names alone are not injective, the hash prefix separates them
-  assert cache.cache_dirname('/a/b') != cache.cache_dirname('/a_b')
+  # the final component alone is not unique, the hash prefix separates entries
+  assert cache.cache_dirname('/a/pkg') != cache.cache_dirname('/b/pkg')
 
   # a path and its string form give the same name
   assert cache.cache_dirname(Path(long)) == cache.cache_dirname(str(Path(long)))

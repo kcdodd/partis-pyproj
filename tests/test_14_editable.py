@@ -36,7 +36,7 @@ build-backend = "partis.pyproj.backend"
 copy = []
 """
 
-_MIN_LEAF = f'test_editable_pkg_0.0.1_py{pyversion}'
+_MIN_LEAF = f'test_editable_pkg-0.0.1-py{pyversion}'
 
 #===============================================================================
 def _make_pkg(src, dst):
@@ -75,7 +75,7 @@ def test_build_editable_basic(tmp_path):
 
   pkg = 'test_pkg'
 
-  editable_root = root/'build'/'editable'/f'test_pkg_base_0.0.1_py{pyversion}'
+  editable_root = root/'build'/'editable'/f'test_pkg_base-0.0.1-py{pyversion}'
   editable_root.mkdir(parents=True)
   whl_root = editable_root/'wheel'
   # should still work even if it already exists
@@ -127,7 +127,7 @@ def test_build_incremental(tmp_path):
   whl_path = wheel_dir/name
 
   pkg = 'test_pkg_meson_1'
-  editable_root = root/'build'/'editable'/f'{pkg}_0.0.1_py{pyversion}'
+  editable_root = root/'build'/'editable'/f'{pkg}-0.0.1-py{pyversion}'
   whl_root = editable_root/'wheel'
 
   with zipfile.ZipFile(whl_path) as zf:
@@ -238,10 +238,10 @@ def test_build_venv_dir_unique(tmp_path):
   pyproj = PyProjBase(root = root, editable = True)
   name = pyproj.build_venv_dir.name
 
-  assert name.endswith(f'0.0.1_py{pyversion}')
+  assert name.endswith(f'0.0.1-py{pyversion}')
 
-  # the name is bounded, so that paths *within* the build environment stay within
-  # the Windows MAX_PATH limit
+  # 'cache_dirname' keeps the editable root directory name as-is, so that name is
+  # what keeps paths *within* the build environment inside the Windows MAX_PATH limit
   assert len(name) <= 48
 
 #===============================================================================
@@ -311,7 +311,7 @@ def test_editable_two_checkouts(tmp_path):
   # each farm is under its own source tree, and building the second did not
   # remove or re-point the first
   for root, whl_root in zip(roots, pth):
-    assert whl_root == root/'build'/'editable'/f'{pkg}_0.0.1_py{pyversion}'/'wheel'
+    assert whl_root == root/'build'/'editable'/f'{pkg}-0.0.1-py{pyversion}'/'wheel'
     assert _check_link(
       whl_root/pkg/'pure_mod'/'pure_mod.py',
       root/'src'/'test_pkg'/'pure_mod'/'pure_mod.py')

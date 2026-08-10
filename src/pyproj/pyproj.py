@@ -231,7 +231,7 @@ class PyProjBase:
 
     pkg_name = norm_dist_filename(self.pkg_info.name_normed)
     pyversion = '.'.join(str(n) for n in sys.version_info[:3])
-    self.editable_root = build_dir/f'{pkg_name}_{self.pkg_info.version}_py{pyversion}'
+    self.editable_root = build_dir/f'{pkg_name}-{self.pkg_info.version}-py{pyversion}'
 
     # NOTE: the build environment must *not* be in-tree. Meson rejects an absolute
     # include path that is lexically within the source directory
