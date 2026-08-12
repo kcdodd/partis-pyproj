@@ -424,36 +424,77 @@ class UnsupportedOperation( Exception ):
   pass
 
 #===============================================================================
-def _run_editable_cmd(venv_dir, args):
+# Interpreter path configuration describing the process that invoked the backend,
+# not the virtual environment whose interpreter and site configuration the
+# backend selected, so it is dropped rather than forwarded.
+#
+# NOTE: forwarding it makes the venv interpreter apply path configuration
+# generated for a different interpreter. pip's build isolation exports
+# 'PYTHONPATH' pointing at an overlay containing a generated 'sitecustomize';
+# run under the venv interpreter it re-executes the outer environment's '.pth'
+# files at a point where they can fail, leaving 'sys.path' without the venv's
+# own 'site-packages'.
+#
+# NOTE: this reaches past the immediate command. 'prep' runs with '-I' so its
+# interpreter already ignores these, but they would remain in its 'os.environ'
+# and be inherited by the build commands it spawns (see 'builder.Builder'),
+# which do not. A target needing one can set it via 'tool.pyproj.targets[].env'.
+_VENV_ENV_EXCLUDE = frozenset([
+  'PYTHONPATH',
+  'PYTHONHOME',
+  'PYTHONNOUSERSITE',
+  'PYTHONSTARTUP'])
+
+#===============================================================================
+def _venv_env(venv_dir):
+  """Locates a virtual environment and builds the environment to run it with
+
+  Parameters
+  ----------
+  venv_dir:
+    Root directory of the virtual environment
+
+  Returns
+  -------
+  venv_bin:
+    The environment's scripts directory
+  venv_env:
+    Environment variables, with the parent's interpreter path configuration
+    removed, see '_VENV_ENV_EXCLUDE'
+  """
+
   for bin in ['bin', 'Scripts']:
     if (venv_bin := venv_dir/bin).is_dir():
       break
   else:
     raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
 
+  path = [str(venv_bin)]
+
+  if _path := os.environ.get('PATH'):
+    path.extend(_path.split(os.pathsep))
+
   venv_env = {
-    **os.environ,
+    k: v for k, v in os.environ.items()
+    if k not in _VENV_ENV_EXCLUDE}
+
+  venv_env.update({
     'VIRTUAL_ENV': str(venv_dir),
-    'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
+    'PATH': os.pathsep.join(path)})
+
+  return venv_bin, venv_env
+
+#===============================================================================
+def _run_editable_cmd(venv_dir, args):
+  _, venv_env = _venv_env(venv_dir)
 
   check_call(args, env = venv_env)
 
 #===============================================================================
 def _run_editable_py(venv_dir, args):
-  for bin in ['bin', 'Scripts']:
-    if (venv_bin := venv_dir/bin).is_dir():
-      break
-  else:
-    raise FileNotFoundError(f"No virtual environment bin directory: {venv_dir}")
-
-  venv_py = venv_bin/Path(sys.executable).name
+  venv_bin, venv_env = _venv_env(venv_dir)
 
   if not (venv_py := venv_bin/Path(sys.executable).name).exists():
     raise FileNotFoundError(f"No virtual environment interpreter: {venv_py}")
-
-  venv_env = {
-    **os.environ,
-    'VIRTUAL_ENV': str(venv_dir),
-    'PATH': os.pathsep.join([str(venv_bin)] + os.environ['PATH'].split(os.pathsep))}
 
   check_call([str(venv_py), *args], env = venv_env)
