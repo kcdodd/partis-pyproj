@@ -1,6 +1,10 @@
 # Releases
 
-## v0.2.4 - WIP
+## v0.3.1 - 2026-08-12
+
+- Fix leaking of env from parent interpreter into editable build_venv
+
+## v0.3.0 - 2026-08-10
 
 - Move the editable staging directory into the project tree, at
   `tool.pyproj.editable.build_dir` (default `build/editable`), instead of
