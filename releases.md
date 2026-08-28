@@ -1,5 +1,10 @@
 # Releases
 
+## v0.3.2 - 2026-09-01
+
+- Fix unicode handling in PKG-INFO and METADATA
+
+
 ## v0.3.1 - 2026-08-12
 
 - Fix leaking of env from parent interpreter into editable build_venv

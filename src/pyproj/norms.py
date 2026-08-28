@@ -15,8 +15,8 @@ from collections.abc import (
 from collections import namedtuple
 import hashlib
 from base64 import urlsafe_b64encode
-from email.message import Message
-from email.generator import BytesGenerator
+from email.message import EmailMessage
+from email.policy import EmailPolicy
 from email.utils import parseaddr, formataddr
 from urllib.parse import urlparse
 
@@ -346,6 +346,36 @@ def hash_sha256(stream: BytesIO|bytes) -> tuple[str, int]:
   return digest_b64_nopad, size
 
 #===============================================================================
+# A bare '\r' makes the email generator raise ``HeaderWriteError``, and on
+# CPython releases without the CVE-2024-6923 fix any ``str.splitlines`` boundary
+# ends the header line, so fold all of them and not only '\n'.
+_line_boundary = re.compile(r'\r\n|[\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029]')
+
+#===============================================================================
+class RFC822Policy(EmailPolicy):
+  """Policy for writing the RFC 822 based core meta-data format
+
+  Differs from :data:`email.policy.default` in that headers are stored
+  verbatim, apart from indenting the continuation of multi-line values, and are
+  serialized as UTF-8 instead of RFC 2047 encoded-words.
+
+  See Also
+  --------
+  * https://packaging.python.org/en/latest/specifications/core-metadata/
+  """
+
+  utf8 = True
+  mangle_from_ = False
+  max_line_length = 0
+
+  def header_store_parse(self, name, value):
+    # NOTE: bypasses the structured header parsing of the default policy, which
+    # would re-format values such as 'Author-email' into RFC 2047 encoded-words.
+    indent = '\n' + ' ' * (len(name) + 2)
+
+    return ( name, _line_boundary.sub(indent, value) )
+
+#===============================================================================
 def email_encode_items(
   headers,
   payload = None ):
@@ -359,6 +389,15 @@ def email_encode_items(
   Returns
   -------
   bytes
+    UTF-8 encoded content
+
+  Note
+  ----
+  The core meta-data specification requires that "whenever metadata is
+  serialised to a byte stream (for example, to save to a file), strings must be
+  serialised using the UTF-8 encoding". Non-ASCII characters are therefore
+  written directly, and not as RFC 2047 encoded-words, since consumers of the
+  meta-data parse the headers as UTF-8 text.
 
   See Also
   --------
@@ -366,7 +405,7 @@ def email_encode_items(
 
   """
 
-  msg = Message()
+  msg = EmailMessage( policy = RFC822Policy() )
 
   for k, v in headers:
     msg[k] = v
@@ -374,22 +413,8 @@ def email_encode_items(
   if payload is not None:
     msg.set_payload( payload )
 
-  buffer = BytesIO()
-
-  gen = BytesGenerator(
-    buffer,
-    mangle_from_ = False,
-    maxheaderlen = 0 )
-
-  # TODO: handle encoding errors with more helpful message about where the bad
-  # character(s) is located?
-  gen.flatten( msg )
-
-  # TODO: why does ``wheel`` replace newlines with only carriage returns?
-  # bytes = buffer.getvalue().replace(b'\r\n', b'\r')
-  bytes = buffer.getvalue()
-
-  return bytes
+  # NOTE: ``as_bytes`` would re-encode as ASCII, dropping back to encoded-words
+  return msg.as_string().encode('utf-8')
 
 #===============================================================================
 class TimeEncode:

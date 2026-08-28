@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 import io
 from copy import copy
-import re
 import configparser
 
 from pathlib import (
@@ -421,20 +420,12 @@ class PkgInfo:
     for email in _maintainer_emails:
       headers.append( ( 'Maintainer-email', email ) )
 
-    summary_folded = re.sub(
-      r'\n',
-      '\n        |',
-      self.description.strip() )
-
-    headers.append( ( 'Summary', summary_folded ) )
+    # NOTE: multi-line values are folded into RFC 822 continuation lines by
+    # :class:`RFC822Policy` when the headers are encoded.
+    headers.append( ( 'Summary', self.description.strip() ) )
 
     if self._license:
-      license_folded = re.sub(
-        r'\n',
-        '\n        |',
-        self._license.strip() )
-
-      headers.append( ( 'License', license_folded ) )
+      headers.append( ( 'License', self._license.strip() ) )
 
     if self.license_file:
       headers.append( ( 'License-File', self.license_file ) )

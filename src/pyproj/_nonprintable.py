@@ -1,6 +1,25 @@
 from __future__ import annotations
 import sys
 import re
+import unicodedata
+
+#===============================================================================
+# Unicode general categories that are stripped from package meta-data.
+# NOTE: this is narrower than ``str.isprintable()``, which also excludes the
+# format characters (Cf) and the non-space separators (Zs). Those are needed by
+# legitimate text: e.g. U+200D ZERO WIDTH JOINER in emoji sequences, U+200C
+# ZERO WIDTH NON-JOINER in Persian and Indic scripts, and U+00A0 NO-BREAK SPACE.
+# The categories kept here are the ones that are either un-encodable, un-typeable,
+# or hazardous in an RFC 822 header:
+# * Cc control characters (which are also header injection vectors)
+# * Cs surrogates (not encodable as UTF-8)
+# * Co private use, Cn unassigned (no defined meaning)
+# * Zl, Zp line and paragraph separators (line boundaries for ``str.splitlines``)
+STRIP_CATEGORIES = frozenset(['Cc', 'Cs', 'Co', 'Cn', 'Zl', 'Zp'])
+
+#===============================================================================
+def _strip_char(c):
+  return c not in '\n\t' and unicodedata.category(c) in STRIP_CATEGORIES
 
 #===============================================================================
 def _gen_nonprintable():
@@ -12,7 +31,7 @@ def _gen_nonprintable():
     c = chr(i)
     test.append(c)
 
-    if not ( c.isprintable() or c in '\n\t' ):
+    if _strip_char(c):
       n = ns[-1]
 
       if i == n[-1] + 1:
@@ -33,8 +52,8 @@ def _gen_nonprintable():
 
 #===============================================================================
 def gen_nonprintable():
-  """Method used to generate a regex for matchiing all non-printable unicode
-  characters, except for newlines '\\n' and tabs '\\t'.
+  """Method used to generate a regex for matching all unicode characters in
+  :data:`STRIP_CATEGORIES`, except for newlines '\\n' and tabs '\\t'.
   """
   ns, test = _gen_nonprintable()
 
@@ -76,9 +95,7 @@ def gen_nonprintable():
   test = _nonprintable.sub('', test)
   test = re.sub(r'[\t\n]', '', test)
 
-  # print( len(test), test.isprintable() )
-
-  assert( test.isprintable() )
+  assert not any( _strip_char(c) for c in test )
 
   return nonprintable
 

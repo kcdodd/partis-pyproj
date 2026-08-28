@@ -5,6 +5,8 @@ import tempfile
 from pytest import (
   raises )
 
+from packaging.metadata import parse_email
+
 from partis.pyproj import (
   ValidationError,
   PkgInfo,
@@ -33,6 +35,53 @@ def test_default():
     project = dict(
       name = 'test_pkg',
       version = '1.2.3' ) )
+
+#===============================================================================
+def test_unicode():
+  # > Whenever metadata is serialised to a byte stream (for example, to save to
+  # > a file), strings must be serialised using the UTF-8 encoding.
+  # https://packaging.python.org/en/latest/specifications/core-metadata/
+  summary = "S\xfcmmary \u2014 caf\xe9 \u2615"
+  author = "\xc9mile Zola"
+  license = "Copyright \xa9 2024 \xc9mile Zola\n\nAll rights reserved."
+  readme = "# R\xebadme\n\nCaf\xe9 \u2615 \u2014 na\xefve \U0001f469\u200d\U0001f4bb\n"
+
+  with tempfile.TemporaryDirectory() as tmpdir:
+    readme_file = 'readme.md'
+
+    with open(osp.join(tmpdir, readme_file), 'w', encoding = 'utf-8') as fp:
+      fp.write(readme)
+
+    pkginfo = PkgInfo(
+      root = tmpdir,
+      project = {
+        'name': 'test_pkg',
+        'version': '1.2.3',
+        'description': summary,
+        'readme': {'file': readme_file},
+        'license': {'text': license},
+        'authors': [{'name': author}],
+        'keywords': ["caf\xe9", "\u65e5\u672c\u8a9e"] })
+
+    content = pkginfo.encode_pkg_info()
+
+    # must be UTF-8, and not RFC 2047 encoded-words, which consumers of the
+    # meta-data do not decode
+    assert b'=?utf-8?' not in content
+    assert summary.encode('utf-8') in content
+
+    meta, unparsed = parse_email(content)
+
+    assert not unparsed
+    assert meta['summary'] == summary
+    assert meta['author'] == author
+    # norm_printable strips leading and trailing whitespace
+    assert meta['description'] == readme.strip()
+    assert sorted(meta['keywords']) == sorted(["caf\xe9", "\u65e5\u672c\u8a9e"])
+
+    # multi-line values are folded into RFC 822 continuation lines
+    assert meta['license'].splitlines()[0] == "Copyright \xa9 2024 \xc9mile Zola"
+    assert meta['license'].split()[-1] == 'reserved.'
 
 #===============================================================================
 def test_full():

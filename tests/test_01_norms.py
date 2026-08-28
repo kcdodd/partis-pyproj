@@ -7,7 +7,8 @@ from pytest import (
   mark)
 from packaging.markers import default_environment
 
-from email.utils import formataddr
+from email.parser import Parser
+from email.policy import compat32
 
 from partis.pyproj import (
   marker_evaluated,
@@ -57,7 +58,8 @@ from partis.pyproj import (
 
 from partis.pyproj._nonprintable import (
   _gen_nonprintable,
-  gen_nonprintable )
+  gen_nonprintable,
+  _strip_char )
 
 #===============================================================================
 def test_marker():
@@ -157,19 +159,37 @@ def test_as_list():
 def test_gen_norm_printable():
   regex = gen_nonprintable()
   ns, test = _gen_nonprintable()
-  test = norm_printable(norm_printable)
+  test = norm_printable(test)
 
-  # since norm_printable considers \t and \n to be printable, but isprintable does not
+  # the regex compiled into pep.py must strip the same characters as the
+  # generator, apart from the '\t' and '\n' it deliberately keeps
   test = re.sub(r'[\t\n]', '', test)
 
-  assert test.isprintable()
+  assert not any( _strip_char(c) for c in test )
 
 #===============================================================================
 def test_norm_printable():
   assert norm_printable(None) == ''
   assert norm_printable("") == ''
   assert norm_printable("hello\t\tfoo bar\ngoodbye\n\n") == "hello\t\tfoo bar\ngoodbye"
+
+  # control (Cc), line/paragraph separator (Zl, Zp), private use (Co) and
+  # unassigned (Cn) characters are stripped
   assert norm_printable("\U0001EE78") == ''
+  assert norm_printable("a\x00\x07\x1bb") == "ab"
+  assert norm_printable("a\u2028\u2029b") == "ab"
+  assert norm_printable("a\ue000b") == "ab"
+
+  # meta-data is serialized as UTF-8, so printable non-ASCII is kept as-is
+  assert norm_printable("Caf\xe9 \u2615 \u2014 na\xefve") == "Caf\xe9 \u2615 \u2014 na\xefve"
+  assert norm_printable("\u4f60\u597d") == "\u4f60\u597d"
+
+  # format (Cf) and non-space separator (Zs) characters are needed by legitimate
+  # text, even though str.isprintable() excludes them
+  assert not "a\u200cb".isprintable()
+  assert norm_printable("a\xa0b") == "a\xa0b"
+  assert norm_printable("a\u200cb") == "a\u200cb"
+  assert norm_printable("\U0001f469\u200d\U0001f4bb") == "\U0001f469\u200d\U0001f4bb"
   assert norm_printable("f\ubaaar") == "f몪r"
 
 #===============================================================================
@@ -246,11 +266,16 @@ def test_norm_dist_author():
     (('', ''), ('', '')),
     (('x', ''), ('x', '')),
     (('', 'y@z.com'), ('', 'y@z.com')),
-    (('x', 'y@z.com'), ('', formataddr( ('x', 'y@z.com') )) ) ]
+    (('x', 'y@z.com'), ('', 'x <y@z.com>') ),
+    # the meta-data is serialized as UTF-8, so a non-ASCII name is not encoded
+    # as an RFC 2047 encoded-word
+    (('f\ubaaar', ''), ('f\ubaaar', '')),
+    (('\xc9mile Zola', 'y@z.com'), ('', '\xc9mile Zola <y@z.com>')),
+    # quoted only where the RFC 822 "specials" require it
+    (('J. Random', 'y@z.com'), ('', '"J. Random" <y@z.com>')) ]
 
   invalid = [
     ('', 'xyz>'),
-    ('f\ubaaar', ''),
     ('a,', ''),
     ('', 'xyz')  ]
 
@@ -531,6 +556,49 @@ def test_email_encode_items():
   c = b.decode('ascii')
 
   assert c == "a: b\nc: d\n\nhello world"
+
+#===============================================================================
+def test_email_encode_items_unicode():
+  # > Whenever metadata is serialised to a byte stream (for example, to save to
+  # > a file), strings must be serialised using the UTF-8 encoding.
+  # In particular, non-ASCII must not be written as RFC 2047 encoded-words,
+  # since consumers of the meta-data do not decode them.
+  summary = 'héllo — ünicode'
+  author = 'Émile Zola'
+  payload = "# Rëadme\n\nCafé ☕ — naïve 👩‍💻\n"
+
+  b = email_encode_items(
+    headers = [
+      ('Summary', summary),
+      ('Author', author) ],
+    payload = payload )
+
+  assert b == f"Summary: {summary}\nAuthor: {author}\n\n{payload}".encode('utf-8')
+  assert b'=?utf-8?' not in b
+
+  # the meta-data is parsed as an RFC 822 message decoded as UTF-8
+  msg = Parser(policy = compat32).parsestr(b.decode('utf-8'))
+
+  assert msg['Summary'] == summary
+  assert msg['Author'] == author
+  assert msg.get_payload() == payload
+
+#===============================================================================
+def test_email_encode_items_fold():
+  # multi-line values must be folded into RFC 822 continuation lines, otherwise
+  # the generator raises HeaderWriteError (CVE-2024-6923)
+  b = email_encode_items(
+    headers = [
+      ('License', 'MIT ©\nsecond line'),
+      ('Summary', 'a\rb\u2028c') ] )
+
+  assert b.decode('utf-8') == (
+    "License: MIT ©\n         second line\n"
+    "Summary: a\n         b\n         c\n\n")
+
+  msg = Parser(policy = compat32).parsestr(b.decode('utf-8'))
+
+  assert msg['License'] == 'MIT ©\n         second line'
 
 
 if __name__ == '__main__':
