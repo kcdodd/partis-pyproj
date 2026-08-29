@@ -1,10 +1,9 @@
 import sys
 import io
-import re
 import pathlib
+import unicodedata
 from pytest import (
-  raises,
-  mark)
+  raises)
 from packaging.markers import default_environment
 
 from email.parser import Parser
@@ -57,8 +56,9 @@ from partis.pyproj import (
   TimeEncode )
 
 from partis.pyproj._nonprintable import (
-  _gen_nonprintable,
-  gen_nonprintable,
+  NONCHARACTERS,
+  STRIP_CATEGORIES,
+  nonprintable,
   _strip_char )
 
 #===============================================================================
@@ -155,17 +155,34 @@ def test_as_list():
   assert as_list({'a': 'b'}) == [{'a': 'b'}]
 
 #===============================================================================
-# @mark.skip(reason="sometimes very, very slow")
-def test_gen_norm_printable():
-  regex = gen_nonprintable()
-  ns, test = _gen_nonprintable()
-  test = norm_printable(test)
+def test_nonprintable_pattern():
+  # the compiled pattern must strip exactly the characters of the reference
+  # definition, for every code point and on every interpreter
+  mismatched = [
+    c for c in map(chr, range(sys.maxunicode+1))
+    if bool(nonprintable.match(c)) is not _strip_char(c) ]
 
-  # the regex compiled into pep.py must strip the same characters as the
-  # generator, apart from the '\t' and '\n' it deliberately keeps
-  test = re.sub(r'[\t\n]', '', test)
+  assert not mismatched
 
-  assert not any( _strip_char(c) for c in test )
+#===============================================================================
+def test_nonprintable_unicode_version():
+  # The set of stripped characters must not depend on the Unicode version of
+  # the running interpreter: it is compiled into the back-end, so anything
+  # version-dependent makes the meta-data emitted for one project differ
+  # between interpreters, and makes every Unicode release silently delete the
+  # code points it newly assigns. Cn (unassigned) is the only category that
+  # changes, and the only part of it that is stripped is the noncharacters,
+  # which are permanently reserved.
+  assert 'Cn' not in STRIP_CATEGORIES
+
+  noncharacters = {
+    chr(i) for lo, hi in NONCHARACTERS for i in range(lo, hi+1) }
+
+  stripped_unassigned = {
+    c for c in map(chr, range(sys.maxunicode+1))
+    if _strip_char(c) and unicodedata.category(c) == 'Cn' }
+
+  assert stripped_unassigned == noncharacters
 
 #===============================================================================
 def test_norm_printable():
@@ -174,11 +191,21 @@ def test_norm_printable():
   assert norm_printable("hello\t\tfoo bar\ngoodbye\n\n") == "hello\t\tfoo bar\ngoodbye"
 
   # control (Cc), line/paragraph separator (Zl, Zp), private use (Co) and
-  # unassigned (Cn) characters are stripped
-  assert norm_printable("\U0001EE78") == ''
+  # surrogate (Cs) characters are stripped
   assert norm_printable("a\x00\x07\x1bb") == "ab"
   assert norm_printable("a\u2028\u2029b") == "ab"
   assert norm_printable("a\ue000b") == "ab"
+  assert norm_printable("a\ud800b") == "ab"
+
+  # noncharacters are permanently reserved and not for interchange
+  assert norm_printable("a\ufdd0b\ufffeb\uffffb") == "abbb"
+  assert norm_printable("a\U0010FFFFb") == "ab"
+
+  # unassigned (Cn) characters are kept: which code points are unassigned
+  # depends on the Unicode version of the interpreter, and a later Unicode
+  # release may assign them
+  assert unicodedata.category("\U0001EE78") in ('Cn', 'Lo')
+  assert norm_printable("a\U0001EE78b") == "a\U0001EE78b"
 
   # meta-data is serialized as UTF-8, so printable non-ASCII is kept as-is
   assert norm_printable("Caf\xe9 \u2615 \u2014 na\xefve") == "Caf\xe9 \u2615 \u2014 na\xefve"

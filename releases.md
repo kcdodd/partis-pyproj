@@ -3,6 +3,13 @@
 ## v0.3.2 - 2026-09-01
 
 - Fix unicode handling in PKG-INFO and METADATA
+- No longer strip unassigned (Cn) characters from meta-data. Which code points
+  are unassigned depends on the Unicode version of the interpreter, so
+  stripping them made the emitted meta-data differ between interpreters and
+  silently deleted every character assigned by a later Unicode release.
+  Control (Cc), surrogate (Cs), private use (Co), line/paragraph separator
+  (Zl, Zp) and the permanently reserved noncharacters are still stripped;
+  those sets are immutable under the Unicode stability policy.
 
 
 ## v0.3.1 - 2026-08-12
