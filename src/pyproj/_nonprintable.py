@@ -17,7 +17,9 @@ KEEP = '\t\n'
 # or hazardous in an RFC 822 header:
 # * Cc control characters (which are also header injection vectors)
 # * Cs surrogates (not encodable as UTF-8)
-# * Co private use (no interchangeable meaning)
+# * Co private use (no meaning outside a private agreement on the font; the
+#   core meta-data specification does not establish one, so glyphs that render
+#   under e.g. Nerd Fonts are not interchangeable and are not kept)
 # * Zl, Zp line and paragraph separators (line boundaries for ``str.splitlines``)
 #
 # NOTE: Cn (unassigned) is deliberately *not* stripped. Which code points are

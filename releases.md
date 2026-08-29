@@ -17,6 +17,10 @@
   text that follows them, so a rendered value could be made to disagree with
   the source it was written from. The implicit directional marks (U+200E,
   U+200F, U+061C) and the joiners (U+200C, U+200D) are unaffected.
+- A 'readme' or 'license' file that is not valid UTF-8 is now an error,
+  reporting the line and column of the first undecodable byte. Previously it
+  was decoded with replacement characters, so the meta-data silently shipped
+  content the author never wrote, with no indication of where.
 
 
 ## v0.3.1 - 2026-08-12

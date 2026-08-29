@@ -59,6 +59,43 @@ class EntryPointsParser(configparser.ConfigParser):
   optionxform = staticmethod(str)
 
 #===============================================================================
+def read_meta_file(file):
+  """Reads a file referenced from the project meta-data
+
+  Parameters
+  ----------
+  file : pathlib.Path
+
+  Returns
+  -------
+  str
+
+  Note
+  ----
+  The encoding is not detected or recovered. PEP 621 states that tools "MUST
+  assume the file's encoding is UTF-8", so a file that is not UTF-8 is an error
+  in the project: decoding it with replacement characters would put content in
+  the meta-data that the author never wrote, and give no indication of where.
+
+  See Also
+  --------
+  * https://www.python.org/dev/peps/pep-0621/#readme
+  """
+
+  data = file.read_bytes()
+
+  try:
+    return data.decode('utf-8')
+
+  except UnicodeDecodeError as e:
+    line = data.count(b'\n', 0, e.start) + 1
+    col = e.start - data.rfind(b'\n', 0, e.start)
+
+    raise ValidationError(
+      f"Must be UTF-8 encoded, but line {line} column {col} is not"
+      f" ({e.reason}): {file}") from e
+
+#===============================================================================
 class PkgInfoAuthor:
   """Internal container for normalizing Author/Maintainer
   and Author-email/Maintainer-email header metadata
@@ -252,9 +289,7 @@ class PkgInfo:
             raise ValidationError(
               f"'readme' file not found: {readme_file}")
 
-          with open( readme_file, 'rb' ) as fp:
-            self._long_desc = norm_printable(
-              fp.read().decode('utf-8', errors = 'replace') )
+          self._long_desc = norm_printable( read_meta_file(readme_file) )
 
         else:
           # NOTE: if readme is non-empty, then it must either have 'file' or 'text'
@@ -309,9 +344,8 @@ class PkgInfo:
             raise ValidationError(
               f"'license' file not found: {license_file}")
 
-          with open( license_file, 'rb' ) as fp:
-            self.license_file_content = norm_printable(
-              fp.read().decode('utf-8', errors = 'replace') ).encode('utf-8')
+          self.license_file_content = norm_printable(
+            read_meta_file(license_file) ).encode('utf-8')
 
         if 'text' in self.license:
           self._license = norm_printable( self.license.text )

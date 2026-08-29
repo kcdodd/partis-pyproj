@@ -84,6 +84,26 @@ def test_unicode():
     assert meta['license'].split()[-1] == 'reserved.'
 
 #===============================================================================
+def test_not_utf8():
+  # > Tools MUST assume the file's encoding is UTF-8
+  # A file that is not UTF-8 is an error in the project. Decoding it with
+  # replacement characters would put content in the meta-data that the author
+  # never wrote, and give no indication of where.
+  for key, name in [('readme', 'readme.md'), ('license', 'license.txt')]:
+    with tempfile.TemporaryDirectory() as tmpdir:
+      # 'caf\xe9' as latin-1, which is not a valid utf-8 sequence
+      with open(osp.join(tmpdir, name), 'wb') as fp:
+        fp.write(b'first line\nsecond caf\xe9 line\n')
+
+      with raises(ValidationError, match = 'Must be UTF-8 encoded, but line 2 column 11'):
+        PkgInfo(
+          root = tmpdir,
+          project = {
+            'name': 'test_pkg',
+            'version': '1.2.3',
+            key: {'file': name} })
+
+#===============================================================================
 def test_full():
   with tempfile.TemporaryDirectory() as tmpdir:
 
