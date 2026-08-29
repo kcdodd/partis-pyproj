@@ -10,6 +10,13 @@
   Control (Cc), surrogate (Cs), private use (Co), line/paragraph separator
   (Zl, Zp) and the permanently reserved noncharacters are still stripped;
   those sets are immutable under the Unicode stability policy.
+- Strip the explicit directional formatting characters (U+202A-U+202E,
+  U+2066-U+2069) and the byte order mark (U+FEFF) from meta-data. Keeping the
+  format characters (Cf) is what lets emoji and Indic text through, but the
+  directional embeddings, overrides and isolates re-order the display of the
+  text that follows them, so a rendered value could be made to disagree with
+  the source it was written from. The implicit directional marks (U+200E,
+  U+200F, U+061C) and the joiners (U+200C, U+200D) are unaffected.
 
 
 ## v0.3.1 - 2026-08-12

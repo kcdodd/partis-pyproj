@@ -17,7 +17,6 @@ import hashlib
 from base64 import urlsafe_b64encode
 from email.message import EmailMessage
 from email.policy import EmailPolicy
-from email.utils import parseaddr, formataddr
 from urllib.parse import urlparse
 
 from packaging.tags import sys_tags

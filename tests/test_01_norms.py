@@ -58,6 +58,7 @@ from partis.pyproj import (
 from partis.pyproj._nonprintable import (
   NONCHARACTERS,
   STRIP_CATEGORIES,
+  STRIP_FORMAT,
   nonprintable,
   _strip_char )
 
@@ -184,6 +185,12 @@ def test_nonprintable_unicode_version():
 
   assert stripped_unassigned == noncharacters
 
+  # the individually stripped format characters are all assigned, and so do
+  # not depend on the Unicode version either
+  assert {
+    unicodedata.category(chr(i))
+    for lo, hi in STRIP_FORMAT for i in range(lo, hi+1) } == {'Cf'}
+
 #===============================================================================
 def test_norm_printable():
   assert norm_printable(None) == ''
@@ -218,6 +225,18 @@ def test_norm_printable():
   assert norm_printable("a\u200cb") == "a\u200cb"
   assert norm_printable("\U0001f469\u200d\U0001f4bb") == "\U0001f469\u200d\U0001f4bb"
   assert norm_printable("f\ubaaar") == "f몪r"
+
+  # the explicit directional formatting characters are stripped, even though
+  # they are Cf: they re-order the display of the text that follows them, so
+  # a rendered value can be made to disagree with the source it was written
+  # from
+  assert norm_printable("a\u202ab\u202bc\u202cd\u202de\u202ef") == "abcdef"
+  assert norm_printable("a\u2066b\u2067c\u2068d\u2069e") == "abcde"
+
+  # a byte order mark is meaningful only as the first code point of a stream,
+  # and is not removed by str.strip
+  assert "\ufeffab\ufeff".strip() == "\ufeffab\ufeff"
+  assert norm_printable("\ufeffab\ufeff") == "ab"
 
 #===============================================================================
 def test_valid_dist_name():

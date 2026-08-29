@@ -47,8 +47,9 @@ class PEPValidationError( ValidationError ):
 def norm_printable(
   text = None ):
   r"""Removes leading and trailing whitespace, and all control, surrogate,
-  private use, noncharacter, and line/paragraph separator characters, except
-  for newlines '\\n' and tabs '\\t'.
+  private use, noncharacter, line/paragraph separator, explicit directional
+  formatting, and byte order mark characters, except for newlines '\\n' and
+  tabs '\\t'.
 
   Parameters
   ----------
@@ -64,11 +65,13 @@ def norm_printable(
   Package meta-data is serialized as UTF-8, so non-ASCII text is retained as-is.
   What is removed are the characters that are either not encodable, have no
   defined meaning, or would break the RFC 822 header format that the core
-  meta-data is based on. This is narrower than :meth:`str.isprintable`, which
-  also excludes format characters (Cf) and non-space separators (Zs) that
+  meta-data is based on, or that let the rendered value disagree with the source
+  it was written from. This is narrower than :meth:`str.isprintable`, which also
+  excludes non-space separators (Zs) and most format characters (Cf) that
   legitimate text depends on, and unassigned characters (Cn) that a later
   Unicode version may assign -- see
-  :data:`partis.pyproj._nonprintable.STRIP_CATEGORIES`.
+  :data:`partis.pyproj._nonprintable.STRIP_CATEGORIES` and
+  :data:`partis.pyproj._nonprintable.STRIP_FORMAT`.
 
   Example
   -------

@@ -12,6 +12,7 @@ KEEP = '\t\n'
 # format characters (Cf) and the non-space separators (Zs). Those are needed by
 # legitimate text: e.g. U+200D ZERO WIDTH JOINER in emoji sequences, U+200C
 # ZERO WIDTH NON-JOINER in Persian and Indic scripts, and U+00A0 NO-BREAK SPACE.
+# A few individual Cf characters are stripped even so, see :data:`STRIP_FORMAT`.
 # The categories kept here are the ones that are either un-encodable, un-typeable,
 # or hazardous in an RFC 822 header:
 # * Cc control characters (which are also header injection vectors)
@@ -38,6 +39,29 @@ NONCHARACTERS = [
   *[ (0x10000*plane + 0xFFFE, 0x10000*plane + 0xFFFF) for plane in range(17) ] ]
 
 #===============================================================================
+# Individual format characters (Cf) that are stripped even though the rest of
+# the category is kept. Unlike the joiners and marks that legitimate text needs,
+# these carry no content of their own:
+# * the explicit directional embeddings, overrides and isolates re-order the
+#   display of the text that follows them, so rendered meta-data can be made to
+#   disagree with the source it was written from -- the "Trojan source" spoof,
+#   CVE-2021-42574
+# * a byte order mark is meaningful only as the first code point of a stream,
+#   which a meta-data value is not, and ``str.strip`` does not remove it
+# These code points are immutable, as are the categories above.
+STRIP_FORMAT = [
+  # U+202A-U+202E explicit directional embeddings and overrides
+  (0x202A, 0x202E),
+  # U+2066-U+2069 explicit directional isolates
+  (0x2066, 0x2069),
+  # U+FEFF zero width no-break space, i.e. a byte order mark
+  (0xFEFF, 0xFEFF) ]
+
+#===============================================================================
+# Code points stripped individually, in addition to :data:`STRIP_CATEGORIES`.
+STRIP_CODES = [ *NONCHARACTERS, *STRIP_FORMAT ]
+
+#===============================================================================
 # Inclusive code point ranges matched by :data:`nonprintable`. Every range is
 # fixed by the Unicode stability policy, so this is written out rather than
 # generated from the ``unicodedata`` of whichever interpreter is running.
@@ -50,7 +74,7 @@ STRIP_RANGES = [
   (0xD800, 0xDFFF),
   # Co private use
   (0xE000, 0xF8FF), (0xF0000, 0xFFFFD), (0x100000, 0x10FFFD),
-  *NONCHARACTERS ]
+  *STRIP_CODES ]
 
 #===============================================================================
 def _strip_char(c):
@@ -63,7 +87,7 @@ def _strip_char(c):
     c not in KEEP
     and (
       unicodedata.category(c) in STRIP_CATEGORIES
-      or any( lo <= ord(c) <= hi for lo, hi in NONCHARACTERS ) ) )
+      or any( lo <= ord(c) <= hi for lo, hi in STRIP_CODES ) ) )
 
 #===============================================================================
 def _fmt(i):
