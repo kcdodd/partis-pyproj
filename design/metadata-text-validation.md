@@ -20,7 +20,7 @@ every character in the sets defined by `src/pyproj/_nonprintable.py`:
 | `STRIP_FORMAT` | U+202A–202E, U+2066–2069, U+FEFF |
 
 `\t` and `\n` are exempt (`KEEP`). Cn (unassigned) is deliberately not stripped; the
-reasoning is recorded in `_nonprintable.py` and in the v0.3.2 entry of `releases.md`.
+reasoning is recorded in `_nonprintable.py` and in the v0.4.0 entry of `releases.md`.
 
 Removal is silent. There is no diagnostic, and no record in the built artifact that
 anything was removed.

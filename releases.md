@@ -1,6 +1,6 @@
 # Releases
 
-## v0.3.2 - 2026-09-01
+## v0.4.0 - 2026-09-04
 
 - Fix unicode handling in PKG-INFO and METADATA
 - No longer strip unassigned (Cn) characters from meta-data. Which code points
